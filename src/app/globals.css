@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+:root {
+  /* Cor primária padrão; cada site sobrescreve via style inline no wrapper. */
+  --primary: #0ea5e9;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+}
+
+body {
+  @apply bg-white text-zinc-900 antialiased;
+}
