@@ -1,0 +1,24 @@
+{
+  "projects": [
+    {
+      "id": "doutorzinha",
+      "name": "Doutorzinha",
+      "description": "Projeto que estou tocando com o Claude.",
+      "repoPath": "",
+      "repoUrl": "",
+      "color": "#22c55e",
+      "createdAt": "2026-07-28T00:00:00-03:00",
+      "updatedAt": "2026-07-28T00:00:00-03:00"
+    },
+    {
+      "id": "projeto-2",
+      "name": "Projeto 2 (renomeie aqui)",
+      "description": "Seu segundo projeto — clique em 'editar projeto' para dar o nome certo.",
+      "repoPath": "",
+      "repoUrl": "",
+      "color": "#3b82f6",
+      "createdAt": "2026-07-28T00:00:00-03:00",
+      "updatedAt": "2026-07-28T00:00:00-03:00"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+# NUNCA versionar chaves/segredos — eles ficam só na sua máquina
+secrets.local.json
+data/**/secrets.local.json
+
+# temporários do servidor
+*.tmp
+data/**/*.tmp

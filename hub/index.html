@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hub de Projetos</title>
+<style>
+  :root{
+    --bg:#0f1115; --bg2:#161a21; --bg3:#1d222b; --line:#2a2f3a;
+    --txt:#e6e9ef; --muted:#8b93a3; --accent:#3b82f6; --accent2:#2563eb;
+    --danger:#ef4444; --ok:#22c55e; --warn:#f59e0b;
+    --radius:12px; --shadow:0 6px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;
+    background:var(--bg); color:var(--txt); font-size:14px;
+    display:flex; flex-direction:column; height:100vh; overflow:hidden;
+  }
+  button{font-family:inherit; cursor:pointer}
+  input,textarea,select{font-family:inherit}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#333a47;border-radius:8px}
+  ::-webkit-scrollbar-track{background:transparent}
+
+  /* Top bar */
+  header{
+    display:flex;align-items:center;gap:12px;padding:12px 18px;
+    background:var(--bg2);border-bottom:1px solid var(--line);flex:0 0 auto;
+  }
+  header .logo{font-weight:700;font-size:16px;letter-spacing:.3px}
+  header .logo span{color:var(--accent)}
+  .badge{
+    font-size:11px;color:var(--ok);border:1px solid #234;background:#0e1a12;
+    padding:3px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;
+  }
+  .badge::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok)}
+  header .save-state{margin-left:auto;font-size:12px;color:var(--muted);min-width:120px;text-align:right}
+
+  /* Layout */
+  .layout{display:flex;flex:1 1 auto;min-height:0}
+  aside{
+    width:250px;flex:0 0 250px;background:var(--bg2);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;min-height:0;
+  }
+  aside .side-head{padding:14px 14px 8px;font-size:12px;text-transform:uppercase;
+    letter-spacing:.8px;color:var(--muted)}
+  .proj-list{overflow-y:auto;flex:1 1 auto;padding:4px 8px}
+  .proj-item{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
+    margin-bottom:4px;color:var(--txt);border:1px solid transparent;user-select:none;
+  }
+  .proj-item:hover{background:var(--bg3)}
+  .proj-item.active{background:var(--bg3);border-color:var(--line)}
+  .proj-dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+  .proj-item .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .proj-item .cnt{margin-left:auto;font-size:11px;color:var(--muted)}
+  aside .side-foot{padding:10px;border-top:1px solid var(--line)}
+  .btn{
+    border:1px solid var(--line);background:var(--bg3);color:var(--txt);
+    padding:9px 12px;border-radius:10px;font-size:13px;display:inline-flex;
+    align-items:center;justify-content:center;gap:7px;
+  }
+  .btn:hover{border-color:#3a4150;background:#222834}
+  .btn.primary{background:var(--accent2);border-color:var(--accent2)}
+  .btn.primary:hover{background:var(--accent)}
+  .btn.danger{background:transparent;border-color:#4a2530;color:#f5a3ad}
+  .btn.danger:hover{background:#2a1519}
+  .btn.full{width:100%}
+  .btn.sm{padding:5px 9px;font-size:12px;border-radius:8px}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+  .btn.ghost:hover{background:var(--bg3);color:var(--txt)}
+
+  /* Main */
+  main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;min-height:0}
+  .empty{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    color:var(--muted);gap:14px;text-align:center;padding:30px;
+  }
+  .empty h2{color:var(--txt);margin:0}
+  .proj-head{padding:16px 22px 0;flex:0 0 auto}
+  .proj-title-row{display:flex;align-items:center;gap:12px}
+  .proj-title-row h1{font-size:20px;margin:0;display:flex;align-items:center;gap:10px}
+  .proj-title-row .meta{margin-left:auto;font-size:12px;color:var(--muted);text-align:right}
+  .proj-desc{color:var(--muted);margin:6px 0 0;font-size:13px}
+  .tabs{display:flex;gap:4px;padding:14px 22px 0;border-bottom:1px solid var(--line)}
+  .tab{
+    padding:9px 16px;border-radius:10px 10px 0 0;color:var(--muted);
+    border:1px solid transparent;border-bottom:none;background:transparent;font-size:13px;
+  }
+  .tab:hover{color:var(--txt)}
+  .tab.active{color:var(--txt);background:var(--bg2);border-color:var(--line)}
+  .panel{flex:1 1 auto;min-height:0;overflow:auto;padding:18px 22px}
+
+  /* Kanban */
+  .board{display:flex;gap:14px;align-items:flex-start;min-height:100%}
+  .column{
+    background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);
+    width:290px;flex:0 0 290px;display:flex;flex-direction:column;max-height:100%;
+  }
+  .col-head{display:flex;align-items:center;gap:8px;padding:12px 12px 8px}
+  .col-head .cdot{width:9px;height:9px;border-radius:50%}
+  .col-head .ctitle{font-weight:700;font-size:13px}
+  .col-head .ccount{font-size:11px;color:var(--muted);background:var(--bg3);
+    padding:1px 7px;border-radius:999px}
+  .col-head .add{margin-left:auto}
+  .cards{padding:4px 10px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:9px;min-height:24px}
+  .cards.drag-over{background:rgba(59,130,246,.07);border-radius:8px}
+  .card{
+    background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:11px 12px;
+    cursor:grab;position:relative;
+  }
+  .card:hover{border-color:#3a4150}
+  .card.dragging{opacity:.4}
+  .card .ttl{font-weight:600;line-height:1.35;white-space:pre-wrap;word-break:break-word}
+  .card .bd{color:var(--muted);font-size:12.5px;margin-top:5px;white-space:pre-wrap;word-break:break-word}
+  .card .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .tag{font-size:11px;background:#20283a;color:#9db6e6;padding:2px 8px;border-radius:999px}
+  .card .row{display:flex;align-items:center;gap:6px;margin-top:9px}
+  .card .row .btn{padding:3px 8px;font-size:11px}
+  .card a.link{color:#7fb0ff;font-size:12px;text-decoration:none}
+  .card a.link:hover{text-decoration:underline}
+
+  /* Keys */
+  .warn-banner{
+    background:#241a08;border:1px solid #4a3a12;color:#f0c674;border-radius:10px;
+    padding:11px 14px;font-size:12.5px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;
+  }
+  .key-item{
+    background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;
+  }
+  .key-item .krow{display:flex;align-items:center;gap:10px}
+  .key-item .klabel{font-weight:700}
+  .key-item .kval{
+    flex:1;font-family:'Consolas','SF Mono',monospace;background:var(--bg);border:1px solid var(--line);
+    border-radius:8px;padding:8px 10px;color:var(--txt);letter-spacing:.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .key-item .knotes{color:var(--muted);font-size:12.5px;margin-top:8px;white-space:pre-wrap}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+  /* Notes */
+  .notes-area{
+    width:100%;height:100%;min-height:340px;resize:none;background:var(--bg2);
+    border:1px solid var(--line);border-radius:12px;color:var(--txt);padding:16px;
+    font-size:14px;line-height:1.6;
+  }
+  .notes-area:focus{outline:none;border-color:var(--accent)}
+
+  /* Modal */
+  .overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
+    align-items:center;justify-content:center;z-index:50;padding:20px;
+  }
+  .overlay.show{display:flex}
+  .modal{
+    background:var(--bg2);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+    width:100%;max-width:520px;max-height:90vh;overflow:auto;
+  }
+  .modal h3{margin:0;padding:18px 20px;border-bottom:1px solid var(--line);font-size:16px}
+  .modal .body{padding:18px 20px;display:flex;flex-direction:column;gap:13px}
+  .modal .foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+  .field input,.field textarea,.field select{
+    width:100%;background:var(--bg);border:1px solid var(--line);border-radius:9px;
+    color:var(--txt);padding:9px 11px;font-size:13.5px;
+  }
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--accent)}
+  .field textarea{resize:vertical;min-height:80px;line-height:1.5}
+  .muted{color:var(--muted)}
+  .swatches{display:flex;gap:8px;flex-wrap:wrap}
+  .swatch{width:26px;height:26px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+  .swatch.sel{border-color:#fff}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Hub de <span>Projetos</span></div>
+  <div class="badge" title="Roda só na sua máquina. Nada na internet.">local &amp; seguro</div>
+  <div class="save-state" id="saveState"></div>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="side-head">Projetos</div>
+    <div class="proj-list" id="projList"></div>
+    <div class="side-foot">
+      <button class="btn primary full" id="btnNewProject">+ Novo projeto</button>
+    </div>
+  </aside>
+
+  <main id="main">
+    <div class="empty" id="emptyState">
+      <h2>Selecione um projeto</h2>
+      <p class="muted">Clique num projeto à esquerda, ou crie um novo.<br>
+      Aqui ficam suas chaves, o quadro de tarefas e as anotações — tudo local.</p>
+    </div>
+
+    <div id="projView" style="display:none;flex:1 1 auto;min-height:0;flex-direction:column">
+      <div class="proj-head">
+        <div class="proj-title-row">
+          <h1><span class="proj-dot" id="phDot"></span><span id="phName"></span></h1>
+          <div class="meta">
+            <div id="phUpdated"></div>
+            <button class="btn ghost sm" id="btnEditProject">editar projeto</button>
+          </div>
+        </div>
+        <p class="proj-desc" id="phDesc"></p>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-tab="board">Quadro</button>
+        <button class="tab" data-tab="keys">Chaves / APIs</button>
+        <button class="tab" data-tab="notes">Anotações</button>
+      </div>
+      <div class="panel" id="panelBoard"></div>
+      <div class="panel" id="panelKeys" style="display:none"></div>
+      <div class="panel" id="panelNotes" style="display:none"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal genérico -->
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+const API = "/api";
+const COLORS = ["#3b82f6","#22c55e","#ef4444","#f59e0b","#8b5cf6","#ec4899","#14b8a6","#eab308"];
+let state = { projects: [], current: null, board: null, activeTab: "board" };
+let saveTimers = {};
+
+/* ---------------- utilidades ---------------- */
+function el(html){ const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstChild; }
+function esc(s){ return (s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function uid(){ return "c"+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3); }
+function fmtDate(iso){
+  if(!iso) return "";
+  try{ const d=new Date(iso); return d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}); }
+  catch(e){ return iso; }
+}
+function setSave(txt,ok){ const s=document.getElementById("saveState"); s.textContent=txt; s.style.color= ok?"var(--ok)":"var(--muted)"; }
+
+async function api(path, opts){
+  const r = await fetch(API+path, Object.assign({headers:{"Content-Type":"application/json"}}, opts||{}));
+  if(!r.ok){ throw new Error((await r.json().catch(()=>({}))).error || r.statusText); }
+  return r.status===204 ? null : r.json();
+}
+function debounce(key, fn, ms){
+  clearTimeout(saveTimers[key]);
+  setSave("editando…", false);
+  saveTimers[key] = setTimeout(fn, ms||600);
+}
+
+/* ---------------- projetos (sidebar) ---------------- */
+async function loadProjects(selectId){
+  const data = await api("/projects");
+  state.projects = data.projects || [];
+  renderSidebar();
+  if(selectId){ selectProject(selectId); }
+  else if(state.current){
+    const still = state.projects.find(p=>p.id===state.current.id);
+    if(still) selectProject(still.id); else showEmpty();
+  }
+}
+
+function renderSidebar(){
+  const list = document.getElementById("projList");
+  list.innerHTML = "";
+  if(!state.projects.length){
+    list.appendChild(el(`<div class="muted" style="padding:14px;font-size:13px">Nenhum projeto ainda.<br>Crie o primeiro abaixo.</div>`));
+    return;
+  }
+  for(const p of state.projects){
+    const active = state.current && state.current.id===p.id;
+    const item = el(`<div class="proj-item ${active?"active":""}">
+      <span class="proj-dot" style="background:${esc(p.color||"#3b82f6")}"></span>
+      <span class="nm">${esc(p.name)}</span>
+    </div>`);
+    item.addEventListener("click", ()=>selectProject(p.id));
+    list.appendChild(item);
+  }
+}
+
+function showEmpty(){
+  state.current=null;
+  document.getElementById("emptyState").style.display="flex";
+  document.getElementById("projView").style.display="none";
+  renderSidebar();
+}
+
+async function selectProject(id){
+  const p = state.projects.find(x=>x.id===id);
+  if(!p) return showEmpty();
+  state.current = p;
+  document.getElementById("emptyState").style.display="none";
+  const pv=document.getElementById("projView"); pv.style.display="flex";
+  document.getElementById("phDot").style.background = p.color||"#3b82f6";
+  document.getElementById("phName").textContent = p.name;
+  document.getElementById("phDesc").textContent = p.description||"";
+  document.getElementById("phDesc").style.display = p.description ? "block":"none";
+  document.getElementById("phUpdated").textContent = p.updatedAt ? "atualizado "+fmtDate(p.updatedAt) : "";
+  renderSidebar();
+  switchTab(state.activeTab);
+}
+
+/* ---------------- abas ---------------- */
+function switchTab(tab){
+  state.activeTab = tab;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.dataset.tab===tab));
+  document.getElementById("panelBoard").style.display = tab==="board"?"block":"none";
+  document.getElementById("panelKeys").style.display  = tab==="keys" ?"block":"none";
+  document.getElementById("panelNotes").style.display = tab==="notes"?"block":"none";
+  if(tab==="board") renderBoard();
+  if(tab==="keys")  renderKeys();
+  if(tab==="notes") renderNotes();
+}
+document.querySelectorAll(".tab").forEach(t=> t.addEventListener("click", ()=>switchTab(t.dataset.tab)));
+
+/* ---------------- QUADRO (Kanban) ---------------- */
+async function renderBoard(){
+  const panel=document.getElementById("panelBoard");
+  panel.innerHTML = `<div class="muted">carregando…</div>`;
+  state.board = await api(`/projects/${state.current.id}/board`);
+  const board = el(`<div class="board"></div>`);
+  for(const col of state.board.columns){
+    const colEl = el(`<div class="column">
+      <div class="col-head">
+        <span class="cdot" style="background:${esc(col.color||"#3b82f6")}"></span>
+        <span class="ctitle">${esc(col.title)}</span>
+        <span class="ccount">${col.cards.length}</span>
+        <button class="btn ghost sm add" title="Adicionar cartão">+ novo</button>
+      </div>
+      <div class="cards" data-col="${esc(col.id)}"></div>
+    </div>`);
+    const cardsWrap = colEl.querySelector(".cards");
+    colEl.querySelector(".add").addEventListener("click", ()=>openCardModal(col.id,null));
+    for(const card of col.cards){ cardsWrap.appendChild(renderCard(card, col.id)); }
+    setupDropZone(cardsWrap, col.id);
+    board.appendChild(colEl);
+  }
+  panel.innerHTML=""; panel.appendChild(board);
+  setSave("tudo salvo", true);
+}
+
+function renderCard(card, colId){
+  const tags = (card.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join("");
+  const link = card.link ? `<a class="link" href="${esc(card.link)}" target="_blank" rel="noopener">🔗 abrir link</a>` : "";
+  const c = el(`<div class="card" draggable="true" data-id="${esc(card.id)}">
+    <div class="ttl">${esc(card.title)}</div>
+    ${card.body?`<div class="bd">${esc(card.body)}</div>`:""}
+    ${tags?`<div class="tags">${tags}</div>`:""}
+    <div class="row">
+      ${link}
+      <button class="btn ghost sm ed" style="margin-left:auto">editar</button>
+      <button class="btn ghost sm del" title="Excluir">🗑</button>
+    </div>
+  </div>`);
+  c.querySelector(".ed").addEventListener("click", e=>{ e.stopPropagation(); openCardModal(colId, card.id); });
+  c.querySelector(".del").addEventListener("click", e=>{ e.stopPropagation(); deleteCard(colId, card.id); });
+  c.addEventListener("dragstart", e=>{
+    c.classList.add("dragging");
+    e.dataTransfer.setData("text/plain", JSON.stringify({cardId:card.id, from:colId}));
+    e.dataTransfer.effectAllowed="move";
+  });
+  c.addEventListener("dragend", ()=>c.classList.remove("dragging"));
+  return c;
+}
+
+function setupDropZone(wrap, colId){
+  wrap.addEventListener("dragover", e=>{ e.preventDefault(); wrap.classList.add("drag-over"); e.dataTransfer.dropEffect="move"; });
+  wrap.addEventListener("dragleave", ()=> wrap.classList.remove("drag-over"));
+  wrap.addEventListener("drop", e=>{
+    e.preventDefault(); wrap.classList.remove("drag-over");
+    let d; try{ d=JSON.parse(e.dataTransfer.getData("text/plain")); }catch(_){ return; }
+    moveCard(d.cardId, d.from, colId, computeDropIndex(wrap, e.clientY));
+  });
+}
+function computeDropIndex(wrap, y){
+  const cards=[...wrap.querySelectorAll(".card:not(.dragging)")];
+  for(let i=0;i<cards.length;i++){
+    const r=cards[i].getBoundingClientRect();
+    if(y < r.top + r.height/2) return i;
+  }
+  return cards.length;
+}
+
+function findCol(id){ return state.board.columns.find(c=>c.id===id); }
+
+function moveCard(cardId, fromId, toId, index){
+  const from=findCol(fromId), to=findCol(toId);
+  if(!from||!to) return;
+  const i=from.cards.findIndex(c=>c.id===cardId);
+  if(i<0) return;
+  const [card]=from.cards.splice(i,1);
+  card.updatedAt=new Date().toISOString();
+  const insertAt = (typeof index==="number" && index>=0) ? index : to.cards.length;
+  to.cards.splice(insertAt,0,card);
+  saveBoard(); renderBoard();
+}
+
+function deleteCard(colId, cardId){
+  const col=findCol(colId); if(!col) return;
+  if(!confirm("Excluir este cartão?")) return;
+  col.cards = col.cards.filter(c=>c.id!==cardId);
+  saveBoard(); renderBoard();
+}
+
+async function saveBoard(){
+  setSave("salvando…", false);
+  await api(`/projects/${state.current.id}/board`, {method:"PUT", body:JSON.stringify(state.board)});
+  await refreshCurrentMeta();
+  setSave("tudo salvo", true);
+}
+
+/* modal de cartão */
+function openCardModal(colId, cardId){
+  let card = null;
+  if(cardId){ const col=findCol(colId); card=col.cards.find(c=>c.id===cardId); }
+  const isNew = !card;
+  card = card || {title:"",body:"",tags:[],link:""};
+  const colOptions = state.board.columns.map(c=>`<option value="${esc(c.id)}" ${c.id===colId?"selected":""}>${esc(c.title)}</option>`).join("");
+  openModal(`${isNew?"Novo cartão":"Editar cartão"}`, `
+    <div class="field"><label>Título</label><input id="f-title" value="${esc(card.title)}" placeholder="O que é isso?"></div>
+    <div class="field"><label>Descrição</label><textarea id="f-body" placeholder="Detalhes, contexto, link do erro…">${esc(card.body||"")}</textarea></div>
+    <div class="grid2">
+      <div class="field"><label>Coluna</label><select id="f-col">${colOptions}</select></div>
+      <div class="field"><label>Tags (separadas por vírgula)</label><input id="f-tags" value="${esc((card.tags||[]).join(", "))}" placeholder="bug, ideia"></div>
+    </div>
+    <div class="field"><label>Link (opcional)</label><input id="f-link" value="${esc(card.link||"")}" placeholder="https://…"></div>
+  `, [
+    isNew ? null : {label:"Excluir", cls:"danger", act:()=>{ closeModal(); deleteCard(colId, cardId); }},
+    {label:"Cancelar", cls:"", act:closeModal},
+    {label: isNew?"Criar":"Salvar", cls:"primary", act:()=>{
+      const title=document.getElementById("f-title").value.trim();
+      if(!title){ document.getElementById("f-title").focus(); return; }
+      const data={
+        title,
+        body:document.getElementById("f-body").value.trim(),
+        tags:document.getElementById("f-tags").value.split(",").map(s=>s.trim()).filter(Boolean),
+        link:document.getElementById("f-link").value.trim(),
+      };
+      const targetCol=document.getElementById("f-col").value;
+      if(isNew){
+        data.id=uid(); data.createdAt=new Date().toISOString(); data.updatedAt=data.createdAt;
+        findCol(targetCol).cards.push(data);
+      }else{
+        Object.assign(card, data); card.updatedAt=new Date().toISOString();
+        if(targetCol!==colId){
+          const from=findCol(colId); from.cards=from.cards.filter(c=>c.id!==cardId);
+          findCol(targetCol).cards.push(card);
+        }
+      }
+      closeModal(); saveBoard(); renderBoard();
+    }},
+  ]);
+  setTimeout(()=>document.getElementById("f-title").focus(),50);
+}
+
+/* ---------------- CHAVES / APIs ---------------- */
+async function renderKeys(){
+  const panel=document.getElementById("panelKeys");
+  panel.innerHTML=`<div class="muted">carregando…</div>`;
+  const data = await api(`/projects/${state.current.id}/secrets`);
+  const keys = data.keys||[];
+  const wrap=el(`<div></div>`);
+  wrap.appendChild(el(`<div class="warn-banner">🔒
+    <div>Estas chaves ficam <b>só nesta máquina</b>, num arquivo ignorado pelo git
+    (<code>secrets.local.json</code>). Nunca vão para o GitHub. Numa sessão nova, o Claude
+    não vê o valor real — só que a chave existe.</div></div>`));
+  const head=el(`<div style="display:flex;align-items:center;margin-bottom:12px">
+    <div style="font-weight:700">Chaves e credenciais</div>
+    <button class="btn primary sm" id="btnAddKey" style="margin-left:auto">+ Nova chave</button></div>`);
+  head.querySelector("#btnAddKey").addEventListener("click", ()=>openKeyModal(keys, null));
+  wrap.appendChild(head);
+
+  if(!keys.length){
+    wrap.appendChild(el(`<div class="muted" style="padding:10px">Nenhuma chave guardada ainda.</div>`));
+  }
+  keys.forEach((k, idx)=>{
+    const item=el(`<div class="key-item">
+      <div class="krow">
+        <span class="klabel">${esc(k.label||"(sem nome)")}</span>
+        <span class="muted" style="margin-left:auto;font-size:12px"></span>
+      </div>
+      <div class="krow" style="margin-top:8px">
+        <div class="kval" data-masked="1">••••••••••••••••</div>
+        <button class="btn sm show">mostrar</button>
+        <button class="btn sm copy">copiar</button>
+        <button class="btn ghost sm edit">editar</button>
+        <button class="btn ghost sm del">🗑</button>
+      </div>
+      ${k.notes?`<div class="knotes">${esc(k.notes)}</div>`:""}
+    </div>`);
+    const valEl=item.querySelector(".kval");
+    const showBtn=item.querySelector(".show");
+    showBtn.addEventListener("click", ()=>{
+      const masked=valEl.dataset.masked==="1";
+      valEl.textContent = masked ? (k.value||"") : "••••••••••••••••";
+      valEl.dataset.masked = masked ? "0":"1";
+      showBtn.textContent = masked ? "ocultar":"mostrar";
+    });
+    item.querySelector(".copy").addEventListener("click", async ()=>{
+      try{ await navigator.clipboard.writeText(k.value||""); const b=item.querySelector(".copy"); b.textContent="copiado!"; setTimeout(()=>b.textContent="copiar",1200); }catch(e){ alert("Não consegui copiar automaticamente."); }
+    });
+    item.querySelector(".edit").addEventListener("click", ()=>openKeyModal(keys, idx));
+    item.querySelector(".del").addEventListener("click", ()=>{
+      if(!confirm("Excluir esta chave?")) return;
+      keys.splice(idx,1); saveKeys(keys).then(renderKeys);
+    });
+    wrap.appendChild(item);
+  });
+  panel.innerHTML=""; panel.appendChild(wrap);
+  setSave("tudo salvo", true);
+}
+
+function openKeyModal(keys, idx){
+  const isNew = idx===null;
+  const k = isNew ? {label:"",value:"",notes:""} : keys[idx];
+  openModal(isNew?"Nova chave":"Editar chave", `
+    <div class="field"><label>Nome / rótulo</label><input id="k-label" value="${esc(k.label||"")}" placeholder="Ex.: OpenAI API Key"></div>
+    <div class="field"><label>Valor</label><textarea id="k-value" placeholder="cole a chave aqui">${esc(k.value||"")}</textarea></div>
+    <div class="field"><label>Observações (opcional)</label><textarea id="k-notes" placeholder="Onde é usada, limites, conta…">${esc(k.notes||"")}</textarea></div>
+  `, [
+    {label:"Cancelar", cls:"", act:closeModal},
+    {label:isNew?"Adicionar":"Salvar", cls:"primary", act:()=>{
+      const obj={
+        id: k.id||uid(),
+        label:document.getElementById("k-label").value.trim(),
+        value:document.getElementById("k-value").value.trim(),
+        notes:document.getElementById("k-notes").value.trim(),
+      };
+      if(!obj.label && !obj.value){ closeModal(); return; }
+      if(isNew) keys.push(obj); else keys[idx]=obj;
+      closeModal(); saveKeys(keys).then(renderKeys);
+    }},
+  ]);
+  setTimeout(()=>document.getElementById("k-label").focus(),50);
+}
+
+async function saveKeys(keys){
+  setSave("salvando…", false);
+  await api(`/projects/${state.current.id}/secrets`, {method:"PUT", body:JSON.stringify({keys})});
+  await refreshCurrentMeta();
+  setSave("tudo salvo", true);
+}
+
+/* ---------------- ANOTAÇÕES ---------------- */
+async function renderNotes(){
+  const panel=document.getElementById("panelNotes");
+  panel.innerHTML=`<div class="muted">carregando…</div>`;
+  const data = await api(`/projects/${state.current.id}/notes`);
+  panel.innerHTML="";
+  const ta = el(`<textarea class="notes-area" placeholder="Escreva livremente… ideias, links, lembretes. Salva sozinho."></textarea>`);
+  ta.value = data.content||"";
+  ta.addEventListener("input", ()=> debounce("notes", async ()=>{
+    setSave("salvando…", false);
+    await api(`/projects/${state.current.id}/notes`, {method:"PUT", body:JSON.stringify({content:ta.value})});
+    await refreshCurrentMeta();
+    setSave("tudo salvo", true);
+  }, 700));
+  panel.appendChild(ta);
+  setSave("tudo salvo", true);
+}
+
+async function refreshCurrentMeta(){
+  try{
+    const data = await api("/projects");
+    state.projects = data.projects||[];
+    const p = state.projects.find(x=>x.id===state.current.id);
+    if(p){ state.current=p; document.getElementById("phUpdated").textContent = "atualizado "+fmtDate(p.updatedAt); }
+  }catch(e){}
+}
+
+/* ---------------- projeto: criar / editar ---------------- */
+function openProjectModal(existing){
+  const isNew=!existing;
+  const p = existing || {name:"",description:"",repoPath:"",repoUrl:"",color:COLORS[0]};
+  const swatches = COLORS.map(c=>`<span class="swatch ${c===p.color?"sel":""}" data-c="${c}" style="background:${c}"></span>`).join("");
+  openModal(isNew?"Novo projeto":"Editar projeto", `
+    <div class="field"><label>Nome do projeto</label><input id="p-name" value="${esc(p.name)}" placeholder="Ex.: Doutorzinha"></div>
+    <div class="field"><label>Descrição</label><textarea id="p-desc" placeholder="Sobre o que é o projeto">${esc(p.description||"")}</textarea></div>
+    <div class="grid2">
+      <div class="field"><label>Pasta do código (no seu PC)</label><input id="p-path" value="${esc(p.repoPath||"")}" placeholder="C:\\Users\\...\\projeto"></div>
+      <div class="field"><label>Repositório (URL)</label><input id="p-url" value="${esc(p.repoUrl||"")}" placeholder="https://github.com/..."></div>
+    </div>
+    <div class="field"><label>Cor</label><div class="swatches" id="p-swatches">${swatches}</div></div>
+  `, [
+    isNew ? null : {label:"Excluir projeto", cls:"danger", act:()=>{ closeModal(); deleteProject(existing); }},
+    {label:"Cancelar", cls:"", act:closeModal},
+    {label:isNew?"Criar":"Salvar", cls:"primary", act:async ()=>{
+      const name=document.getElementById("p-name").value.trim();
+      if(!name){ document.getElementById("p-name").focus(); return; }
+      const body={
+        name, description:document.getElementById("p-desc").value.trim(),
+        repoPath:document.getElementById("p-path").value.trim(),
+        repoUrl:document.getElementById("p-url").value.trim(),
+        color:selectedColor,
+      };
+      closeModal(); setSave("salvando…",false);
+      if(isNew){ const np=await api("/projects",{method:"POST",body:JSON.stringify(body)}); await loadProjects(np.id); }
+      else{ await api(`/projects/${existing.id}`,{method:"PATCH",body:JSON.stringify(body)}); await loadProjects(existing.id); }
+      setSave("tudo salvo", true);
+    }},
+  ]);
+  selectedColor = p.color||COLORS[0];
+  document.querySelectorAll("#p-swatches .swatch").forEach(sw=>{
+    sw.addEventListener("click", ()=>{
+      selectedColor=sw.dataset.c;
+      document.querySelectorAll("#p-swatches .swatch").forEach(s=>s.classList.toggle("sel", s===sw));
+    });
+  });
+  setTimeout(()=>document.getElementById("p-name").focus(),50);
+}
+let selectedColor = COLORS[0];
+
+async function deleteProject(p){
+  if(!confirm(`Excluir o projeto "${p.name}"?\n\nIsso apaga o quadro, as anotações e as chaves locais dele. Não dá pra desfazer.`)) return;
+  await api(`/projects/${p.id}`, {method:"DELETE"});
+  if(state.current && state.current.id===p.id) state.current=null;
+  await loadProjects();
+  if(!state.current) showEmpty();
+}
+
+document.getElementById("btnNewProject").addEventListener("click", ()=>openProjectModal(null));
+document.getElementById("btnEditProject").addEventListener("click", ()=>openProjectModal(state.current));
+
+/* ---------------- modal genérico ---------------- */
+function openModal(title, bodyHtml, actions){
+  const modal=document.getElementById("modal");
+  modal.innerHTML = `<h3>${esc(title)}</h3><div class="body">${bodyHtml}</div><div class="foot"></div>`;
+  const foot=modal.querySelector(".foot");
+  (actions||[]).filter(Boolean).forEach(a=>{
+    const b=el(`<button class="btn ${a.cls||""}">${esc(a.label)}</button>`);
+    b.addEventListener("click", a.act);
+    foot.appendChild(b);
+  });
+  document.getElementById("overlay").classList.add("show");
+}
+function closeModal(){ document.getElementById("overlay").classList.remove("show"); }
+document.getElementById("overlay").addEventListener("click", e=>{ if(e.target.id==="overlay") closeModal(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeModal(); });
+
+/* ---------------- start ---------------- */
+loadProjects().then(()=>{
+  if(state.projects.length){ selectProject(state.projects[0].id); }
+}).catch(err=>{
+  document.getElementById("emptyState").innerHTML =
+    `<h2>Não consegui falar com o servidor</h2><p class="muted">${esc(err.message)}</p>`;
+});
+</script>
+</body>
+</html>

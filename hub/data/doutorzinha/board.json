@@ -1,0 +1,74 @@
+{
+  "columns": [
+    {
+      "id": "agora",
+      "title": "Agora",
+      "color": "#ef4444",
+      "cards": [
+        {
+          "id": "exemplo-agora",
+          "title": "O que precisa sair agora",
+          "body": "Arraste este cartão entre as colunas, edite ou apague. Use 'Agora' para o que é prioridade imediata.",
+          "tags": ["exemplo"],
+          "link": "",
+          "createdAt": "2026-07-28T00:00:00-03:00",
+          "updatedAt": "2026-07-28T00:00:00-03:00"
+        }
+      ]
+    },
+    {
+      "id": "depois",
+      "title": "Depois",
+      "color": "#f59e0b",
+      "cards": [
+        {
+          "id": "exemplo-depois",
+          "title": "Coisas pra ver mais pra frente",
+          "body": "Ideias e tarefas que não são pra agora, mas você não quer esquecer.",
+          "tags": [],
+          "link": "",
+          "createdAt": "2026-07-28T00:00:00-03:00",
+          "updatedAt": "2026-07-28T00:00:00-03:00"
+        }
+      ]
+    },
+    {
+      "id": "inspiracao",
+      "title": "Inspiracao",
+      "color": "#8b5cf6",
+      "cards": [
+        {
+          "id": "exemplo-insp",
+          "title": "Referências que quero seguir",
+          "body": "Cole aqui links e ideias em que quer se inspirar.",
+          "tags": ["ideia"],
+          "link": "",
+          "createdAt": "2026-07-28T00:00:00-03:00",
+          "updatedAt": "2026-07-28T00:00:00-03:00"
+        }
+      ]
+    },
+    {
+      "id": "erros",
+      "title": "Erros pra ver",
+      "color": "#ec4899",
+      "cards": [
+        {
+          "id": "exemplo-erro",
+          "title": "Bug / erro pra investigar depois",
+          "body": "Registre aqui erros que apareceram para não se perder. Dá pra colar o link/print no campo de link.",
+          "tags": ["bug"],
+          "link": "",
+          "createdAt": "2026-07-28T00:00:00-03:00",
+          "updatedAt": "2026-07-28T00:00:00-03:00"
+        }
+      ]
+    },
+    {
+      "id": "feito",
+      "title": "Feito",
+      "color": "#22c55e",
+      "cards": []
+    }
+  ]
+}
