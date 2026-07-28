@@ -1,0 +1,34 @@
+{
+  "columns": [
+    {
+      "id": "agora",
+      "title": "Agora",
+      "color": "#ef4444",
+      "cards": []
+    },
+    {
+      "id": "depois",
+      "title": "Depois",
+      "color": "#f59e0b",
+      "cards": []
+    },
+    {
+      "id": "inspiracao",
+      "title": "Inspiracao",
+      "color": "#8b5cf6",
+      "cards": []
+    },
+    {
+      "id": "erros",
+      "title": "Erros pra ver",
+      "color": "#ec4899",
+      "cards": []
+    },
+    {
+      "id": "feito",
+      "title": "Feito",
+      "color": "#22c55e",
+      "cards": []
+    }
+  ]
+}
