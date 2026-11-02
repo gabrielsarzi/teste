@@ -7,6 +7,9 @@ on:
       - ".github/workflows/limpapc-windows.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -33,5 +36,21 @@ jobs:
         with:
           name: LimpaPC-Windows
           path: |
+            limpador/dist/LimpaPC.exe
+            limpador/dist/LimpaPC-Setup.exe
+      - name: Publicar para download (GitHub Releases)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: limpapc-v1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: LimpaPC 1.0.${{ github.run_number }} (Windows)
+          make_latest: true
+          body: |
+            **Baixe um dos arquivos abaixo:**
+            - `LimpaPC-Setup.exe`: instalador (cria atalho no Menu Iniciar e na Área de Trabalho)
+            - `LimpaPC.exe`: versão portátil, não precisa instalar, é só abrir
+
+            Se o Windows mostrar "O Windows protegeu o computador", clique em **Mais informações → Executar assim mesmo** (o programa não tem assinatura digital paga).
+          files: |
             limpador/dist/LimpaPC.exe
             limpador/dist/LimpaPC-Setup.exe
