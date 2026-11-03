@@ -1,0 +1,9 @@
+{
+  "name": "batida-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Servidor online do Batida: salas, dono da sala, bots e busca.",
+  "scripts": { "start": "node index.js" },
+  "dependencies": { "ws": "8.18.0" }
+}

@@ -5,11 +5,13 @@ import { homeScreen } from './screens/home.js';
 import { classicScreen } from './screens/classic.js';
 import { careerScreen } from './screens/career.js';
 import { lookScreen } from './screens/look.js';
+import { onlineScreen } from './screens/online.js';
 
 registerScreen('home', homeScreen);
 registerScreen('classic', classicScreen);
 registerScreen('career', careerScreen);
 registerScreen('look', lookScreen);
+registerScreen('online', onlineScreen);
 
 function boot() {
   const app = document.getElementById('app');

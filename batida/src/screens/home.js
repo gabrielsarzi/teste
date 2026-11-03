@@ -71,6 +71,14 @@ export function homeScreen(stage) {
   );
 
   const play = h('button', { class: 'play-btn', onClick: () => quickSetup() }, h('span', {}, 'Jogar'), h('small', {}, 'Jogo rápido · 2, 3 ou 4 na mesa'));
+  const online = h(
+    'button',
+    { class: 'online-btn', onClick: () => go('online') },
+    h('span', { class: 'live-dot', 'aria-hidden': 'true' }),
+    h('span', { class: 'ob-t' }, 'Online'),
+    h('span', { class: 'ob-s' }, 'Salas, jogo rápido e campeonato'),
+    h('span', { class: 'mc-go', 'aria-hidden': 'true' }, '›'),
+  );
 
   const careerCard = h(
     'button',
@@ -94,7 +102,7 @@ export function homeScreen(stage) {
     h('button', { class: 'foot-btn', onClick: () => settingsModal() }, h('span', { html: ICONS.gear }), 'Ajustes'),
   );
 
-  stage.append(top, hero, fan, h('div', { class: 'home-actions' }, play, h('div', { class: 'tile-cards' }, careerCard, desafioCard), foot));
+  stage.append(top, hero, fan, h('div', { class: 'home-actions' }, play, online, h('div', { class: 'tile-cards' }, careerCard, desafioCard), foot));
   if (wallet() < 10) setTimeout(() => fiadoModal(), 500);
 }
 

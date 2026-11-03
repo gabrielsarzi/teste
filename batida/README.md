@@ -8,6 +8,12 @@ Dominó brasileiro de dupla (4 jogadores, 7 pedras, sem compra), para celular.
 - Opções: ajuda nas pedras, contagem da mesa, conversa na mesa (provocações e frases), ritmo.
 - IA: heurística com níveis e uma IA mestre (Monte Carlo) para os campeões.
 
+## Online
+- Tela Online com salas de jogo rápido e campeonato: criar, buscar (nome, dono ou código), sala privada por código, completar com bots, pronto, trocar de lugar, expulsar, excluir, dono que sai passa a sala para outro.
+- Sem servidor configurado, usa um servidor simulado dentro do jogo.
+- Servidor de verdade: `cd server && npm install && npm start` (porta 8787). No jogo, toque no nome do servidor no salão e coloque `ws://SEU_IP:8787`.
+- Protocolo e próximos passos em `server/PROTOCOLO.md`. Testes: `node tests/rooms.test.mjs`, `cd server && node test-client.mjs`.
+
 ## Android (APK)
 ```bash
 npm run build && npx cap sync android

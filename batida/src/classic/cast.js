@@ -70,9 +70,22 @@ export const CAST = {
   },
 };
 
+const DEFAULT_LINES = {
+  pass: ['Passo!', 'Passo.', 'Tô sem.'],
+  bucha: ['Bucha!', 'Lá vai bucha!'],
+  bater: ['Bati!', 'Batida!'],
+};
+
+// Jogador online (ou convidado) que não é do elenco: ganha um lugar no CAST com falas padrão.
+export function guest(id, name, skill = 0.6) {
+  if (!CAST[id]) CAST[id] = { name, skill, face: {}, lines: {} };
+  CAST[id].name = name;
+  return id;
+}
+
 export function line(id, kind) {
   const c = CAST[id];
-  const pool = (c && c.lines[kind]) || (kind === 'bronca' ? BRONCAS : ['...']);
+  const pool = (c && c.lines[kind]) || (kind === 'bronca' ? BRONCAS : DEFAULT_LINES[kind] || ['...']);
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
@@ -125,12 +138,23 @@ export const MESAS_VISUAL = [
   { id: 'feltro', name: 'Feltro verde', desc: 'Mesa de clube, pano novo.', price: 400 },
   { id: 'marmore', name: 'Mármore de padaria', desc: 'Fria, lisa e chique.', price: 900 },
   { id: 'toalha', name: 'Toalha xadrez', desc: 'Domingo na casa da vó.', price: 1500 },
+  { id: 'carvalho', name: 'Carvalho claro', desc: 'Madeira clara de mesa nova.', price: 300 },
+  { id: 'sinuca', name: 'Pano vinho', desc: 'Pano de mesa de sinuca, cor de vinho.', price: 600 },
+  { id: 'noite', name: 'Feltro azul-noite', desc: 'Pano azul-escuro de cassino.', price: 750 },
+  { id: 'concreto', name: 'Mesa da praça', desc: 'Concreto com tabuleiro pintado, igual da praça.', price: 1100 },
+  { id: 'azulejo', name: 'Azulejo português', desc: 'Azul e branco, de bar antigo.', price: 2000 },
 ];
 export const DOMINOS_VISUAL = [
   { id: 'osso', name: 'Osso clássico', desc: 'Pedra branca com pinta preta.', price: 0 },
   { id: 'colorido', name: 'Pintas coloridas', desc: 'Cada número com sua cor.', price: 250 },
   { id: 'preto', name: 'Pedra preta', desc: 'Preta com pinta branca.', price: 700 },
   { id: 'dourado', name: 'Dourado de campeão', desc: 'Só para quem ganhou o Brasileirão.', price: null },
+  { id: 'marfim', name: 'Marfim antigo', desc: 'Amarelado de tanto jogo.', price: 200 },
+  { id: 'madeira', name: 'Pedra de madeira', desc: 'Madeira lixada com pinta queimada.', price: 450 },
+  { id: 'azul', name: 'Azul royal', desc: 'Azul forte com pinta branca.', price: 600 },
+  { id: 'vermelho', name: 'Vermelho cereja', desc: 'Vermelha e brilhante.', price: 600 },
+  { id: 'jade', name: 'Verde jade', desc: 'Verde de pedra polida.', price: 1200 },
+  { id: 'acrilico', name: 'Acrílico', desc: 'Transparente, de jogo novo.', price: 1800 },
 ];
 
 // Parceiros que você pode contratar na carreira (pagando uma vez).

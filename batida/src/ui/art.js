@@ -125,11 +125,11 @@ function noise(g, w, h, amount, alpha) {
 }
 
 // Madeira de tampo envernizado: tábuas largas, veio longo e suave, sem riscos duros.
-function wood(w, h) {
+function wood(w, h, c1 = '#6a4026', c2 = '#55321d') {
   const [c, g] = canvas(w, h);
   const grad = g.createLinearGradient(0, 0, w, h);
-  grad.addColorStop(0, '#6a4026');
-  grad.addColorStop(1, '#55321d');
+  grad.addColorStop(0, c1);
+  grad.addColorStop(1, c2);
   g.fillStyle = grad;
   g.fillRect(0, 0, w, h);
   const boards = 3;
@@ -172,9 +172,9 @@ export function grainTexture() {
   return c.toDataURL('image/png');
 }
 
-function felt(w, h) {
+function felt(w, h, color = '#1f5a3a') {
   const [c, g] = canvas(w, h);
-  g.fillStyle = '#1f5a3a';
+  g.fillStyle = color;
   g.fillRect(0, 0, w, h);
   noise(g, w, h, 26, 0);
   return c.toDataURL('image/jpeg', 0.85);
@@ -217,7 +217,27 @@ function plastic(w, h) {
   return c.toDataURL('image/jpeg', 0.85);
 }
 
+function concrete(w, h) {
+  const [c, g] = canvas(w, h);
+  g.fillStyle = '#9b968c';
+  g.fillRect(0, 0, w, h);
+  noise(g, w, h, 34, 0);
+  // manchas
+  for (let i = 0; i < 40; i++) {
+    g.fillStyle = `rgba(${Math.random() < 0.5 ? '60,55,50' : '200,195,185'},${0.03 + Math.random() * 0.05})`;
+    g.beginPath();
+    g.arc(Math.random() * w, Math.random() * h, 10 + Math.random() * 40, 0, Math.PI * 2);
+    g.fill();
+  }
+  return c.toDataURL('image/jpeg', 0.85);
+}
+
 export function tableTexture(kind) {
+  if (kind === 'carvalho') return wood(384, 384, '#c79a63', '#b0844f');
+  if (kind === 'sinuca') return felt(256, 256, '#6e1f2a');
+  if (kind === 'noite') return felt(256, 256, '#1c2a4a');
+  if (kind === 'concreto') return concrete(384, 384);
+  if (kind === 'azulejo') return null;
   if (kind === 'feltro') return felt(256, 256);
   if (kind === 'marmore') return marble(512, 512);
   if (kind === 'plastico') return plastic(512, 512);

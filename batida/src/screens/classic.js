@@ -44,7 +44,7 @@ export function classicScreen(stage, params = {}) {
   const opps = params.opps || shuffled(QUICK_POOLS[settings.nivel] || QUICK_POOLS.medio).slice(0, nOpp);
   const partner = params.partner || 'rafa';
   const ids = n === 4 ? ['voce', opps[0], partner, opps[1]] : ['voce', ...opps];
-  const stake = mode === 'quick' ? params.stake ?? Math.min(settings.aposta, wallet()) : 0;
+  const stake = mode === 'quick' ? params.stake ?? Math.min(settings.aposta, wallet()) : mode === 'online' ? params.stake || 0 : 0;
   const rules = params.rules || {
     players: n,
     buchaVale2: settings.buchaVale2,
@@ -57,6 +57,7 @@ export function classicScreen(stage, params = {}) {
   const match = new ClassicMatch(rules, params.seed);
   const teamOf = (p) => match.teamOf(p);
   const nameOf = (p) => (p === 0 ? 'Você' : CAST[ids[p]].name);
+  const partnerName = n === 4 ? CAST[ids[2]].name : '';
   const teamName = (t) => (n === 4 ? (t === 0 ? 'Nós' : 'Eles') : t === 0 ? 'Você' : CAST[ids[t]].name.split(' ').pop());
   const isMate = (p) => n === 4 && p === 2;
   const opponents = () => [...Array(n).keys()].filter((q) => q !== 0 && !isMate(q));
@@ -718,7 +719,7 @@ export function classicScreen(stage, params = {}) {
   function openChat() {
     if (!settings.conversa) return;
     const list = h('div', { class: 'phrases' });
-    const groups = n === 4 ? [['opp', 'Pra eles'], ['partner', `Pro ${CAST[partner].name}`], ['all', 'Pra mesa']] : [['opp', 'Pros adversários'], ['all', 'Pra mesa']];
+    const groups = n === 4 ? [['opp', 'Pra eles'], ['partner', `Pro ${partnerName}`], ['all', 'Pra mesa']] : [['opp', 'Pros adversários'], ['all', 'Pra mesa']];
     for (const [to, label] of groups) {
       list.append(h('div', { class: 'ph-group' }, label));
       for (const ph of PLAYER_PHRASES.filter((x) => x.to === to)) {
