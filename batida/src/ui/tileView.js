@@ -2,6 +2,7 @@
 import { h } from './dom.js';
 import { burstAt } from './fx.js';
 import { sfx, haptic } from './audio.js';
+import { setLimit } from '../core/board.js';
 
 const PIPS = {
   0: [],
@@ -48,7 +49,10 @@ export class BoardView {
     this.targets = [];
     this.onPickSide = onPickSide;
     this.k = 1;
-    this.ro = new ResizeObserver(() => this.fit());
+    this.ro = new ResizeObserver(() => {
+      this.k = null;
+      this.fit(true);
+    });
     this.ro.observe(this.el);
   }
 
@@ -100,11 +104,22 @@ export class BoardView {
     this.fit(true);
   }
 
+  // Escolhe a largura das fileiras conforme o formato da área (em pé no celular).
+  prepareRound() {
+    const aw = this.el.clientWidth || 300;
+    const ah = this.el.clientHeight || 400;
+    const r = aw / ah;
+    setLimit(r > 1.3 ? 6.6 : r > 0.95 ? 4.6 : 3.6);
+    this.k = null;
+    this.tx = 0;
+    this.ty = 0;
+  }
+
+  // Zoom com folga: só muda a escala quando precisa, para a mesa não ficar "respirando".
   fit(instant = false) {
     const board = this.board;
     if (!board) return;
     const b = board.bounds();
-    // inclui os alvos na conta para não ficarem fora da tela
     for (const t of this.targets) {
       for (const hpos of [t.g.near, t.g.far]) {
         b.minX = Math.min(b.minX, hpos.x - 0.5);
@@ -113,17 +128,36 @@ export class BoardView {
         b.maxY = Math.max(b.maxY, hpos.y + 0.5);
       }
     }
-    const pad = 1.2;
+    // reserva espaço para a próxima pedra em cada ponta
+    const pad = 1.6;
     const w = (b.maxX - b.minX + pad * 2) * BASE;
     const hh = (b.maxY - b.minY + pad * 2) * BASE;
     const aw = this.el.clientWidth || 300;
     const ah = this.el.clientHeight || 300;
-    const k = Math.min(aw / w, ah / hh, 1.25);
+    const ideal = Math.min(aw / w, ah / hh, 1.05);
+    let k = this.k;
+    if (k == null || ideal < k || ideal > k * 1.25) k = ideal;
     const mx = ((b.minX + b.maxX) / 2) * BASE;
     const my = ((b.minY + b.maxY) / 2) * BASE;
+    let tx = -mx * k;
+    let ty = -my * k;
+    // mantém a posição se tudo ainda cabe com folga
+    if (this.k === k && this.tx != null) {
+      const inside = (ox, oy) =>
+        (b.minX - 0.6) * BASE * k + ox >= -aw / 2 && (b.maxX + 0.6) * BASE * k + ox <= aw / 2 &&
+        (b.minY - 0.6) * BASE * k + oy >= -ah / 2 && (b.maxY + 0.6) * BASE * k + oy <= ah / 2;
+      if (inside(this.tx, this.ty)) {
+        tx = this.tx;
+        ty = this.ty;
+      }
+    }
+    const changed = k !== this.k || tx !== this.tx || ty !== this.ty;
     this.k = k;
+    this.tx = tx;
+    this.ty = ty;
+    if (!changed && !instant) return;
     if (instant) this.layer.style.transition = 'none';
-    this.layer.style.transform = `translate(${-mx * k}px, ${-my * k}px) scale(${k})`;
+    this.layer.style.transform = `translate(${tx}px, ${ty}px) scale(${k})`;
     if (instant) {
       void this.layer.offsetWidth;
       this.layer.style.transition = '';

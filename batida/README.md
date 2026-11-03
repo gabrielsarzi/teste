@@ -1,14 +1,16 @@
 # Batida! — dominó de boteco
 
-Dois modos:
-- **Clássico**: dominó brasileiro de dupla (4 jogadores, 7 pedras, sem compra). Obrigado a jogar se tiver pedra, jogo fechado conta pontos na mão, batida de bucha vale 2 (opcional), 4 rodadas com um início de cada.
-- **Virada**: roguelike de combos. Monte correntes de até 5 pedras, junte parceiros, bebidas e simpatias e vire 8 botecos.
+Dominó brasileiro de dupla (4 jogadores, 7 pedras, sem compra), para celular.
+
+- **Jogo rápido**: escolha o nível dos adversários (fácil, médio, difícil) e as regras da casa.
+- **Carreira**: 6 campeonatos (quartas, semi e final), do boteco do bairro ao Brasileirão. Cada título libera mesas e dominós.
+- Regras: obrigado a jogar se tiver pedra; jogo fechado conta os pontos na mão; batida de bucha vale 2 e lá-e-lô vale 2 (as duas dão para desligar); 4 rodadas, um início de cada.
+- Opções: ajuda nas pedras, contagem da mesa, conversa na mesa (provocações e frases), ritmo.
+- IA: heurística com níveis e uma IA mestre (Monte Carlo) para os campeões.
 
 ## Rodar
 ```bash
 npm install
 npm run build      # gera dist/index.html (arquivo único) e dist/batida.html (artifact)
 ```
-Abra `dist/index.html` no navegador. Testes: `node tests/sim-classic.mjs`, `node tests/sim-virada.mjs`.
-
-Feito em JS puro (sem framework), pronto para empacotar com Capacitor (iOS/Android) ou Electron/Steam.
+Testes: `node tests/sim-classic.mjs`, `node tests/sim-skill.mjs`, `node tests/sim-master.mjs`, `node tests/sim-layout.mjs`, `node tests/shot.cjs` (Playwright).

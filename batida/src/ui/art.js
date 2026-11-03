@@ -103,15 +103,31 @@ export function boxIcon(size = 40) {
   </svg>`;
 }
 
-// Fundo de madeira gerado em canvas (veios + nós), exportado como data URL.
-export function woodTexture(w = 512, h = 512, base = [74, 44, 27]) {
+// Texturas das mesas geradas em canvas (sem arquivos de imagem).
+function canvas(w, h) {
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
-  const g = c.getContext('2d');
-  g.fillStyle = `rgb(${base.join(',')})`;
+  return [c, c.getContext('2d')];
+}
+
+function noise(g, w, h, amount, alpha) {
+  const img = g.getImageData(0, 0, w, h);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const n = (Math.random() - 0.5) * amount;
+    d[i] += n;
+    d[i + 1] += n;
+    d[i + 2] += n;
+    d[i + 3] = 255 * alpha + d[i + 3] * (1 - alpha);
+  }
+  g.putImageData(img, 0, 0);
+}
+
+function wood(w, h) {
+  const [c, g] = canvas(w, h);
+  g.fillStyle = 'rgb(74,44,27)';
   g.fillRect(0, 0, w, h);
-  // tábuas
   const plank = h / 4;
   for (let p = 0; p < 4; p++) {
     const tone = (Math.random() - 0.5) * 16;
@@ -123,10 +139,10 @@ export function woodTexture(w = 512, h = 512, base = [74, 44, 27]) {
       g.lineWidth = 0.6 + Math.random() * 1.6;
       g.beginPath();
       const amp = 1 + Math.random() * 3;
-      const f = 0.004 + Math.random() * 0.01;
+      const f = (Math.PI * 2 * (1 + Math.floor(Math.random() * 3))) / w;
       const ph = Math.random() * 10;
       for (let x = 0; x <= w; x += 8) {
-        const y = y0 + Math.sin(x * f + ph) * amp + Math.sin(x * f * 3.1 + ph) * amp * 0.3;
+        const y = y0 + Math.sin(x * f + ph) * amp + Math.sin(x * f * 3 + ph) * amp * 0.3;
         x === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
       }
       g.stroke();
@@ -135,4 +151,57 @@ export function woodTexture(w = 512, h = 512, base = [74, 44, 27]) {
     g.fillRect(0, p * plank, w, 1.5);
   }
   return c.toDataURL('image/jpeg', 0.82);
+}
+
+function felt(w, h) {
+  const [c, g] = canvas(w, h);
+  g.fillStyle = '#1f5a3a';
+  g.fillRect(0, 0, w, h);
+  noise(g, w, h, 26, 0);
+  return c.toDataURL('image/jpeg', 0.85);
+}
+
+function marble(w, h) {
+  const [c, g] = canvas(w, h);
+  g.fillStyle = '#e9e5dd';
+  g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 26; i++) {
+    g.strokeStyle = `rgba(${90 + Math.random() * 40},${90 + Math.random() * 30},${100 + Math.random() * 30},${0.08 + Math.random() * 0.2})`;
+    g.lineWidth = 0.5 + Math.random() * 2.5;
+    g.beginPath();
+    let x = Math.random() * w, y = -10;
+    g.moveTo(x, y);
+    while (y < h + 10) {
+      x += (Math.random() - 0.5) * 40;
+      y += 10 + Math.random() * 30;
+      g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+  noise(g, w, h, 10, 0);
+  return c.toDataURL('image/jpeg', 0.85);
+}
+
+function plastic(w, h) {
+  const [c, g] = canvas(w, h);
+  g.fillStyle = '#f2c230';
+  g.fillRect(0, 0, w, h);
+  noise(g, w, h, 12, 0);
+  // relevo de mesa de plástico: anéis concêntricos bem suaves
+  for (let r = 20; r < w; r += 22) {
+    g.strokeStyle = 'rgba(160,110,0,.10)';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(w / 2, h / 2, r, 0, Math.PI * 2);
+    g.stroke();
+  }
+  return c.toDataURL('image/jpeg', 0.85);
+}
+
+export function tableTexture(kind) {
+  if (kind === 'feltro') return felt(256, 256);
+  if (kind === 'marmore') return marble(512, 512);
+  if (kind === 'plastico') return plastic(512, 512);
+  if (kind === 'toalha') return null; // feita só com CSS
+  return wood(512, 512);
 }

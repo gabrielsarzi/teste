@@ -1,23 +1,19 @@
 import { initFx } from './ui/fx.js';
 import { unlockAudio } from './ui/audio.js';
-import { woodTexture } from './ui/art.js';
 import { applySettings, registerScreen, go } from './app.js';
 import { homeScreen } from './screens/home.js';
 import { classicScreen } from './screens/classic.js';
-import { viradaScreen } from './screens/virada.js';
+import { careerScreen } from './screens/career.js';
+import { lookScreen } from './screens/look.js';
 
 registerScreen('home', homeScreen);
 registerScreen('classic', classicScreen);
-registerScreen('virada', viradaScreen);
+registerScreen('career', careerScreen);
+registerScreen('look', lookScreen);
 
 function boot() {
-  applySettings();
   const app = document.getElementById('app');
-  try {
-    app.style.setProperty('--wood-img', `url(${woodTexture(512, 512)})`);
-  } catch {
-    /* sem canvas */
-  }
+  applySettings();
   initFx(app);
   const unlock = () => unlockAudio();
   addEventListener('pointerdown', unlock, { passive: true });

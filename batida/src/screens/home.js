@@ -1,13 +1,15 @@
-import { h, modal, store, fmt } from '../ui/dom.js';
+import { h, modal } from '../ui/dom.js';
 import { tileEl } from '../ui/tileView.js';
 import { makeTile } from '../core/tiles.js';
-import { settings, saveSettings, go } from '../app.js';
+import { settings, saveSettings, go, career, stats } from '../app.js';
+import { CAMPEONATOS } from '../classic/cast.js';
 import { sfx } from '../ui/audio.js';
 
 export const ICONS = {
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>',
   help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg>',
+  paint: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="8" height="16" rx="2"/><path d="M7 8.5v.01M7 15.5v.01"/><path d="M14 6h6v12h-6z"/><path d="M14 12h6"/></svg>',
   bag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
 };
 
@@ -17,12 +19,13 @@ export function iconBtn(name, label, onClick) {
 
 export function homeScreen(stage) {
   stage.classList.add('home');
-  const stats = store.get('stats', { classicWins: 0, classicPlayed: 0, viradaBest: 0, viradaWins: 0 });
-  const run = store.get('run', null);
+  const st = stats();
+  const car = career();
+  const camp = CAMPEONATOS[Math.min(car.level, CAMPEONATOS.length - 1)];
 
   const deco = h('div', { class: 'home-tiles', 'aria-hidden': 'true' });
   const spots = [
-    [6, 6, -96, -40, -18], [6, 3, -40, -46, 8], [3, 3, 8, -30, 90], [3, 1, 64, -50, 14], [5, 0, 104, -20, -12],
+    [6, 6, -96, -36, 0], [6, 3, -40, -46, 8], [3, 3, 8, -34, 0], [3, 1, 64, -50, 14], [5, 0, 104, -20, -12],
   ];
   spots.forEach(([a, b, x, y, r], i) => {
     const t = tileEl(makeTile(a, b), { top: a, bot: b, u: 30 });
@@ -31,39 +34,36 @@ export function homeScreen(stage) {
     deco.append(t);
   });
 
-  const artClassic = h('div', { class: 'mc-art' });
-  const t1 = tileEl(makeTile(6, 6), { u: 24 });
-  t1.style.cssText += 'left:2px;top:4px;transform:rotate(-8deg)';
-  const t2 = tileEl(makeTile(1, 6), { top: 6, bot: 1, u: 24 });
-  t2.style.cssText += 'left:24px;top:10px;transform:rotate(10deg)';
-  artClassic.append(t1, t2);
+  const art = (pairs) => {
+    const wrap = h('div', { class: 'mc-art' });
+    pairs.forEach(([a, b, x, y, r]) => {
+      const t = tileEl(makeTile(a, b), { top: a, bot: b, u: 24 });
+      t.style.cssText += `left:${x}px;top:${y}px;transform:rotate(${r}deg)`;
+      wrap.append(t);
+    });
+    return wrap;
+  };
 
-  const artVirada = h('div', { class: 'mc-art' });
-  const v1 = tileEl(makeTile(5, 5, { mod: 'ouro' }), { u: 24 });
-  v1.style.cssText += 'left:2px;top:6px;transform:rotate(-10deg)';
-  const v2 = tileEl(makeTile(2, 4, { mod: 'brasa' }), { top: 4, bot: 2, u: 24 });
-  v2.style.cssText += 'left:24px;top:2px;transform:rotate(12deg)';
-  artVirada.append(v1, v2);
-
+  const done = car.level >= CAMPEONATOS.length;
   const cards = h(
     'div',
     { class: 'mode-cards' },
     h(
       'button',
-      { class: 'mode-card', onClick: () => classicSetup() },
-      artClassic,
-      h('div', {}, h('div', { class: 'mc-title' }, 'Clássico'), h('div', { class: 'mc-sub' }, 'Dominó de dupla, do jeito do bar. Você e seu parceiro contra a mesa.')),
+      { class: 'mode-card', onClick: () => quickSetup() },
+      art([[6, 6, 2, 4, -8], [1, 6, 24, 10, 10]]),
+      h('div', {}, h('div', { class: 'mc-title' }, 'Jogo rápido'), h('div', { class: 'mc-sub' }, 'Uma partida de dupla, do jeito do bar.')),
       h('span', { class: 'mc-go', 'aria-hidden': 'true' }, '›'),
     ),
     h(
       'button',
-      { class: 'mode-card virada', onClick: () => go('virada', { resume: !!run }) },
-      artVirada,
+      { class: 'mode-card career', onClick: () => go('career') },
+      art([[5, 5, 2, 6, -10], [2, 4, 24, 2, 12]]),
       h(
         'div',
         {},
-        h('div', { class: 'mc-title' }, 'Virada'),
-        h('div', { class: 'mc-sub' }, run ? `Continuar: Boteco ${run.ante} de 8, $${run.money}` : 'Monte correntes, junte parceiros e vire 8 botecos de ponta-cabeça.'),
+        h('div', { class: 'mc-title' }, 'Carreira'),
+        h('div', { class: 'mc-sub' }, done ? 'Campeão do Brasileirão! Jogue de novo os campeonatos.' : `${car.level + 1}º de ${CAMPEONATOS.length}: ${camp.short}`),
       ),
       h('span', { class: 'mc-go', 'aria-hidden': 'true' }, '›'),
     ),
@@ -75,10 +75,16 @@ export function homeScreen(stage) {
     h(
       'div',
       { style: { display: 'flex', gap: '14px', flexWrap: 'wrap' } },
-      h('span', { class: 'chip-stat' }, 'Vitórias ', h('b', {}, String(stats.classicWins))),
-      h('span', { class: 'chip-stat' }, 'Recorde Virada ', h('b', {}, fmt(stats.viradaBest || 0))),
+      h('span', { class: 'chip-stat' }, 'Vitórias ', h('b', {}, String(st.quickWins))),
+      h('span', { class: 'chip-stat' }, 'Títulos ', h('b', {}, String(car.titles.length))),
     ),
-    h('div', { style: { display: 'flex', gap: '8px' } }, iconBtn('help', 'Como jogar', () => rulesModal()), iconBtn('gear', 'Configurações', () => settingsModal())),
+    h(
+      'div',
+      { style: { display: 'flex', gap: '8px' } },
+      iconBtn('paint', 'Mesas e dominós', () => go('look')),
+      iconBtn('help', 'Como jogar', () => rulesModal()),
+      iconBtn('gear', 'Configurações', () => settingsModal()),
+    ),
   );
 
   stage.append(
@@ -127,11 +133,14 @@ export function settingsModal() {
   modal([
     h('h2', {}, 'Configurações'),
     sw('set-sound', 'Som e vibração', null, 'sound'),
+    sw('set-ajuda', 'Ajuda nas pedras', 'Destaca as pedras da sua mão que encaixam', 'ajuda'),
+    sw('set-contagem', 'Contagem da mesa', 'Mostra quantas pedras de cada número já saíram e onde cada um passou', 'contagem'),
+    sw('set-conversa', 'Conversa na mesa', 'Provocações, comentários e o botão de frases', 'conversa'),
     h(
       'div',
       { class: 'toggle-row' },
-      h('div', {}, h('div', { class: 't' }, 'Velocidade dos outros'), h('div', { class: 'd' }, 'Quanto tempo a mesa leva para jogar')),
-      seg([['normal', 'Normal'], ['rapido', 'Rápida']], settings.speed, (v) => {
+      h('div', {}, h('div', { class: 't' }, 'Ritmo da mesa'), h('div', { class: 'd' }, 'Quanto tempo os outros levam para jogar')),
+      seg([['lento', 'Calmo'], ['normal', 'Normal'], ['rapido', 'Rápido']], settings.speed, (v) => {
         settings.speed = v;
         saveSettings();
       }),
@@ -140,10 +149,19 @@ export function settingsModal() {
   ]);
 }
 
-function classicSetup() {
+function quickSetup() {
   const m = modal([
-    h('h2', {}, 'Mesa clássica'),
-    h('p', {}, 'Você joga com o parceiro de cima contra a dupla dos lados. 7 pedras para cada um, sem compra. Quem tem jogo, joga.'),
+    h('h2', {}, 'Jogo rápido'),
+    h('p', {}, 'Você e o Rafa contra a dupla dos lados. 7 pedras para cada um, sem compra. Quem tem jogo, joga.'),
+    h(
+      'div',
+      { class: 'toggle-row' },
+      h('div', {}, h('div', { class: 't' }, 'Adversários')),
+      seg([['facil', 'Fácil'], ['medio', 'Médio'], ['dificil', 'Difícil']], settings.nivel, (v) => {
+        settings.nivel = v;
+        saveSettings();
+      }),
+    ),
     h(
       'div',
       { class: 'toggle-row' },
@@ -155,7 +173,7 @@ function classicSetup() {
       }),
     ),
     sw('r-bucha', 'Batida de bucha vale 2', 'Bater com uma bucha conta dois pontos', 'buchaVale2'),
-    sw('r-laelo', 'Lá-e-lô vale 2', 'Bater com pedra que serve nas duas pontas', 'laeloVale2'),
+    sw('r-laelo', 'Lá-e-lô vale 2', 'Bater com pedra que entra nos dois lados', 'laeloVale2'),
     sw('r-sena', 'Começa com a sena', 'Na 1ª rodada, quem tem a bucha de sena sai com ela', 'comecaSena'),
     h(
       'div',
@@ -166,35 +184,17 @@ function classicSetup() {
   ]);
 }
 
-export function rulesModal(tab = 'classico') {
-  const body = h('div');
-  const render = (t) => {
-    body.innerHTML = '';
-    if (t === 'classico') {
-      body.append(
-        h('h3', {}, 'A mesa'),
-        h('ul', {}, h('li', {}, 'Duas duplas: você e o parceiro de cima contra os dois dos lados.'), h('li', {}, 'Cada um recebe 7 pedras. A vez anda para a direita.'), h('li', {}, 'Encaixe uma pedra numa das duas pontas com o mesmo número.')),
-        h('h3', {}, 'Regras da casa'),
-        h('ul', {}, h('li', {}, 'Quem tem pedra que encaixa é obrigado a jogar. Só passa quem não tem jogo.'), h('li', {}, 'Bater (acabar as pedras) vale 1 ponto. Bater com bucha vale 2 (dá para desligar).'), h('li', {}, 'Dá para fechar o jogo de propósito: quando ninguém mais consegue jogar, vence a dupla com menos pontos na mão.'), h('li', {}, 'São 4 rodadas e cada jogador começa uma. Na primeira, sai a bucha de sena.')),
-      );
-    } else {
-      body.append(
-        h('h3', {}, 'O objetivo'),
-        h('p', {}, 'Faça os pontos da meta de cada mesa antes de acabarem suas jogadas. São 3 mesas por boteco e 8 botecos. A terceira mesa é do dono, que muda as regras.'),
-        h('h3', {}, 'Como jogar'),
-        h('ul', {}, h('li', {}, 'Toque nas pedras da mão para encaixar até 5 numa jogada. Depois toque em Jogar.'), h('li', {}, 'A mesa continua de uma jogada para outra. Pense nas pontas que vai deixar.'), h('li', {}, 'Trocar descarta pedras marcadas e compra outras.')),
-        h('h3', {}, 'Pontos'),
-        h('ul', {}, h('li', {}, 'Pontos = base do jogo + soma das pedras. O total é Pontos × Mult.'), h('li', {}, 'Jogos: Encaixe, Parelha, Corrente, Buchada, Trem, Naipe, Expresso e Naipe Real.'), h('li', {}, 'Lá e Lô: se as duas pontas ficarem iguais depois da jogada, ×1,5 Mult.')),
-        h('h3', {}, 'No balcão'),
-        h('ul', {}, h('li', {}, 'Parceiros dão bônus permanentes. Cabem 5.'), h('li', {}, 'Bebidas sobem o nível de um jogo. Simpatias benzem pedras do seu saco.'), h('li', {}, 'Juros: $1 a cada $5 guardados, até $5 por mesa.')),
-      );
-    }
-  };
-  const tabs = h(
-    'div',
-    { class: 'rules-tabs' },
-    seg([['classico', 'Clássico'], ['virada', 'Virada']], tab, (v) => render(v)),
-  );
-  render(tab);
-  modal([h('h2', {}, 'Como jogar'), tabs, body, h('div', { class: 'actions' }, h('button', { class: 'btn amber', onClick: (e) => e.target.closest('.modal-back').click() }, 'Entendi'))]);
+export function rulesModal() {
+  modal([
+    h('h2', {}, 'Como jogar'),
+    h('h3', {}, 'A mesa'),
+    h('ul', {}, h('li', {}, 'Duas duplas: você e o parceiro de cima contra os dois dos lados.'), h('li', {}, 'Cada um recebe 7 pedras. A vez anda para a direita.'), h('li', {}, 'Encaixe uma pedra numa das duas pontas com o mesmo número.')),
+    h('h3', {}, 'Regras da casa'),
+    h('ul', {}, h('li', {}, 'Quem tem pedra que encaixa é obrigado a jogar. Só passa quem não tem jogo.'), h('li', {}, 'Bater (acabar as pedras) vale 1 ponto. Bater com bucha vale 2, e bater com pedra que entra nos dois lados (lá-e-lô) também vale 2. Dá para desligar as duas.'), h('li', {}, 'Dá para fechar o jogo de propósito: quando ninguém mais consegue jogar, vence a dupla com menos pontos na mão.'), h('li', {}, 'São 4 rodadas e cada jogador começa uma. Na primeira, sai a bucha de sena.')),
+    h('h3', {}, 'Contagem'),
+    h('p', {}, 'Ligue em Configurações. Cada número mostra quantas pedras dele já estão na mesa (de 7) e quantas ainda estão com os outros. Embaixo do nome de cada jogador aparece em que números ele já passou.'),
+    h('h3', {}, 'Carreira'),
+    h('ul', {}, h('li', {}, 'Seis campeonatos, do boteco do bairro até o Brasileirão.'), h('li', {}, 'Cada um tem quartas, semi e final. Perdeu, recomeça o campeonato.'), h('li', {}, 'Cada título libera mesas e dominós novos.')),
+    h('div', { class: 'actions' }, h('button', { class: 'btn amber', onClick: (e) => e.target.closest('.modal-back').click() }, 'Entendi')),
+  ]);
 }

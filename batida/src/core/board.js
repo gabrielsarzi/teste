@@ -2,7 +2,8 @@
 // Coordenadas em unidades: meia-pedra = 1 x 1. Uma pedra = 2 x 1.
 import { isDouble } from './tiles.js';
 
-const LIMIT = 6.6; // meia-largura máxima de uma fileira antes de dobrar
+export let LIMIT = 6.6; // meia-largura máxima de uma fileira antes de dobrar
+export const setLimit = (v) => (LIMIT = v);
 
 export const isWild = (t) => t.mod === 'coringa';
 
@@ -127,7 +128,15 @@ function placeOnArm(arm, tile, nearVal, farVal) {
   const t = arm.ty;
   const c = { x: arm.cx, y: arm.cy };
   let near, far;
-  if (arm.mode === 'hook') {
+  if (arm.mode === 'hook' && isDouble(tile)) {
+    // bucha na curva: fica em pé, atravessada, e a nova fileira sai do lado dela
+    near = { x: c.x + d * 0.5, y: c.y + t * 2 };
+    far = { x: near.x, y: c.y + t * 3 };
+    arm.cx = c.x;
+    arm.cy = c.y + t * 2.5;
+    arm.dx = -d;
+    arm.mode = 'row';
+  } else if (arm.mode === 'hook') {
     near = { x: c.x + d * 0.5, y: c.y + t * 2 };
     far = { x: near.x - d, y: near.y };
     arm.cx = near.x - d * 1.5;
