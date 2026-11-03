@@ -6,7 +6,8 @@ import { CAST, line } from '../classic/cast.js';
 import { say, PLAYER_PHRASES, reactTo } from '../classic/talk.js';
 import { sfx, haptic } from '../ui/audio.js';
 import { confetti, chalkDust, shake, pop } from '../ui/fx.js';
-import { settings, go, stats, saveStats, wallet, setWallet, money, rivals, addRival } from '../app.js';
+import { settings, go, stats, saveStats, wallet, setWallet, money, rivals, addRival, nextStation } from '../app.js';
+import { STATIONS } from '../ui/music.js';
 import { iconBtn, rulesModal } from './home.js';
 import { isDouble, pipSum, BUCHA_NAMES } from '../core/tiles.js';
 import { track } from '../progress.js';
@@ -124,9 +125,24 @@ export function classicScreen(stage, params = {}) {
     openChat();
   });
   if (!settings.conversa) chatBtn.hidden = true;
+  const radioName = () => (settings.musica ? STATIONS.find((s) => s.id === settings.radio)?.name || 'Rádio' : 'Desligado');
+  const radioLbl = h('span', { class: 'radio-lbl' }, radioName());
+  const radioBtn = h(
+    'button',
+    { class: 'radio-btn', 'aria-label': 'Rádio: trocar a música', title: 'Trocar a música' },
+    h('span', { class: 'radio-ico', html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M5 8l11-4"/><rect x="3" y="8" width="18" height="12" rx="2.5"/><circle cx="15.5" cy="14" r="3"/><path d="M6.5 12h4M6.5 15h4M6.5 18h4" stroke-linecap="round"/></svg>' }),
+    radioLbl,
+  );
+  radioBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    nextStation();
+    radioLbl.textContent = radioName();
+    radioBtn.classList.toggle('off', !settings.musica);
+  });
+  if (!settings.musica) radioBtn.classList.add('off');
   const drawBtn = h('button', { class: 'btn amber small draw-btn', hidden: true }, 'Comprar');
   drawBtn.addEventListener('click', () => drawWait && drawWait());
-  const meBar = h('div', { class: 'me-bar' }, h('div', { class: 'me-left' }, myWho, chatBtn, timerBar), drawBtn, hint);
+  const meBar = h('div', { class: 'me-bar' }, h('div', { class: 'me-left' }, myWho, chatBtn, radioBtn, timerBar), drawBtn, hint);
   if (settings.telaLimpa) stage.classList.add('clean');
   const countStrip = h('div', { class: 'count-strip', 'aria-label': 'Contagem da mesa' });
   if (!settings.contagem) countStrip.hidden = true;

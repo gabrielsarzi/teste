@@ -1026,3 +1026,12 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 .lousa-logo { font: 400 22px/1 var(--f-display); color: var(--bone); letter-spacing: -0.01em; transform: rotate(-4deg); text-shadow: 0 2px 0 rgba(0,0,0,.35); white-space: nowrap; }
 .lousa-logo span { color: var(--amber); }
 .lousa.teams-3 .lousa-logo { font-size: 17px; }
+
+/* rádio da mesa */
+.radio-btn { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px 0 7px; border-radius: 10px; border: 0; background: rgba(20,14,11,.6); box-shadow: inset 0 0 0 1.5px rgba(242,169,59,.45); color: var(--amber-hi); max-width: 116px; }
+.radio-btn .radio-ico svg { width: 18px; height: 18px; display: block; }
+.radio-lbl { font: 800 11px/1 var(--f-body); letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.radio-btn.off { color: var(--muted); box-shadow: inset 0 0 0 1.5px var(--line); }
+.radio-btn:not(.off) .radio-ico { animation: radioPulse 1.6s ease-in-out infinite; }
+@keyframes radioPulse { 50% { transform: scale(1.12) rotate(-3deg); } }
+.me-left { flex-wrap: nowrap; min-width: 0; }

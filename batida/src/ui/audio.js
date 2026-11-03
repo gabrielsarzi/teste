@@ -239,7 +239,7 @@ export function setAmbient(on) {
     src.loop = true;
     const gain = ctx.createGain();
     gain.gain.value = 0;
-    gain.gain.setTargetAtTime(0.32, ctx.currentTime, 1.5);
+    gain.gain.setTargetAtTime(0.14, ctx.currentTime, 1.5);
     src.connect(gain).connect(master);
     src.start();
     me.src = src;
@@ -252,13 +252,13 @@ export function setAmbient(on) {
         const r = Math.random();
         if (r < 0.45) {
           const base = 2600 + Math.random() * 1400;
-          tone(base, 0.45, { type: 'sine', vol: 0.03 });
-          tone(base * 2.76, 0.3, { type: 'sine', vol: 0.012, delay: 0.005 });
+          tone(base, 0.45, { type: 'sine', vol: 0.02 });
+          tone(base * 2.76, 0.3, { type: 'sine', vol: 0.008, delay: 0.005 });
         } else if (r < 0.85) {
           const n = 1 + Math.floor(Math.random() * 2);
           for (let i = 0; i < n; i++) {
-            burst(0.04, 2200, 1.4, 0.08, i * 0.22);
-            tone(160, 0.06, { vol: 0.07, delay: i * 0.22, slide: 0.6 });
+            burst(0.04, 2200, 1.4, 0.05, i * 0.22);
+            tone(160, 0.06, { vol: 0.045, delay: i * 0.22, slide: 0.6 });
           }
         }
       }

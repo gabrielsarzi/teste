@@ -1,7 +1,7 @@
 // Estado global do app: configurações, visual escolhido, carreira e navegação.
 import { h, store, setSpeed } from './ui/dom.js';
 import { setSound, setAmbient, sfx } from './ui/audio.js';
-import { startMusic, stopMusic } from './ui/music.js';
+import { startMusic, stopMusic, STATIONS } from './ui/music.js';
 import { tableTexture, grainTexture } from './ui/art.js';
 
 export const settings = Object.assign(
@@ -14,7 +14,8 @@ export const settings = Object.assign(
     telaLimpa: false, // esconde os textos de ajuda da mesa
     tempo: 30, // segundos para jogar (0 = sem limite)
     somBar: true, // sons do bar ao fundo (copos e pedras)
-    musica: true, // modão de viola ao fundo
+    musica: true, // rádio ligado
+    radio: 'viola', // estação do rádio
     jogadores: 4, // jogo rápido: 2, 3 ou 4
     aposta: 20,
     pedras: 'normal', // normal | grande
@@ -152,10 +153,24 @@ const screens = {};
 let current = null;
 let currentName = 'home';
 
+// Rádio: passa para a próxima estação; depois da última, desliga; depois liga de novo.
+export function nextStation() {
+  if (!settings.musica) {
+    settings.musica = true;
+    settings.radio = STATIONS[0].id;
+  } else {
+    const i = STATIONS.findIndex((s) => s.id === settings.radio);
+    if (i === STATIONS.length - 1) settings.musica = false;
+    else settings.radio = STATIONS[i + 1].id;
+  }
+  saveSettings();
+  return settings.musica ? STATIONS.find((s) => s.id === settings.radio).name : null;
+}
+
 // Música: nos menus no volume normal, durante a partida bem baixinha
 export function updateMusic() {
   if (!settings.sound || !settings.musica) return stopMusic();
-  startMusic(currentName === 'classic' ? 0.45 : 1);
+  startMusic(currentName === 'classic' ? 0.55 : 1, settings.radio);
 }
 export const registerScreen = (name, fn) => (screens[name] = fn);
 
