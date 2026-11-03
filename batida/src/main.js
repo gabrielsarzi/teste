@@ -1,5 +1,5 @@
 import { initFx } from './ui/fx.js';
-import { unlockAudio, setAmbient } from './ui/audio.js';
+import { unlockAudio, setAmbient, sfx, haptic } from './ui/audio.js';
 import { applySettings, registerScreen, go, settings } from './app.js';
 import { homeScreen } from './screens/home.js';
 import { classicScreen } from './screens/classic.js';
@@ -22,6 +22,20 @@ function boot() {
     setAmbient(settings.sound && settings.somBar);
   };
   addEventListener('pointerdown', unlock, { passive: true });
+  // som em todo botão do menu (a mão e a mesa têm os sons próprios)
+  addEventListener(
+    'click',
+    (e) => {
+      const b = e.target.closest('button');
+      if (!b || b.disabled || b.closest('.hand, .seg, .switch, .board')) return;
+      const label = b.getAttribute('aria-label') || '';
+      if (/^(Voltar|Sair da mesa|Campeonatos)/.test(label)) sfx.uiBack();
+      else if (b.matches('.play-btn, .online-btn, .btn.amber, .btn.chili, .btn.blue')) sfx.uiPrimary();
+      else sfx.uiTap();
+      haptic(6);
+    },
+    true,
+  );
   addEventListener('keydown', unlock);
   go('home');
 }

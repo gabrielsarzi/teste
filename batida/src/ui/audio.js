@@ -83,6 +83,28 @@ export const sfx = {
     burst(0.18, 500, 0.7, 0.6);
     tone(95, 0.22, { vol: 0.6, slide: 0.5 });
   },
+  // ---- sons de menu ----
+  // toque leve: uma pedrinha encostando na outra
+  uiTap() {
+    burst(0.025, 3200, 1.6, 0.16);
+    tone(720, 0.04, { type: 'triangle', vol: 0.07, slide: 0.85 });
+  },
+  // botão principal: pedra batendo na mesa, mais encorpado
+  uiPrimary() {
+    burst(0.04, 2400, 1.3, 0.3);
+    burst(0.07, 800, 0.9, 0.18);
+    tone(190, 0.08, { vol: 0.22, slide: 0.6 });
+    tone(880, 0.06, { type: 'triangle', vol: 0.06, delay: 0.03 });
+  },
+  // voltar: dois toques descendo
+  uiBack() {
+    tone(560, 0.05, { type: 'triangle', vol: 0.09 });
+    tone(420, 0.07, { type: 'triangle', vol: 0.08, delay: 0.05 });
+  },
+  // troca de tela: varrida curtinha
+  uiSwipe() {
+    burst(0.12, 1400, 0.7, 0.06);
+  },
   pick() {
     tone(880, 0.05, { type: 'triangle', vol: 0.12 });
   },

@@ -1,6 +1,6 @@
 // Estado global do app: configurações, visual escolhido, carreira e navegação.
 import { h, store, setSpeed } from './ui/dom.js';
-import { setSound, setAmbient } from './ui/audio.js';
+import { setSound, setAmbient, sfx } from './ui/audio.js';
 import { tableTexture, grainTexture } from './ui/art.js';
 
 export const settings = Object.assign(
@@ -138,7 +138,8 @@ export function go(name, params = {}) {
   const app = document.getElementById('app');
   app.querySelector('#stage')?.remove();
   app.querySelectorAll('.modal-back, .float-text, .toast, .tile.flying').forEach((e) => e.remove());
-  const stage = h('div', { id: 'stage' });
+  const stage = h('div', { id: 'stage', class: 'enter' });
   app.prepend(stage);
+  sfx.uiSwipe();
   current = screens[name](stage, params) || null;
 }
