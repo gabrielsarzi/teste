@@ -148,7 +148,10 @@ class DashboardPage(BackgroundMixin, Page):
 
         def load_bin():
             size, n = recycle_bin_info()
-            self.after(0, lambda: self._set_bin(size, n))
+            try:
+                self.after(0, lambda: self._set_bin(size, n) if self.winfo_exists() else None)
+            except (tk.TclError, RuntimeError):
+                pass
         threading.Thread(target=load_bin, daemon=True).start()
 
         for w in self.disks.winfo_children():
