@@ -652,3 +652,7 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 .match-row.next .vs-badge { background: var(--amber); color: #2a1608; }
 .camp-final { text-align: right; font: 400 13px/1.15 var(--f-display); color: var(--muted); max-width: 90px; }
 .camp-final small { display: block; font: 800 9px/1 var(--f-body); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 3px; }
+
+.shuffle-layer { position: fixed; z-index: 40; pointer-events: none; }
+.shuffle-layer .tile { position: absolute; left: 0; top: 0; }
+.res-batida { flex-wrap: wrap; gap: 6px; }

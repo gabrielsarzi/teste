@@ -46,6 +46,7 @@ export function classicScreen(stage, params = {}) {
     buchaVale2: settings.buchaVale2,
     laeloVale2: settings.laeloVale2,
     comecaSena: settings.comecaSena,
+    cincoBuchas: settings.cincoBuchas,
     formato: settings.formato,
   };
   const match = new ClassicMatch(rules);
@@ -421,16 +422,111 @@ export function classicScreen(stage, params = {}) {
     replies.forEach((r, i) => setTimeout(() => !dead && bubble(r.p, r.text), 1100 + i * 1300));
   }
 
+  // ---------- embaralhar e distribuir ----------
+  async function shuffleAndDeal() {
+    for (const q of [1, 2, 3]) seats[q].backs.innerHTML = '';
+    handEl.innerHTML = '';
+    handEls.clear();
+    const area = boardView.el.getBoundingClientRect();
+    const layer = h('div', { class: 'shuffle-layer' });
+    Object.assign(layer.style, { left: area.left + 'px', top: area.top + 'px', width: area.width + 'px', height: area.height + 'px' });
+    document.getElementById('app').append(layer);
+    const u = 16;
+    const cx = area.width / 2;
+    const cy = area.height / 2;
+    const tiles = [];
+    for (let i = 0; i < 28; i++) {
+      const t = backEl(u);
+      const x = cx + ((i % 7) - 3) * (u + 4) - u / 2;
+      const y = cy + (Math.floor(i / 7) - 2) * (u * 2 + 4);
+      t.style.transform = `translate(${x}px, ${y}px)`;
+      t.dataset.x = x;
+      t.dataset.y = y;
+      t.dataset.r = 0;
+      layer.append(t);
+      tiles.push(t);
+    }
+    const rnd = (a) => (Math.random() - 0.5) * a;
+    const R = Math.min(area.width, area.height) * 0.32;
+    // mexe as pedras em círculos, como na mesa de verdade
+    for (let pass = 0; pass < 3 && !dead; pass++) {
+      sfx.shuffle();
+      const anims = tiles.map((t) => {
+        const a = Math.random() * Math.PI * 2;
+        const rr = R * (0.2 + Math.random() * 0.8);
+        const x = cx + Math.cos(a) * rr - u / 2;
+        const y = cy + Math.sin(a) * rr * 0.8 - u;
+        const r = rnd(360);
+        const from = `translate(${t.dataset.x}px, ${t.dataset.y}px) rotate(${t.dataset.r}deg)`;
+        const to = `translate(${x}px, ${y}px) rotate(${r}deg)`;
+        t.dataset.x = x;
+        t.dataset.y = y;
+        t.dataset.r = r;
+        t.style.transform = to;
+        return t.animate([{ transform: from }, { transform: to }], { duration: 420 * speedFactor(), easing: 'cubic-bezier(.4,.1,.3,1)' }).finished;
+      });
+      await Promise.all(anims).catch(() => {});
+    }
+    // distribui 7 para cada um
+    const targets = [0, 1, 2, 3].map((p) => {
+      const el = p === 0 ? handEl : seats[p].backs;
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2 - area.left - u / 2, y: r.top + r.height / 2 - area.top - u };
+    });
+    sfx.shuffle();
+    const deals = tiles.map((t, i) => {
+      const p = (round.starter + i) % 4;
+      const tg = targets[p];
+      const from = t.style.transform;
+      const to = `translate(${tg.x + rnd(30)}px, ${tg.y + rnd(10)}px) rotate(${p % 2 ? 90 : 0}deg) scale(.8)`;
+      return t.animate([{ transform: from, opacity: 1 }, { transform: to, opacity: 0.2 }], { duration: 300 * speedFactor(), delay: i * 26 * speedFactor(), easing: 'ease-in', fill: 'forwards' }).finished;
+    });
+    await Promise.all(deals).catch(() => {});
+    layer.remove();
+  }
+
+  async function voltaOJogo(p) {
+    const doubles = round.hands[p].filter(isDouble);
+    sfx.slam();
+    shake(0.8);
+    if (p !== 0) bubble(p, say(ids[p], 'voltou_owner'));
+    const others = [1, 2, 3].filter((q) => q !== p);
+    const angry = others.filter((q) => q % 2 !== p % 2);
+    const mate = others.find((q) => q % 2 === p % 2);
+    angry.forEach((q, i) => setTimeout(() => !dead && bubble(q, say(ids[q], 'voltou_angry')), 900 + i * 900));
+    if (mate && Math.random() < 0.6) setTimeout(() => !dead && bubble(mate, say(ids[mate], 'voltou_relief')), 2400);
+    await new Promise((resolve) => {
+      const m = modal(
+        [
+          h('div', { class: 'eyebrow' }, p === 0 ? 'Você pegou' : `${nameOf(p)} pegou`),
+          h('h2', {}, `${doubles.length} buchas! Volta o jogo.`),
+          h('div', { class: 'res-batida' }, round.hands[p].map((t) => tileEl(t, { u: 22 }))),
+          h('p', {}, 'Com 5 buchas ou mais na mão, as pedras voltam pra mesa e embaralha de novo.'),
+          h('div', { class: 'actions' }, h('button', { class: 'btn amber wide', onClick: () => { m.close(); resolve(); } }, 'Embaralhar de novo')),
+        ],
+        { dismissable: false, cls: 'result' },
+      );
+    });
+  }
+
   async function playRound() {
     round = match.newRound();
     boardView.clear();
     boardView.prepareRound();
     boardView.rebuild(round.board);
     updateScore();
+    setTurn(-1);
+    setHint('Embaralhando...');
+    await shuffleAndDeal();
+    while (round.voltou != null && !dead) {
+      await voltaOJogo(round.voltou);
+      round = match.redeal();
+      setHint('Embaralhando de novo...');
+      await shuffleAndDeal();
+    }
+    if (dead) return;
     round.hands[0].sort((x, y) => x.a - y.a || x.b - y.b);
     renderSeats();
-    sfx.shuffle();
-    setTurn(-1);
     buildHand();
     refreshHand();
     countStrip.innerHTML = '';

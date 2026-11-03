@@ -10,6 +10,7 @@ export const DEFAULT_RULES = {
   buchaVale2: true, // bater com bucha vale 2
   laeloVale2: false, // bater lá-e-lô (pedra que serve nas duas pontas) vale 2
   comecaSena: true, // primeira rodada começa com a bucha de sena
+  cincoBuchas: true, // quem recebe 5 buchas ou mais: volta o jogo (embaralha de novo)
   formato: 'rodadas', // 'rodadas' (4, um início de cada) | 'pontos' (até 6)
   metaPontos: 6,
 };
@@ -39,10 +40,38 @@ export class ClassicMatch {
     return this.score[0] > this.score[1] ? 0 : 1;
   }
 
+  // Sorteia as mãos. Se alguém tiver 5 buchas ou mais (e a regra estiver ligada),
+  // a rodada volta: round.voltou = jogador, e a tela chama redeal().
   newRound() {
     this.roundNo++;
+    return this._deal();
+  }
+
+  redeal() {
+    return this._deal();
+  }
+
+  _deal() {
     const tiles = this.rng.shuffle(fullSet());
     const hands = [0, 1, 2, 3].map((i) => tiles.slice(i * 7, i * 7 + 7));
+    if (globalThis.__forceCincoBuchas) {
+      // só para testes: força 5 buchas na mão de um jogador
+      const who = globalThis.__forceCincoBuchas - 1;
+      globalThis.__forceCincoBuchas = 0;
+      const all = [...hands.flat()];
+      const dbl = all.filter(isDouble).slice(0, 5);
+      const rest = all.filter((t) => !dbl.includes(t));
+      hands[who] = [...dbl, ...rest.splice(0, 2)];
+      for (let q = 0, k = 0; q < 4; q++) if (q !== who) hands[q] = rest.slice(k * 7, k * 7 + 7), k++;
+    }
+    if (this.rules.cincoBuchas) {
+      const p = hands.findIndex((h) => h.filter(isDouble).length >= 5);
+      if (p >= 0) {
+        this.round = new ClassicRound(hands, 0, null, this.rules);
+        this.round.voltou = p;
+        return this.round;
+      }
+    }
     let starter;
     let mustStartWith = null;
     if (this.roundNo === 1) {

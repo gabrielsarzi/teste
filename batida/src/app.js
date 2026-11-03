@@ -13,6 +13,7 @@ export const settings = Object.assign(
     buchaVale2: true,
     laeloVale2: true,
     comecaSena: true,
+    cincoBuchas: true,
     formato: 'rodadas',
     nivel: 'medio', // jogo rápido: facil | medio | dificil
     mesa: 'madeira',

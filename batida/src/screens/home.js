@@ -174,6 +174,7 @@ function quickSetup() {
     ),
     sw('r-bucha', 'Batida de bucha vale 2', 'Bater com uma bucha conta dois pontos', 'buchaVale2'),
     sw('r-laelo', 'Lá-e-lô vale 2', 'Bater com pedra que entra nos dois lados', 'laeloVale2'),
+    sw('r-cinco', '5 buchas volta o jogo', 'Quem recebe 5 buchas ou mais mostra a mão e embaralha de novo', 'cincoBuchas'),
     sw('r-sena', 'Começa com a sena', 'Na 1ª rodada, quem tem a bucha de sena sai com ela', 'comecaSena'),
     h(
       'div',
@@ -190,7 +191,7 @@ export function rulesModal() {
     h('h3', {}, 'A mesa'),
     h('ul', {}, h('li', {}, 'Duas duplas: você e o parceiro de cima contra os dois dos lados.'), h('li', {}, 'Cada um recebe 7 pedras. A vez anda para a direita.'), h('li', {}, 'Encaixe uma pedra numa das duas pontas com o mesmo número.')),
     h('h3', {}, 'Regras da casa'),
-    h('ul', {}, h('li', {}, 'Quem tem pedra que encaixa é obrigado a jogar. Só passa quem não tem jogo.'), h('li', {}, 'Bater (acabar as pedras) vale 1 ponto. Bater com bucha vale 2, e bater com pedra que entra nos dois lados (lá-e-lô) também vale 2. Dá para desligar as duas.'), h('li', {}, 'Dá para fechar o jogo de propósito: quando ninguém mais consegue jogar, vence a dupla com menos pontos na mão.'), h('li', {}, 'São 4 rodadas e cada jogador começa uma. Na primeira, sai a bucha de sena.')),
+    h('ul', {}, h('li', {}, 'Quem tem pedra que encaixa é obrigado a jogar. Só passa quem não tem jogo.'), h('li', {}, 'Bater (acabar as pedras) vale 1 ponto. Bater com bucha vale 2, e bater com pedra que entra nos dois lados (lá-e-lô) também vale 2. Dá para desligar as duas.'), h('li', {}, 'Dá para fechar o jogo de propósito: quando ninguém mais consegue jogar, vence a dupla com menos pontos na mão.'), h('li', {}, 'Quem recebe 5 buchas ou mais na mão: volta o jogo, embaralha e distribui de novo.'), h('li', {}, 'São 4 rodadas e cada jogador começa uma. Na primeira, sai a bucha de sena.')),
     h('h3', {}, 'Contagem'),
     h('p', {}, 'Ligue em Configurações. Cada número mostra quantas pedras dele já estão na mesa (de 7) e quantas ainda estão com os outros. Embaixo do nome de cada jogador aparece em que números ele já passou.'),
     h('h3', {}, 'Carreira'),

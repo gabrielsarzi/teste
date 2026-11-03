@@ -122,7 +122,7 @@ export function careerScreen(stage, params = {}) {
       mode: 'career',
       opps: [d[0], d[1]],
       partner: PARTNER,
-      rules: { buchaVale2: true, laeloVale2: true, comecaSena: true, ...c.format },
+      rules: { buchaVale2: true, laeloVale2: true, comecaSena: true, cincoBuchas: true, ...c.format },
       onEnd: (won, match, quit) => go('career', { result: { id: c.id, fase, won, quit, score: match.score } }),
     });
   };

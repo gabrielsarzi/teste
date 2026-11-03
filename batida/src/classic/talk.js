@@ -20,6 +20,9 @@ const POOL = {
   win_round: ['É nós!', 'Mais uma!', 'Anota aí na lousa!', 'Quem manda aqui?'],
   lose_round: ['Foi sorte.', 'Essa passou...', 'Próxima é nossa.', 'Ah, não acredito!'],
   partner_good: ['Boa, parça!', 'Isso, joga assim!', 'É disso que eu tô falando!'],
+  voltou_angry: ['Ah não! Tava com uma mão boa!', 'De novo? Embaralha direito isso!', 'Que sacanagem, poxa!', 'Eu ia bater nessa!', 'Puts, logo agora!'],
+  voltou_owner: ['Cinco buchas! Volta!', 'Olha isso: cinco buchas. Volta o jogo!', 'Nem a pau que eu jogo com isso. Volta!'],
+  voltou_relief: ['Ufa, essa mão tava feia.', 'Melhor assim.'],
   lacks_trap: ['Trancou ele bonito!', 'Pegou na ponta, hein!'],
 };
 
