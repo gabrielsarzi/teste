@@ -44,6 +44,14 @@ const BASE = 40; // tamanho base da meia-pedra dentro da mesa
 // e só vira para o lado quando chega no limite de cima ou de baixo.
 const T = (p) => ({ x: p.y, y: p.x });
 
+function jitter(uid) {
+  const a = Math.sin(uid * 12.9898) * 43758.5453;
+  const b = Math.sin(uid * 78.233) * 12345.678;
+  const c = Math.sin(uid * 39.425) * 9876.543;
+  const fr = (v) => v - Math.floor(v) - 0.5;
+  return { r: fr(a) * 5, x: fr(b) * 3, y: fr(c) * 3 };
+}
+
 export class BoardView {
   constructor({ onPickSide } = {}) {
     this.el = h('div', { class: 'board' });
@@ -82,7 +90,9 @@ export class BoardView {
     if (vx > 0.5) ang = -90;
     else if (vx < -0.5) ang = 90;
     else if (vy < -0.5) ang = 180;
-    return `translate(${cx * BASE - BASE / 2}px, ${cy * BASE - BASE}px) rotate(${ang}deg)`;
+    // pedra "mexida": cada uma fica um pouquinho torta e fora do lugar, como na mesa de verdade
+    const j = rec.tile && rec.tile.uid != null ? jitter(rec.tile.uid) : { r: 0, x: 0, y: 0 };
+    return `translate(${cx * BASE - BASE / 2 + j.x}px, ${cy * BASE - BASE + j.y}px) rotate(${ang + j.r}deg)`;
   }
 
   addRec(rec, { pending = false } = {}) {

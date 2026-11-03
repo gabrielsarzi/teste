@@ -1,9 +1,10 @@
-import { h, modal } from '../ui/dom.js';
+import { h, modal, store, toast } from '../ui/dom.js';
 import { tileEl } from '../ui/tileView.js';
 import { makeTile } from '../core/tiles.js';
-import { settings, saveSettings, go, career, stats } from '../app.js';
-import { CAMPEONATOS } from '../classic/cast.js';
+import { settings, saveSettings, go, career, stats, wallet, setWallet, money, owned } from '../app.js';
+import { CAMPEONATOS, MESAS_VISUAL, DOMINOS_VISUAL, DESAFIO_OPPS, CAST } from '../classic/cast.js';
 import { sfx } from '../ui/audio.js';
+import { confetti } from '../ui/fx.js';
 
 export const ICONS = {
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
@@ -11,89 +12,139 @@ export const ICONS = {
   help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg>',
   paint: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="8" height="16" rx="2"/><path d="M7 8.5v.01M7 15.5v.01"/><path d="M14 6h6v12h-6z"/><path d="M14 12h6"/></svg>',
   bag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
+  trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 14v4M8 20h8"/></svg>',
+  star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>',
+  coin: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="#f2c14e" stroke="#9a6a14" stroke-width="1.6"/><circle cx="12" cy="12" r="6.2" fill="none" stroke="#b9801c" stroke-width="1.3"/><path d="M12 8.3v7.4M10 10.2c0-1 1-1.5 2-1.5s2 .5 2 1.4-1 1.3-2 1.6-2 .7-2 1.6 1 1.4 2 1.4 2-.5 2-1.5" stroke="#7a4f0c" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>',
 };
 
 export function iconBtn(name, label, onClick) {
   return h('button', { class: 'icon-btn', 'aria-label': label, title: label, html: ICONS[name], onClick });
 }
 
+export function walletChip(onClick) {
+  return h(
+    'button',
+    { class: 'wallet', 'aria-label': 'Sua carteira', onClick },
+    h('span', { class: 'coin', html: ICONS.coin }),
+    h('b', { 'data-wallet': '' }, money(wallet())),
+  );
+}
+
+const today = () => {
+  const d = new Date();
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+};
+
 export function homeScreen(stage) {
   stage.classList.add('home');
   const st = stats();
   const car = career();
+  const done = car.level >= CAMPEONATOS.length;
   const camp = CAMPEONATOS[Math.min(car.level, CAMPEONATOS.length - 1)];
+  const desafio = store.get('desafio', {});
+  const desafioFeito = desafio.date === today();
+
+  // ---------- fachada do boteco ----------
+  const bulbs = h('div', { class: 'bulbs', 'aria-hidden': 'true' });
+  for (let i = 0; i < 18; i++) bulbs.append(h('i', { style: { animationDelay: `${(i % 6) * 0.18}s` } }));
+  const facade = h(
+    'div',
+    { class: 'facade' },
+    h('div', { class: 'awning', 'aria-hidden': 'true' }),
+    h('div', { class: 'signboard' }, bulbs, h('h1', {}, 'Batida', h('span', { class: 'dot' }, '!')), h('p', {}, 'dominó de boteco')),
+  );
 
   const deco = h('div', { class: 'home-tiles', 'aria-hidden': 'true' });
-  const spots = [
-    [6, 6, -96, -36, 0], [6, 3, -40, -46, 8], [3, 3, 8, -34, 0], [3, 1, 64, -50, 14], [5, 0, 104, -20, -12],
-  ];
-  spots.forEach(([a, b, x, y, r], i) => {
-    const t = tileEl(makeTile(a, b), { top: a, bot: b, u: 30 });
-    t.style.transform = `translate(${x - 15}px, ${y - 30}px) rotate(${r}deg)`;
+  [[6, 6, -86, -18, -6], [6, 3, -38, -26, 8], [3, 3, 6, -14, 84], [3, 1, 56, -30, 14], [1, 5, 98, -12, -10]].forEach(([a, b, x, y, r], i) => {
+    const t = tileEl(makeTile(a, b), { top: a, bot: b, u: 26 });
+    t.style.transform = `translate(${x - 13}px, ${y - 26}px) rotate(${r}deg)`;
     t.style.animation = `dealIn .5s ${0.15 + i * 0.08}s cubic-bezier(.3,.7,.4,1.2) both`;
     deco.append(t);
   });
 
-  const art = (pairs) => {
-    const wrap = h('div', { class: 'mc-art' });
-    pairs.forEach(([a, b, x, y, r]) => {
-      const t = tileEl(makeTile(a, b), { top: a, bot: b, u: 24 });
-      t.style.cssText += `left:${x}px;top:${y}px;transform:rotate(${r}deg)`;
-      wrap.append(t);
-    });
-    return wrap;
-  };
-
-  const done = car.level >= CAMPEONATOS.length;
-  const cards = h(
+  const top = h(
     'div',
-    { class: 'mode-cards' },
-    h(
-      'button',
-      { class: 'mode-card', onClick: () => quickSetup() },
-      art([[6, 6, 2, 4, -8], [1, 6, 24, 10, 10]]),
-      h('div', {}, h('div', { class: 'mc-title' }, 'Jogo rápido'), h('div', { class: 'mc-sub' }, 'Uma partida de dupla, do jeito do bar.')),
-      h('span', { class: 'mc-go', 'aria-hidden': 'true' }, '›'),
-    ),
-    h(
-      'button',
-      { class: 'mode-card career', onClick: () => go('career') },
-      art([[5, 5, 2, 6, -10], [2, 4, 24, 2, 12]]),
-      h(
-        'div',
-        {},
-        h('div', { class: 'mc-title' }, 'Carreira'),
-        h('div', { class: 'mc-sub' }, done ? 'Campeão do Brasileirão! Jogue de novo os campeonatos.' : `${car.level + 1}º de ${CAMPEONATOS.length}: ${camp.short}`),
-      ),
-      h('span', { class: 'mc-go', 'aria-hidden': 'true' }, '›'),
-    ),
+    { class: 'home-top' },
+    h('div', { class: 'home-stats' }, h('span', { html: ICONS.trophy }), `${car.titles.length} título${car.titles.length === 1 ? '' : 's'}`, h('span', { class: 'sep' }), `${st.quickWins} vitória${st.quickWins === 1 ? '' : 's'}`),
+    walletChip(() => walletModal()),
+  );
+
+  const play = h('button', { class: 'play-btn', onClick: () => quickSetup() }, h('span', {}, 'Jogar'), h('small', {}, 'Jogo rápido · 2, 3 ou 4 na mesa'));
+
+  const careerCard = h(
+    'button',
+    { class: 'tile-card career', onClick: () => go('career') },
+    h('div', { class: 'tc-ico', html: ICONS.trophy }),
+    h('div', { class: 'tc-body' }, h('div', { class: 'tc-title' }, 'Carreira'), h('div', { class: 'tc-sub' }, done ? 'Campeão do Brasileirão!' : camp.short), h('div', { class: 'tc-meta' }, done ? 'Jogue de novo' : `Inscrição ${money(camp.fee)}`)),
+  );
+  const oppId = DESAFIO_OPPS[new Date().getDay()];
+  const desafioCard = h(
+    'button',
+    { class: `tile-card desafio ${desafioFeito ? 'feito' : ''}`, onClick: () => (desafioFeito ? toast('Desafio de hoje já foi. Volta amanhã!') : startDesafio(oppId)) },
+    h('div', { class: 'tc-ico', html: ICONS.star }),
+    h('div', { class: 'tc-body' }, h('div', { class: 'tc-title' }, 'Desafio do dia'), h('div', { class: 'tc-sub' }, desafioFeito ? (desafio.won ? 'Vencido hoje' : 'Volta amanhã') : `Mano a mano com ${CAST[oppId].name}`), h('div', { class: 'tc-meta' }, desafioFeito ? '' : 'Vale R$ 100')),
   );
 
   const foot = h(
     'div',
     { class: 'home-foot' },
-    h(
-      'div',
-      { style: { display: 'flex', gap: '14px', flexWrap: 'wrap' } },
-      h('span', { class: 'chip-stat' }, 'Vitórias ', h('b', {}, String(st.quickWins))),
-      h('span', { class: 'chip-stat' }, 'Títulos ', h('b', {}, String(car.titles.length))),
-    ),
-    h(
-      'div',
-      { style: { display: 'flex', gap: '8px' } },
-      iconBtn('paint', 'Mesas e dominós', () => go('look')),
-      iconBtn('help', 'Como jogar', () => rulesModal()),
-      iconBtn('gear', 'Configurações', () => settingsModal()),
-    ),
+    h('button', { class: 'foot-btn', onClick: () => go('look') }, h('span', { html: ICONS.bag }), 'Loja'),
+    h('button', { class: 'foot-btn', onClick: () => rulesModal() }, h('span', { html: ICONS.help }), 'Regras'),
+    h('button', { class: 'foot-btn', onClick: () => settingsModal() }, h('span', { html: ICONS.gear }), 'Ajustes'),
   );
 
-  stage.append(
-    h('div', { class: 'sign' }, h('div', { class: 'lamp' }), h('h1', {}, 'Batida', h('span', { class: 'dot' }, '!')), h('p', {}, 'dominó de boteco')),
-    deco,
-    h('div', {}, cards, foot),
+  stage.append(top, facade, deco, h('div', { class: 'home-actions' }, play, h('div', { class: 'tile-cards' }, careerCard, desafioCard), foot));
+  if (wallet() < 10) setTimeout(() => fiadoModal(), 500);
+}
+
+// ---------- carteira e fiado ----------
+export function walletModal() {
+  const m = modal([
+    h('h2', {}, 'Carteira'),
+    h('div', { class: 'big', style: { color: 'var(--amber-hi)' } }, money(wallet())),
+    h('p', {}, 'Ganhe dinheiro apostando no jogo rápido, vencendo campeonatos e no desafio do dia. Gaste na loja, nas inscrições e contratando parceiros.'),
+    wallet() < 10 ? h('button', { class: 'btn chili wide', onClick: () => { m.close(); fiadoModal(); } }, 'Pendurar no fiado') : null,
+    h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onClick: () => m.close() }, 'Fechar')),
+  ]);
+}
+
+export function fiadoModal() {
+  const m = modal(
+    [
+      h('div', { class: 'eyebrow' }, 'Tá liso?'),
+      h('h2', {}, 'Pendura no fiado!'),
+      h('p', { class: 'quote' }, '“Tranquilo, depois você acerta. Só não some, hein!”', h('span', {}, ' · Zezão, dono do boteco')),
+      h('div', { class: 'big', style: { color: 'var(--good)' } }, '+R$ 50'),
+      h('div', { class: 'actions' }, h('button', { class: 'btn amber wide', onClick: () => { setWallet(wallet() + 50); sfx.coins(); m.close(); } }, 'Valeu, Zezão')),
+    ],
+    { cls: 'result' },
   );
 }
 
+// ---------- desafio do dia ----------
+function startDesafio(oppId) {
+  go('classic', {
+    mode: 'desafio',
+    players: 2,
+    opps: [oppId],
+    seed: today(),
+    rules: { players: 2, metaPontos: 1, buchaVale2: true, laeloVale2: true, comecaSena: true, cincoBuchas: true, votacao: true },
+    onEnd: (won) => {
+      store.set('desafio', { date: today(), won });
+      if (won) setWallet(wallet() + 100);
+      go('home');
+      setTimeout(() => {
+        if (won) {
+          confetti(120);
+          sfx.coins();
+          toast('Desafio vencido! +R$ 100');
+        } else toast('Não foi dessa vez. Amanhã tem outro desafio.');
+      }, 300);
+    },
+  });
+}
+
+// ---------- controles ----------
 function sw(id, label, desc, key, obj = settings, onChange) {
   const input = h('input', { type: 'checkbox', id, role: 'switch' });
   input.checked = !!obj[key];
@@ -110,10 +161,10 @@ function sw(id, label, desc, key, obj = settings, onChange) {
   );
 }
 
-function seg(options, value, onPick) {
+export function seg(options, value, onPick) {
   const wrap = h('div', { class: 'seg', role: 'group' });
-  for (const [v, label] of options) {
-    const b = h('button', { class: v === value ? 'on' : '', 'aria-pressed': String(v === value) }, label);
+  for (const [v, label, disabled] of options) {
+    const b = h('button', { class: v === value ? 'on' : '', 'aria-pressed': String(v === value), disabled: !!disabled }, label);
     b.addEventListener('click', () => {
       wrap.querySelectorAll('button').forEach((x) => {
         x.classList.remove('on');
@@ -129,63 +180,86 @@ function seg(options, value, onPick) {
   return wrap;
 }
 
+function row(title, desc, control) {
+  return h('div', { class: 'toggle-row' }, h('div', {}, h('div', { class: 't' }, title), desc ? h('div', { class: 'd' }, desc) : null), control);
+}
+
 export function settingsModal() {
   modal([
-    h('h2', {}, 'Configurações'),
-    sw('set-sound', 'Som e vibração', null, 'sound'),
+    h('h2', {}, 'Ajustes'),
+    h('h3', {}, 'Mesa'),
     sw('set-ajuda', 'Ajuda nas pedras', 'Destaca as pedras da sua mão que encaixam', 'ajuda'),
-    sw('set-contagem', 'Contagem da mesa', 'Mostra quantas pedras de cada número já saíram e onde cada um passou', 'contagem'),
+    sw('set-contagem', 'Contagem da mesa', 'Quantas pedras de cada número já saíram e onde cada um passou', 'contagem'),
+    sw('set-limpa', 'Tela limpa', 'Esconde os textos de pontas e de quem é a vez', 'telaLimpa'),
     sw('set-conversa', 'Conversa na mesa', 'Provocações, comentários e o botão de frases', 'conversa'),
-    h(
-      'div',
-      { class: 'toggle-row' },
-      h('div', {}, h('div', { class: 't' }, 'Ritmo da mesa'), h('div', { class: 'd' }, 'Quanto tempo os outros levam para jogar')),
-      seg([['lento', 'Calmo'], ['normal', 'Normal'], ['rapido', 'Rápido']], settings.speed, (v) => {
-        settings.speed = v;
-        saveSettings();
-      }),
-    ),
+    row('Tempo para jogar', 'Depois da metade, o adversário cobra', seg([[30, '30 s'], [60, '60 s'], [0, 'Livre']], settings.tempo, (v) => { settings.tempo = v; saveSettings(); })),
+    row('Ritmo da mesa', 'Quanto tempo os outros levam para jogar', seg([['lento', 'Calmo'], ['normal', 'Normal'], ['rapido', 'Rápido']], settings.speed, (v) => { settings.speed = v; saveSettings(); })),
+    h('h3', {}, 'Som'),
+    sw('set-sound', 'Som e vibração', null, 'sound'),
+    sw('set-bar', 'Barulho de bar', 'Conversa e copos ao fundo', 'somBar'),
     h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onClick: (e) => e.target.closest('.modal-back').click() }, 'Fechar')),
   ]);
 }
 
+function lookPicker(kind) {
+  const list = kind === 'mesa' ? MESAS_VISUAL : DOMINOS_VISUAL;
+  const have = owned(kind);
+  return seg(
+    list.filter((x) => have.includes(x.id)).map((x) => [x.id, x.name.split(' ')[0]]),
+    settings[kind],
+    (v) => {
+      settings[kind] = v;
+      saveSettings();
+    },
+  );
+}
+
 function quickSetup() {
+  const w = wallet();
+  const bets = [0, 10, 20, 50, 100, 200];
+  if (!bets.includes(settings.aposta) || settings.aposta > w) settings.aposta = bets.filter((b) => b <= w).pop() || 0;
+  const goBtn = h('button', { class: 'btn amber' });
+  const label = () => (goBtn.textContent = settings.aposta ? `Sentar · ${money(settings.aposta)}` : 'Sentar à mesa');
+  label();
   const m = modal([
     h('h2', {}, 'Jogo rápido'),
-    h('p', {}, 'Você e o Rafa contra a dupla dos lados. 7 pedras para cada um, sem compra. Quem tem jogo, joga.'),
+    row('Na mesa', settings.jogadores === 4 ? 'Dupla: você e o Rafa contra dois' : 'Cada um por si, com compra no monte', seg([[2, '2'], [3, '3'], [4, '4 (dupla)']], settings.jogadores, (v) => {
+      settings.jogadores = v;
+      saveSettings();
+      m.el.querySelector('.toggle-row .d').textContent = v === 4 ? 'Dupla: você e o Rafa contra dois' : 'Cada um por si, com compra no monte';
+    })),
+    row('Adversários', null, seg([['facil', 'Fácil'], ['medio', 'Médio'], ['dificil', 'Difícil']], settings.nivel, (v) => { settings.nivel = v; saveSettings(); })),
+    row('Aposta', `Na carteira: ${money(w)}`, seg(bets.map((b) => [b, b ? `R$${b}` : 'Sem', b > w]), settings.aposta, (v) => { settings.aposta = v; saveSettings(); label(); })),
+    row('Mesa', null, lookPicker('mesa')),
+    row('Dominó', null, lookPicker('domino')),
     h(
-      'div',
-      { class: 'toggle-row' },
-      h('div', {}, h('div', { class: 't' }, 'Adversários')),
-      seg([['facil', 'Fácil'], ['medio', 'Médio'], ['dificil', 'Difícil']], settings.nivel, (v) => {
-        settings.nivel = v;
-        saveSettings();
-      }),
+      'details',
+      { class: 'rules-box' },
+      h('summary', {}, 'Regras da casa'),
+      sw('r-bucha', 'Batida de bucha vale 2', null, 'buchaVale2'),
+      sw('r-laelo', 'Lá-e-lô vale 2', 'Bater com pedra que entra nos dois lados', 'laeloVale2'),
+      sw('r-cinco', '5 buchas volta o jogo', 'Quem recebe 5 buchas ou mais mostra e embaralha de novo', 'cincoBuchas'),
+      sw('r-sena', 'Começa com a maior bucha', 'Na 1ª rodada sai a sena (ou a maior bucha na mesa)', 'comecaSena'),
     ),
-    sw('r-bucha', 'Batida de bucha vale 2', 'Bater com uma bucha conta dois pontos', 'buchaVale2'),
-    sw('r-laelo', 'Lá-e-lô vale 2', 'Bater com pedra que entra nos dois lados', 'laeloVale2'),
-    sw('r-cinco', '5 buchas volta o jogo', 'Quem recebe 5 buchas ou mais mostra a mão e embaralha de novo', 'cincoBuchas'),
-    sw('r-sena', 'Começa com a sena', 'Na 1ª rodada, quem tem a bucha de sena sai com ela', 'comecaSena'),
-    h(
-      'div',
-      { class: 'actions' },
-      h('button', { class: 'btn ghost', onClick: () => m.close() }, 'Voltar'),
-      h('button', { class: 'btn amber', onClick: () => { m.close(); go('classic'); } }, 'Sentar à mesa'),
-    ),
+    h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onClick: () => m.close() }, 'Voltar'), goBtn),
   ]);
+  goBtn.addEventListener('click', () => {
+    m.close();
+    go('classic', { players: settings.jogadores, stake: settings.aposta });
+  });
 }
 
 export function rulesModal() {
   modal([
     h('h2', {}, 'Como jogar'),
     h('h3', {}, 'A mesa'),
-    h('ul', {}, h('li', {}, 'Duas duplas: você e o parceiro de cima contra os dois dos lados.'), h('li', {}, 'Cada um recebe 7 pedras. A vez anda para a direita.'), h('li', {}, 'Encaixe uma pedra numa das duas pontas com o mesmo número.')),
+    h('ul', {}, h('li', {}, 'Com 4: duas duplas, você e o parceiro de cima contra os dois dos lados. 7 pedras para cada, sem compra.'), h('li', {}, 'Com 2 ou 3: cada um por si, 7 pedras para cada e o resto fica no monte. Sem jogo, compra até achar.'), h('li', {}, 'A vez anda para a direita. Encaixe uma pedra numa das pontas com o mesmo número.')),
     h('h3', {}, 'Regras da casa'),
-    h('ul', {}, h('li', {}, 'Quem tem pedra que encaixa é obrigado a jogar. Só passa quem não tem jogo.'), h('li', {}, 'Bater (acabar as pedras) vale 1 ponto. Bater com bucha vale 2, e bater com pedra que entra nos dois lados (lá-e-lô) também vale 2. Dá para desligar as duas.'), h('li', {}, 'Dá para fechar o jogo de propósito: quando ninguém mais consegue jogar, vence a dupla com menos pontos na mão.'), h('li', {}, 'Quem recebe 5 buchas ou mais na mão: volta o jogo, embaralha e distribui de novo.'), h('li', {}, 'A partida vai até alguém fazer 4 pontos: cada ponto é uma bolinha num canto da cruz da lousa, e a bolinha no meio marca a dupla que sai na rodada. A saída vai rodando entre os jogadores, e na primeira rodada sai a bucha de sena.')),
+    h('ul', {}, h('li', {}, 'Quem tem pedra que encaixa é obrigado a jogar. Tocar numa pedra que não entra é gato.'), h('li', {}, 'Bater vale 1 ponto. Bater com bucha vale 2, e com pedra que entra nos dois lados (lá-e-lô) também vale 2.'), h('li', {}, 'Jogo fechado: ninguém consegue jogar e vence quem tem menos pontos na mão. Se a pedra fechou de propósito mas cabia na outra ponta, a mesa vota se fecha ou abre. No empate, abre.'), h('li', {}, '5 buchas ou mais na mão: volta o jogo.'), h('li', {}, 'A partida vai até 4 pontos: cada ponto é uma bolinha numa ponta da cruz da lousa. A bolinha dourada no meio marca quem sai na rodada.')),
+    h('h3', {}, 'Dinheiro'),
+    h('ul', {}, h('li', {}, 'No jogo rápido dá para apostar. Ganhou, cada adversário paga a aposta.'), h('li', {}, 'Campeonato tem inscrição e prêmio em dinheiro, além de mesas e dominós.'), h('li', {}, 'Ficou liso? O Zezão pendura no fiado.')),
     h('h3', {}, 'Contagem'),
-    h('p', {}, 'Ligue em Configurações. Cada número mostra quantas pedras dele já estão na mesa (de 7) e quantas ainda estão com os outros. Embaixo do nome de cada jogador aparece em que números ele já passou.'),
-    h('h3', {}, 'Carreira'),
-    h('ul', {}, h('li', {}, 'Seis campeonatos, do boteco do bairro até o Brasileirão. Todos os jogos vão até 4 pontos.'), h('li', {}, 'Cada um tem quartas, semi e final. Perdeu, recomeça o campeonato.'), h('li', {}, 'Cada título libera mesas e dominós novos.')),
+    h('p', {}, 'Ligue em Ajustes. Cada número mostra quantas pedras dele já estão na mesa (de 7) e quantas ainda estão com os outros. Embaixo do nome de cada jogador aparece em que números ele já passou.'),
     h('div', { class: 'actions' }, h('button', { class: 'btn amber', onClick: (e) => e.target.closest('.modal-back').click() }, 'Entendi')),
   ]);
 }

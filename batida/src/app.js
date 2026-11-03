@@ -1,6 +1,6 @@
 // Estado global do app: configurações, visual escolhido, carreira e navegação.
 import { h, store, setSpeed } from './ui/dom.js';
-import { setSound } from './ui/audio.js';
+import { setSound, setAmbient } from './ui/audio.js';
 import { tableTexture } from './ui/art.js';
 
 export const settings = Object.assign(
@@ -10,6 +10,11 @@ export const settings = Object.assign(
     ajuda: false, // destacar as pedras que encaixam
     contagem: false, // mostrar quantas pedras de cada número já saíram
     conversa: true, // provocações e frases na mesa
+    telaLimpa: false, // esconde os textos de ajuda da mesa
+    tempo: 30, // segundos para jogar (0 = sem limite)
+    somBar: true, // barulho de bar ao fundo
+    jogadores: 4, // jogo rápido: 2, 3 ou 4
+    aposta: 20,
     buchaVale2: true,
     laeloVale2: true,
     comecaSena: true,
@@ -40,6 +45,7 @@ export function applySettings() {
 export function saveSettings() {
   store.set('settings', settings);
   applySettings();
+  setAmbient(settings.sound && settings.somBar);
 }
 
 const texCache = {};
@@ -66,6 +72,41 @@ export function career() {
 }
 export function saveCareer(c) {
   store.set('career', c);
+}
+
+// ---------- dinheiro ----------
+export function wallet() {
+  return store.get('wallet', 200);
+}
+export function setWallet(v) {
+  store.set('wallet', Math.max(0, Math.round(v)));
+  document.querySelectorAll('[data-wallet]').forEach((el) => (el.textContent = money(wallet())));
+}
+export const money = (v) => 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+
+// ---------- rivalidade: vitórias e derrotas contra cada personagem ----------
+export function rivals() {
+  return store.get('rivals', {});
+}
+export function addRival(id, won) {
+  const r = rivals();
+  const cur = r[id] || { w: 0, l: 0 };
+  if (won) cur.w++;
+  else cur.l++;
+  r[id] = cur;
+  store.set('rivals', r);
+}
+
+// visual que você tem: ganho na carreira ou comprado na loja
+export function owned(kind) {
+  const base = kind === 'mesa' ? ['madeira'] : ['osso'];
+  const bought = store.get('bought', {})[kind] || [];
+  return [...new Set([...base, ...career().unlocked[kind], ...bought])];
+}
+export function addOwned(kind, id) {
+  const b = store.get('bought', {});
+  b[kind] = [...new Set([...(b[kind] || []), id])];
+  store.set('bought', b);
 }
 
 export function stats() {

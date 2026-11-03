@@ -13,9 +13,10 @@ export function chooseMove(round, p, skill = 0.7) {
   const unseen = fullSet().filter((t) => !seen.has(key(t)));
   const avgUnseen = unseen.length ? unseen.reduce((s, t) => s + pipSum(t), 0) / unseen.length : 0;
 
-  const next = (p + 1) % 4;
-  const partner = (p + 2) % 4;
-  const prevOpp = (p + 3) % 4;
+  const n = round.n || 4;
+  const next = (p + 1) % n;
+  const partner = n === 4 ? (p + 2) % 4 : -1;
+  const prevOpp = (p + n - 1) % n;
 
   let best = null;
   let bestScore = -Infinity;
@@ -43,15 +44,12 @@ export function chooseMove(round, p, skill = 0.7) {
       // trava o próximo adversário / não trava o parceiro
       const lackNext = e.filter((v) => round.lacks[next].has(v)).length;
       const lackPrev = e.filter((v) => round.lacks[prevOpp].has(v)).length;
-      const lackPartner = e.filter((v) => round.lacks[partner].has(v)).length;
+      const lackPartner = partner >= 0 ? e.filter((v) => round.lacks[partner].has(v)).length : 0;
       s += (lackNext * 6 + lackPrev * 2 - lackPartner * 5) * skill;
 
       // fechar o jogo de propósito?
       if (skill > 0.35 && round.wouldClose(m.tile, m.side)) {
-        const mySum = rest.reduce((a, t) => a + pipSum(t), 0);
-        const partnerSum = round.hands[partner].length * avgUnseen;
-        const oppSum = (round.hands[next].length + round.hands[prevOpp].length) * avgUnseen;
-        const diff = oppSum - (mySum + partnerSum);
+        const diff = closeAdvantage(round, p, rest, avgUnseen);
         s += diff > 3 ? 400 + diff : -400;
       }
     } else {
@@ -68,6 +66,37 @@ export function chooseMove(round, p, skill = 0.7) {
     }
   }
   return best;
+}
+
+// Quanto a dupla de p ganha na contagem se o jogo fechar agora (positivo = bom).
+export function closeAdvantage(round, p, myHand, avgUnseen) {
+  const n = round.n || 4;
+  const team = (q) => (n === 4 ? q % 2 : q);
+  const sums = {};
+  for (let q = 0; q < n; q++) {
+    const v = q === p ? myHand.reduce((a, t) => a + pipSum(t), 0) : round.hands[q].length * avgUnseen;
+    sums[team(q)] = (sums[team(q)] || 0) + v;
+  }
+  const mine = sums[team(p)];
+  let bestOther = Infinity;
+  for (const [t, v] of Object.entries(sums)) if (+t !== team(p)) bestOther = Math.min(bestOther, v);
+  return bestOther - mine;
+}
+
+// Estimativa de p sobre a média das pedras que ele não vê.
+export function unseenAvg(round, p) {
+  const seen = new Set(round.board.placed.map((r) => key(r.tile)));
+  for (const t of round.hands[p]) seen.add(key(t));
+  const unseen = fullSet().filter((t) => !seen.has(key(t)));
+  return unseen.length ? unseen.reduce((s, t) => s + pipSum(t), 0) / unseen.length : 0;
+}
+
+// Voto de p sobre aceitar um fechamento forçado: true = fecha e conta.
+// Cada um olha a própria conta; os mais experientes erram menos.
+export function voteClose(round, p, skill = 0.6) {
+  const adv = closeAdvantage(round, p, round.hands[p], unseenAvg(round, p));
+  const noise = (Math.random() - 0.5) * (1 - skill) * 30;
+  return adv + noise > 0;
 }
 
 function key(t) {
@@ -90,6 +119,7 @@ import { Board } from '../core/board.js';
 import { ClassicRound } from './engine.js';
 
 export function chooseMoveMaster(round, p, samples = 28) {
+  if ((round.n || 4) !== 4 || (round.pile && round.pile.length)) return chooseMove(round, p, 0.95);
   const moves = round.legalMoves(p);
   if (moves.length <= 1) return moves[0] || null;
   if (round.hands[p].length === 1) return moves[0];
@@ -148,7 +178,7 @@ function sampleHands(round, others, unseen) {
 
 function cloneRound(round, p, deal) {
   const hands = [0, 1, 2, 3].map((q) => (q === p ? round.hands[p].map((t) => ({ ...t })) : deal[q].map((t) => ({ ...t }))));
-  const r = new ClassicRound(hands, p, null, round.rules);
+  const r = new ClassicRound(hands, [], p, null, round.match);
   const b = new Board();
   b.placed = round.board.placed.slice();
   b.arms = round.board.arms ? JSON.parse(JSON.stringify(round.board.arms)) : null;

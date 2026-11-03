@@ -23,6 +23,18 @@ const POOL = {
   voltou_angry: ['Ah não! Tava com uma mão boa!', 'De novo? Embaralha direito isso!', 'Que sacanagem, poxa!', 'Eu ia bater nessa!', 'Puts, logo agora!'],
   voltou_owner: ['Cinco buchas! Volta!', 'Olha isso: cinco buchas. Volta o jogo!', 'Nem a pau que eu jogo com isso. Volta!'],
   voltou_relief: ['Ufa, essa mão tava feia.', 'Melhor assim.'],
+  cobra: ['E aí, vai jogar hoje?', 'Joga logo, a cerveja tá esquentando!', 'Tá pensando na vida?', 'Acorda aí!', 'Hoje ainda, hein?', 'Vai, vai, vai...'],
+  timeout: ['Dormiu, foi?', 'Até que enfim!', 'Demorou, hein!', 'Tava contando as pinta, é?'],
+  draw_self: ['Vou ter que comprar...', 'Bora pro monte.', 'Ih, comprando.'],
+  draw_mock: ['Compra, compra!', 'Vai levar o monte inteiro!', 'Isso, enche a mão!'],
+  vote_ask: ['Fechei! Vamo contar?', 'Fecho e conta, quem topa?', 'Vou fechar, hein!'],
+  vote_yes: ['Fecha!', 'Pode fechar.', 'Conta, conta!'],
+  vote_no: ['Abre isso aí!', 'Nada disso, abre!', 'Fechar à força? Não!'],
+  vote_open: ['Ah, abriram! Que pena.', 'Tudo bem, segue o jogo.'],
+  rival_owes: ['Hoje eu desconto, você tá me devendo!', 'Lembro da última, hein!', 'Hoje é revanche.'],
+  rival_leads: ['De novo você? Freguês!', 'Lá vem meu freguês.', 'Trouxe o dinheiro?'],
+  revanche: ['Valendo o dobro? Bora!', 'Dobro? Gostei!', 'Vai perder o dobro, hein!'],
+  slam: ['TOMA!', 'Pá!', 'Ó o peso!'],
   lacks_trap: ['Trancou ele bonito!', 'Pegou na ponta, hein!'],
 };
 

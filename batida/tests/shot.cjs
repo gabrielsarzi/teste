@@ -10,7 +10,7 @@ const OUT = '/tmp/claude-0/-home-user-teste/ec4e5369-18d0-5a5d-a360-902f9aeb90bb
   await p.evaluate(() => { localStorage.setItem('batida:settings', JSON.stringify({ speed: 'rapido', contagem: true, rv: 2, laeloVale2: true })); });
   await p.reload(); await p.waitForTimeout(1000);
   await p.screenshot({ path: OUT + 'a1-home.png' });
-  await p.click('.mode-card.career'); await p.waitForTimeout(500);
+  await p.click('.tile-card.career'); await p.waitForTimeout(500);
   await p.screenshot({ path: OUT + 'a2-bracket.png' });
   await p.click('.career-actions .btn'); await p.waitForTimeout(3500);
   await p.screenshot({ path: OUT + 'a3-game.png' });
@@ -35,7 +35,7 @@ const OUT = '/tmp/claude-0/-home-user-teste/ec4e5369-18d0-5a5d-a360-902f9aeb90bb
   await p.waitForTimeout(500);
   await p.screenshot({ path: OUT + 'a7-after.png' });
   await p.goto('file://' + process.cwd() + '/dist/index.html'); await p.waitForTimeout(600);
-  await p.click('[aria-label="Mesas e dominós"]'); await p.waitForTimeout(500);
+  await p.click('.foot-btn'); await p.waitForTimeout(500);
   await p.screenshot({ path: OUT + 'a8-look.png', fullPage: true });
   console.log(errs.join('\n') || 'no errors');
   await b.close();
