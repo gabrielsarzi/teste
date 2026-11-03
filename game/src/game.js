@@ -15,7 +15,7 @@
   const fresh = () => ({ gold: 0, floors: [firstFloor()], lift: { lvl: 1, op: false }, truck: { lvl: 1, op: false }, ware: 0, up: {}, lang: null, sfx: true, music: true, last: Date.now(), total: 0 });
   let S = fresh();
   try { const o = JSON.parse(localStorage.getItem(SAVE_KEY)); if (o && o.floors) S = Object.assign(fresh(), o); } catch (e) { }
-  if (!S.truck) S.truck = { lvl: 1, op: false }; if (!S.ware) S.ware = 0;
+  if (!S.truck) S.truck = { lvl: 1, op: false }; if (!S.ware) S.ware = 0; if (!S.stat) S.stat = { work: 0, trips: 0, sales: 0 }; if (S.q === undefined) S.q = 0;
   function save() { S.last = Date.now(); try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { } }
   const ul = id => S.up[id] || 0;
   if (!S.lang) S.lang = (navigator.language || 'pt').toLowerCase().startsWith('pt') ? 'pt' : 'en';
@@ -117,7 +117,7 @@
   const sideTex = new THREE.CanvasTexture(ART3.canvas('side', 0)); sideTex.magFilter = sideTex.minFilter = THREE.NearestFilter; sideTex.generateMipmaps = false; sideTex.wrapS = sideTex.wrapT = THREE.RepeatWrapping; sideTex.repeat.set(1, 60);
   [-1, COLS + 1].forEach(x => { const m = mesh(sideTex, 2, 240, 1); m.position.set(x, -2.4 - 120, 0); });
   // penumbra do subsolo (as luzes somam por cima)
-  const darkM = mesh(null, COLS + 4, 400, L.dark, { color: 0x0c0814, opacity: 0.34 }); darkM.position.set(COLS / 2, -2.45 - 200, 0);
+  const darkM = mesh(null, COLS + 4, 400, L.dark, { color: 0x1a1020, opacity: 0.1 }); darkM.position.set(COLS / 2, -2.45 - 200, 0);
   const wheelM = sprite(ART3.tex('wheel', 0), 14, 14, 0.5, -0.75); wheelM.renderOrder = 97;
   sprite(ART3.tex('shed', 0), 26, 20, 1.75, -2.2).renderOrder = 98;
   shadowAt(5.0, -2.05, 2.1);
@@ -134,7 +134,7 @@
   function buildFloor(f) {
     const rt = { tapNoise: 0, ore: 0, work: 0, invaded: false, minerM: [], slotM: {}, towerM: {} };
     rt.bg = mesh(ART3.tex('floor', f), COLS, FH, L.bg); rt.bg.position.set(COLS / 2, floorTop(f) - FH / 2, 0);
-    [3, 6].forEach(c => { const g = glow(c + 0.5, floorTop(f) - 0.62, 3.2, 0xffc870, Infinity, 0.6); g.flicker = 1; });
+    [3, 6].forEach(c => { const g = glow(c + 0.5, floorTop(f) - 0.62, 3, 0xffc870, Infinity, 0.32); g.flicker = 1; });
     rt.stashM = sprite(ART3.tex('stash', f), 16, 14, STASH_X, walkFeet(f) + 0.05);
     MINE.slots.forEach((c, i) => { const m = sprite(ART3.tex('slot', 0), 16, 8, c + 0.5, towerFeet(f) - 0.06); m.renderOrder = 90; rt.slotM[i] = m; });
     RT[f] = rt;
@@ -333,7 +333,7 @@
       LIFT.y = Math.min(LIFT_TOP, LIFT.y + sp * dt); if (LIFT.y >= LIFT_TOP) { LIFT.state = 'unload'; LIFT.t = MINE.loadTime; }
     } else if (LIFT.state === 'unload') {
       LIFT.t -= dt;
-      if (LIFT.t <= 0) { if (LIFT.load > 0) { S.ware += LIFT.load; particle(1.75, LIFT_TOP + 0.6, '#f2c84b', 6, 2, 0.4, 0.1); SFX.play('click'); } LIFT.load = 0; LIFT.state = 'idle'; }
+      if (LIFT.t <= 0) { if (LIFT.load > 0) { S.ware += LIFT.load; particle(1.75, LIFT_TOP + 0.6, '#f2c84b', 6, 2, 0.4, 0.1); SFX.play('click'); } LIFT.load = 0; LIFT.state = 'idle'; S.stat.trips++; }
     }
   }
 
@@ -343,7 +343,7 @@
     if (TRUCK.state === 'idle') { if ((S.truck.op || TRUCK.go) && S.ware >= 1) { TRUCK.state = 'load'; TRUCK.t = MINE.loadTime; } TRUCK.go = false; }
     else if (TRUCK.state === 'load') { TRUCK.t -= dt; if (TRUCK.t <= 0) { const take = Math.min(S.ware, cap); S.ware -= take; TRUCK.load = take; TRUCK.state = 'go'; } }
     else if (TRUCK.state === 'go') { TRUCK.x = Math.min(TRUCK_B, TRUCK.x + sp * dt); if (TRUCK.x >= TRUCK_B) { TRUCK.state = 'sell'; TRUCK.t = MINE.loadTime; } }
-    else if (TRUCK.state === 'sell') { TRUCK.t -= dt; if (TRUCK.t <= 0) { S.gold += TRUCK.load; S.total += TRUCK.load; floatText(TRUCK_B + 0.6, -1.0, '+' + fmt(TRUCK.load), '#f2b84b', true); particle(TRUCK_B + 0.8, -1.6, '#f2c84b', 10, 2.2, 0.5, 0.1); SFX.play('coin'); TRUCK.load = 0; TRUCK.state = 'back'; } }
+    else if (TRUCK.state === 'sell') { TRUCK.t -= dt; if (TRUCK.t <= 0) { S.gold += TRUCK.load; S.total += TRUCK.load; S.stat.sales++; flyCoins(TRUCK_B + 0.6, -1.6, 7); floatText(TRUCK_B + 0.6, -1.0, '+' + fmt(TRUCK.load), '#f2b84b', true); particle(TRUCK_B + 0.8, -1.6, '#f2c84b', 10, 2.2, 0.5, 0.1); SFX.play('coin'); TRUCK.load = 0; TRUCK.state = 'back'; } }
     else if (TRUCK.state === 'back') { TRUCK.x = Math.max(TRUCK_A, TRUCK.x - sp * dt); if (TRUCK.x <= TRUCK_A) TRUCK.state = 'idle'; }
   }
 
@@ -517,7 +517,7 @@
       rows = [[T('workersL'), `${effW(f)}/${MINE.workers(lvl)} (máx ${MINE.maxWorkers})`, nw > MINE.workers(lvl) ? `${nw}` : ''], [T('speed'), MINE.workerSpeed(lvl).toFixed(2), MINE.workerSpeed(lvl + 1).toFixed(2)], [T('prodL'), T('perSec', fmt(floorRate(f))), ''], [T('stashL'), fmt(fl.stash), '']];
       if (MINE.workers(lvl) < MINE.maxWorkers) extra = `<p class="note">${T('nextW', nextMilestone)}</p>`;
       if (fl.lost) { const rc = fl.lost * MINE.rehireCost(f, lvl); rows.push([T('bitten'), String(fl.lost), '']); extra += `<button type="button" class="alt wide" id="shRehire">${T('rehire')} · ${fmt(rc)}</button>`; }
-      buy = n => { const c = bulkCost(costFn, lvl, n); if (S.gold < c) { toast(T('noGold')); SFX.play('error'); return; } S.gold -= c; fl.lvl += n; refreshMiners(f); SFX.play('up'); particle(STASH_X + 1, walkFeet(f) + 0.8, '#ffd77a', 10, 2, 0.4, 0.08); save(); };
+      buy = n => { const c = bulkCost(costFn, lvl, n); if (S.gold < c) { toast(T('noGold')); SFX.play('error'); return; } const w0 = effW(f); S.gold -= c; fl.lvl += n; refreshMiners(f); SFX.play('up'); if (effW(f) > w0) { toast(T('newMiner'), 2.5, true); particle(STASH_X + 1.5, walkFeet(f) + 0.8, '#f2c84b', 24, 3, 0.7, 0.1); shake(0.1); } particle(STASH_X + 1, walkFeet(f) + 0.8, '#ffd77a', 10, 2, 0.4, 0.08); save(); };
       mgr = { name: T('foreman'), desc: T('foremanD'), cost: MINE.foremanCost(f), has: fl.foreman, hire: () => { fl.foreman = true; } };
       extra += `<button type="button" class="alt wide" id="shToggle">${fl.active ? T('deactivate') : T('activate')}</button>`;
     } else if (sheetCtx.kind === 'truck') {
@@ -549,7 +549,7 @@
   // ---------- Entrada ----------
   let drag = null;
   stage.addEventListener('pointerdown', e => {
-    if (e.target.closest('#radial') || e.target.closest('#floorUi button') || e.target.closest('#sheet')) return;
+    if (e.target.closest('#radial') || e.target.closest('#floorUi button') || e.target.closest('#sheet') || e.target.closest('#quest')) return;
     drag = { id: e.pointerId, sy: e.clientY, cy: cam.y, moved: false };
     stage.setPointerCapture && stage.setPointerCapture(e.pointerId);
   });
@@ -583,7 +583,7 @@
       if (rt.ore >= h) { const n = Math.floor(rt.ore / h); rt.ore -= n * h; const g = n * FLOORS[f].v; fl.stash += g; floatText(w.x, w.y + 0.3, '+' + fmt(g), '#f2b84b'); }
       return;
     }
-    if (fl.active && !fl.foreman && w.x >= 1 && w.x < 6.4) { rt.work = MINE.cycle; SFX.play('click'); }
+    if (fl.active && !fl.foreman && w.x >= 1 && w.x < 6.4) { rt.work = MINE.cycle; S.stat.work++; SFX.play('click'); }
   }
 
   // ---------- Menu radial das torres ----------
@@ -626,10 +626,52 @@
   ICONS.coin = ART.icon('coin', 3); ICONS.ess = ART.icon('ess', 3); ICONS.skull = ART.icon('skull', 3); ICONS.heart = ART.icon('heart', 3);
   document.querySelectorAll('[data-ico]').forEach(el => el.style.backgroundImage = `url(${ICONS[el.dataset.ico]})`);
   let lastHud = '', paused = false;
+  let shownGold = S.gold;
+  function tickHud(dt) {
+    shownGold += (S.gold - shownGold) * Math.min(1, dt * 7); if (Math.abs(S.gold - shownGold) < 0.5) shownGold = S.gold;
+    $('gold').textContent = fmt(shownGold);
+    const hh = cam.h / 2 / cam.scale, lo = worldBottom() + hh - 3.2, hi = 2.4 - hh, bt = $('btnTop');
+    bt.hidden = lo > hi - 0.5; setT(bt, cam.y > hi - 1 ? '▼' : '▲');
+  }
+  function flyCoins(x, y, n) {
+    const r = stage.getBoundingClientRect(), p = toScreen(x, y), tgt = $('goldIco').getBoundingClientRect();
+    for (let i = 0; i < n; i++) {
+      const c = document.createElement('i'); c.className = 'flycoin'; c.style.backgroundImage = `url(${ICONS.coin})`;
+      c.style.left = (r.left + p.x + (Math.random() - 0.5) * 30) + 'px'; c.style.top = (r.top + p.y + (Math.random() - 0.5) * 20) + 'px';
+      document.body.appendChild(c);
+      setTimeout(() => { c.style.transform = `translate(${tgt.left + 6 - parseFloat(c.style.left)}px, ${tgt.top + 6 - parseFloat(c.style.top)}px) scale(.7)`; c.style.opacity = '0.9'; }, 20 + i * 45);
+      setTimeout(() => { c.remove(); const g = $('goldIco'); g.classList.remove('bump'); void g.offsetWidth; g.classList.add('bump'); }, 640 + i * 45);
+    }
+  }
+  // ---------- Objetivos ----------
+  const QUESTS = [
+    { k: 'q_work', ok: () => S.stat.work >= 1, r: 15 }, { k: 'q_lift', ok: () => S.stat.trips >= 1, r: 20 }, { k: 'q_truck', ok: () => S.stat.sales >= 1, r: 25 },
+    { k: 'q_lvl5', ok: () => S.floors[0].lvl >= 5, r: 60 }, { k: 'q_foreman', ok: () => S.floors[0].foreman, r: 100 },
+    { k: 'q_lift5', ok: () => S.lift.lvl >= 5, r: 150 }, { k: 'q_op', ok: () => S.lift.op, r: 200 }, { k: 'q_truck5', ok: () => S.truck.lvl >= 5, r: 250 },
+    { k: 'q_driver', ok: () => S.truck.op, r: 400 }, { k: 'q_tower2', ok: () => S.floors.some(fl => Object.values(fl.towers).some(t => t.lvl >= 2)), r: 400 },
+    { k: 'q_lvl11', ok: () => S.floors[0].lvl >= 11, r: 600 }, { k: 'q_dig2', ok: () => S.floors.length >= 2, r: 800 },
+    { k: 'q_boss2', ok: () => S.floors.length >= 2 && S.floors[1].boss, r: 1000 }, { k: 'q_fore2', ok: () => S.floors.length >= 2 && S.floors[1].foreman, r: 1500 },
+    { k: 'q_cryo', ok: () => S.floors.some(fl => Object.values(fl.towers).some(t => t.type === 'cryo')), r: 2000 }, { k: 'q_dig3', ok: () => S.floors.length >= 3, r: 5000 }
+  ];
+  function questNow() {
+    if (S.q < QUESTS.length) return QUESTS[S.q];
+    const n = S.floors.length + 1; if (n > FLOORS.length) return null;
+    return { k: 'q_digN', arg: n, ok: () => S.floors.length >= n, r: Math.ceil(MINE.floorCost(n - 1) * 0.3) };
+  }
+  let questKey = '';
+  function renderQuest() {
+    const q = questNow(), el = $('quest'); if (!q) { el.hidden = true; return; }
+    const done = q.ok(), key = S.q + ':' + done + ':' + S.lang;
+    if (key === questKey) return; questKey = key; el.hidden = false; el.classList.toggle('done', done);
+    el.innerHTML = `<span class="qi">★</span><span class="qt"></span><button type="button" class="qb">${done ? T('collect') : ''}<i class="ico" style="background-image:url(${ICONS.coin})"></i>${fmt(q.r)}</button>`;
+    el.querySelector('.qt').textContent = T(q.k, q.arg);
+    const b = el.querySelector('.qb'); b.disabled = !done;
+    b.onclick = ev => { ev.stopPropagation(); if (!q.ok()) return; SFX.unlock(); SFX.play('up'); S.gold += q.r; S.q++; save(); const r = el.getBoundingClientRect(), sr = stage.getBoundingClientRect(), w = toWorld(r.left + r.width / 2 - sr.left, r.bottom - sr.top); flyCoins(w.x, w.y, 6); questKey = ''; renderQuest(); };
+  }
   function updateHud(force) {
     const rate = Math.min(prodRate(), S.lift.op ? liftThroughput() : Infinity, S.truck.op ? truckThroughput() : Infinity), key = [Math.floor(S.gold), Math.round(rate * 10), S.floors.length].join('|');
     if (!force && key === lastHud) return; lastHud = key;
-    $('gold').textContent = fmt(S.gold); $('rate').textContent = T('perSec', fmt(rate));
+    $('rate').textContent = T('perSec', fmt(rate));
     $('depth').textContent = T('floorN', S.floors.length);
   }
   let toastTimer = 0;
@@ -686,7 +728,7 @@
 
   // Botões
   const on = (id, fn) => $(id).addEventListener('click', () => { SFX.unlock(); fn(); });
-  on('btnPlay', () => { SFX.play('click'); started = true; showScreen(null); if (S.total === 0) toast(T('mineHint'), 9); });
+  on('btnPlay', () => { SFX.play('click'); started = true; showScreen(null);  });
   on('btnUp', () => { SFX.play('click'); closeRadial(); closeSheet(); renderUpgrades(); showScreen('scrUpgrades'); });
   on('btnUpBack', () => { SFX.play('click'); showScreen(started ? null : 'scrMenu'); applyLang(); });
   on('btnPause', () => { SFX.play('click'); closeRadial(); closeSheet(); showScreen('scrPause'); });
@@ -695,7 +737,7 @@
   on('btnReset', () => { $('confirmText').textContent = T('confirmReset'); showScreen('scrConfirm'); });
   on('btnYes', () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } S = fresh(); S.lang = LANG; save(); location.reload(); });
   on('btnNo', () => showScreen('scrPause'));
-  on('btnTop', () => { SFX.play('click'); cam.y = 0; clampCam(); });
+  on('btnTop', () => { SFX.play('click'); const hh = cam.h / 2 / cam.scale; if (cam.y > 2.4 - hh - 1) cam.y = floorTop(S.floors.length - 1) - 1.2; else cam.y = 2.4 - hh; clampCam(); });
   document.querySelectorAll('.optLang').forEach(b => b.addEventListener('click', () => { S.lang = S.lang === 'pt' ? 'en' : 'pt'; save(); applyLang(); }));
   document.querySelectorAll('.optSfx').forEach(b => b.addEventListener('click', () => { S.sfx = !S.sfx; SFX.set('sfx', S.sfx); save(); applyLang(); SFX.unlock(); SFX.play('click'); }));
   document.querySelectorAll('.optMusic').forEach(b => b.addEventListener('click', () => { S.music = !S.music; SFX.set('music', S.music); save(); SFX.unlock(); applyLang(); }));
@@ -709,7 +751,8 @@
   function frame(now) {
     const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
     if (!paused) { let left = dt; while (left > 0) { const st = Math.min(left, 1 / 60); update(st); left -= st; } }
-    hudT -= dt; if (hudT <= 0) { updateHud(); if (sheetCtx) renderSheet(); hudT = 0.2; }
+    tickHud(dt);
+    hudT -= dt; if (hudT <= 0) { updateHud(); renderQuest(); if (sheetCtx) renderSheet(); hudT = 0.2; }
     render(dt);
     requestAnimationFrame(frame);
   }

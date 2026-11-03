@@ -1,6 +1,10 @@
 // Textos do jogo em português e inglês.
 window.STR = {
   pt: {
+    newMiner: 'Novo mineiro!', q_work: 'Toque no andar 1 para os mineiros cavarem', q_lift: 'Toque no elevador para buscar o ouro', q_truck: 'Toque no caminhão para vender o ouro',
+    q_lvl5: 'Melhore o andar 1 até o nível 5', q_foreman: 'Contrate o capataz do andar 1', q_lift5: 'Melhore o elevador até o nível 5', q_op: 'Contrate o operador do elevador',
+    q_truck5: 'Melhore o transporte até o nível 5', q_driver: 'Contrate o motorista', q_tower2: 'Melhore uma torre (toque nela)', q_lvl11: 'Andar 1 no nível 11 (2º mineiro)',
+    q_dig2: 'Cave o andar 2', q_boss2: 'Derrote a Abominação', q_fore2: 'Contrate o capataz do andar 2', q_cryo: 'Construa uma torre Criogênica', q_dig3: 'Cave o andar 3', q_digN: 'Cave o andar {0}',
     truck: 'Transporte', driver: 'Motorista', driverD: 'O caminhão leva o ouro sozinho, inclusive offline', tapTruck: 'Toque para levar', depot: 'Depósito', bitten: 'Mordidos', rehire: 'Repor mineiros', bittenMsg: 'Um mineiro do andar {0} foi mordido e virou zumbi!', allBitten: 'Andar {0} tomado pelos zumbis! Só torres matam zumbis.',
     lift: 'Elevador', capacity: 'Capacidade', speed: 'Velocidade', operator: 'Operador', foreman: 'Capataz', hire2: 'Contratar', hired: 'Contratado', workersL: 'Mineiros', prodL: 'Produção', nextW: '+1 mineiro no nível {0}', tapWork: 'Toque!', tapLift: 'Toque para descer', u_ammo: 'Munição', u_ammo_d: 'Torres causam +15% de dano', activeL: 'Andar ativo', deactivate: 'Abandonar andar', activate: 'Reativar andar', stashL: 'No baú', autoNote: 'Trabalha sozinho, até offline', manualNote: 'Sem gerente: toque para trabalhar', buyMax: 'Máx', foremanD: 'O andar trabalha sem parar, inclusive offline', operatorD: 'O elevador desce sozinho, inclusive offline',
     mine: 'Mina', perSec: '{0}/s', hire: 'Mineiro', floorN: 'Andar {0}', dig: 'Cavar andar {0}', upgrades: 'Melhorias',
@@ -55,6 +59,10 @@ window.STR = {
     rubble: 'Obstáculo', barrel: 'Barril em chamas', perHour: '{0}/h offline (máx. {1}h)'
   },
   en: {
+    newMiner: 'New miner!', q_work: 'Tap floor 1 to make the miners dig', q_lift: 'Tap the elevator to fetch the gold', q_truck: 'Tap the truck to sell the gold',
+    q_lvl5: 'Upgrade floor 1 to level 5', q_foreman: 'Hire the floor 1 foreman', q_lift5: 'Upgrade the elevator to level 5', q_op: 'Hire the elevator operator',
+    q_truck5: 'Upgrade transport to level 5', q_driver: 'Hire the driver', q_tower2: 'Upgrade a tower (tap it)', q_lvl11: 'Floor 1 at level 11 (2nd miner)',
+    q_dig2: 'Dig floor 2', q_boss2: 'Defeat the Abomination', q_fore2: 'Hire the floor 2 foreman', q_cryo: 'Build a Cryo tower', q_dig3: 'Dig floor 3', q_digN: 'Dig floor {0}',
     truck: 'Transport', driver: 'Driver', driverD: 'The truck hauls gold on its own, even offline', tapTruck: 'Tap to haul', depot: 'Depot', bitten: 'Bitten', rehire: 'Replace miners', bittenMsg: 'A miner on floor {0} was bitten and turned!', allBitten: 'Floor {0} overrun! Only towers can kill zombies.',
     lift: 'Elevator', capacity: 'Capacity', speed: 'Speed', operator: 'Operator', foreman: 'Foreman', hire2: 'Hire', hired: 'Hired', workersL: 'Miners', prodL: 'Output', nextW: '+1 miner at level {0}', tapWork: 'Tap!', tapLift: 'Tap to send', u_ammo: 'Ammo', u_ammo_d: 'Towers deal +15% damage', activeL: 'Floor active', deactivate: 'Abandon floor', activate: 'Reactivate floor', stashL: 'In the chest', autoNote: 'Works on its own, even offline', manualNote: 'No manager: tap to work', buyMax: 'Max', foremanD: 'The floor works nonstop, even offline', operatorD: 'The elevator runs on its own, even offline',
     mine: 'Mine', perSec: '{0}/s', hire: 'Miner', floorN: 'Floor {0}', dig: 'Dig floor {0}', upgrades: 'Upgrades',

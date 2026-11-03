@@ -149,8 +149,8 @@ window.ART3 = (function () {
   function slot() { const p = new Px(16, 8); p.rect(1, 2, 14, 4, '#8b5a2b').rect(1, 2, 14, 1, '#b07a3c').rect(3, 6, 1, 2, '#5c3a1c').rect(12, 6, 1, 2, '#5c3a1c'); p.rect(7, 3, 2, 2, '#d9cfae'); return p.outline(); }
   function cart() { const p = new Px(14, 12); p.rect(1, 2, 12, 7, '#6c6f80').rect(1, 2, 12, 1, '#9da0b2').rect(2, 0, 10, 2, '#f2c84b').ell(4, 10, 1.8, 1.8, '#2f2f3d').ell(10, 10, 1.8, 1.8, '#2f2f3d'); return p.outline(); }
   // Paleta da rocha por profundidade: marrom perto da superfície, cinza-azulado e roxo no fundo
-  const ROCK = [['#5a4636', '#4a3b30', '#3a2e26', '#6b5440'], ['#55463c', '#463a33', '#362d29', '#66574a'], ['#4d4848', '#3e3a3b', '#302c2e', '#5d5858'],
-    ['#46424f', '#38353f', '#2b2833', '#565162'], ['#463d52', '#393144', '#2b2536', '#574c66'], ['#3f3a55', '#322e46', '#262338', '#4f4a68']];
+  const ROCK = [['#b08260', '#9a6e50', '#7d5840', '#c9987a'], ['#b8785c', '#a0644a', '#83503a', '#d0907a'], ['#8f8a9a', '#7b7686', '#64606e', '#a8a3b4'],
+    ['#6f9a9a', '#5e8585', '#4a6c6c', '#8ab4b4'], ['#9a7fb5', '#8469a0', '#6a5385', '#b49ccc'], ['#c07a9a', '#a96584', '#8c506c', '#d898b4']];
   const rockOf = f => ROCK[Math.min(f, ROCK.length - 1)];
   // pedras irregulares com luz de cima
   function stones(x, R, x0, y0, w, h, pal, n) {
@@ -171,10 +171,10 @@ window.ART3 = (function () {
     stones(x, R, 16, 2, 96, 28, pal, 70);
     for (let i = 0; i < 6; i++) { let X = 16 + R() * 96, y = R() * 28; for (let k = 0; k < 8; k++) { px(X | 0, y | 0, pal[2]); X += R() * 2 - 1; y += 1; } }
     // escurece a parte de cima (penumbra do teto)
-    for (let y = 0; y < 8; y++) { x.fillStyle = `rgba(10,8,14,${0.35 - y * 0.04})`; x.fillRect(16, y, 96, 1); }
+    for (let y = 0; y < 6; y++) { x.fillStyle = `rgba(30,20,30,${0.22 - y * 0.035})`; x.fillRect(16, y, 96, 1); }
     // chão de terra batida, trilhos e dormentes
-    for (let y = 29; y < 34; y++) for (let X = 16; X < 128; X++) px(X, y, y === 29 ? '#7a6044' : R() < 0.3 ? '#4a3826' : '#5e4a34');
-    for (let X = 18; X < 112; X += 5) { x.fillStyle = '#4a3220'; x.fillRect(X, 31, 3, 2); }
+    for (let y = 29; y < 34; y++) for (let X = 16; X < 128; X++) px(X, y, y === 29 ? '#d0a878' : R() < 0.3 ? '#9a7650' : '#b08a5c');
+    for (let X = 18; X < 112; X += 5) { x.fillStyle = '#6b4424'; x.fillRect(X, 31, 3, 2); }
     x.fillStyle = '#8d8a99'; x.fillRect(16, 30, 96, 1); x.fillStyle = '#5c5a66'; x.fillRect(16, 31, 96, 1);
     // estratos de rocha entre andares
     for (let y = 34; y < H; y++) for (let X = 0; X < W; X++) px(X, y, (y + ((X / 7) | 0)) % 4 === 0 ? pal[2] : R() < 0.15 ? pal[0] : pal[1]);
