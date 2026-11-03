@@ -1035,3 +1035,16 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 .radio-btn:not(.off) .radio-ico { animation: radioPulse 1.6s ease-in-out infinite; }
 @keyframes radioPulse { 50% { transform: scale(1.12) rotate(-3deg); } }
 .me-left { flex-wrap: nowrap; min-width: 0; }
+
+/* botão de mudo */
+.top-right { display: flex; align-items: center; gap: 8px; }
+.mute-btn { width: 36px; height: 36px; border-radius: 50%; }
+.mute-btn svg { width: 18px; height: 18px; }
+.mute-btn.muted { color: var(--chili-hi); box-shadow: inset 0 0 0 1.5px rgba(226,72,59,.5); }
+.top-stack { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.top-stack .icon-btn { width: 36px; height: 36px; }
+
+/* cartões de Carreira e Desafio: tudo centralizado (cabe melhor no celular) */
+.tile-card { grid-template-columns: 1fr; justify-items: center; align-content: center; text-align: center; gap: 6px; padding: 14px 10px; }
+.tile-card .tc-body { display: grid; justify-items: center; }
+.tile-card .tc-title { font-size: 18px; }

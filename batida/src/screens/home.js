@@ -24,6 +24,28 @@ export function iconBtn(name, label, onClick) {
   return h('button', { class: 'icon-btn', 'aria-label': label, title: label, html: ICONS[name], onClick });
 }
 
+const SOUND_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>';
+const SOUND_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>';
+
+// Botão pequeno de mudo: liga e desliga todo o som do jogo
+export function muteBtn() {
+  const b = h('button', { class: 'icon-btn mute-btn' });
+  const paint = () => {
+    b.innerHTML = settings.sound ? SOUND_ON : SOUND_OFF;
+    b.setAttribute('aria-label', settings.sound ? 'Tirar o som' : 'Ligar o som');
+    b.setAttribute('aria-pressed', String(!settings.sound));
+    b.classList.toggle('muted', !settings.sound);
+  };
+  b.addEventListener('click', () => {
+    settings.sound = !settings.sound;
+    saveSettings();
+    paint();
+    if (settings.sound) sfx.uiTap();
+  });
+  paint();
+  return b;
+}
+
 export function walletChip(onClick) {
   return h(
     'button',
@@ -70,7 +92,7 @@ export function homeScreen(stage) {
     'div',
     { class: 'home-top' },
     h('div', { class: 'home-stats' }, h('span', { html: ICONS.trophy }), `${car.titles.length} título${car.titles.length === 1 ? '' : 's'}`, h('span', { class: 'sep' }), `${getStats().vitorias} vitória${getStats().vitorias === 1 ? '' : 's'}`),
-    walletChip(() => walletModal()),
+    h('div', { class: 'top-right' }, muteBtn(), walletChip(() => walletModal())),
   );
 
   const play = h('button', { class: 'play-btn', onClick: () => quickSetup() }, h('span', {}, 'Jogar'), h('small', {}, 'Jogo rápido · 2, 3 ou 4 na mesa'));

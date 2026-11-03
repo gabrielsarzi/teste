@@ -8,7 +8,7 @@ import { sfx, haptic } from '../ui/audio.js';
 import { confetti, chalkDust, shake, pop } from '../ui/fx.js';
 import { settings, go, stats, saveStats, wallet, setWallet, money, rivals, addRival, nextStation } from '../app.js';
 import { STATIONS } from '../ui/music.js';
-import { iconBtn, rulesModal } from './home.js';
+import { iconBtn, rulesModal, muteBtn } from './home.js';
 import { isDouble, pipSum, BUCHA_NAMES } from '../core/tiles.js';
 import { track } from '../progress.js';
 import { showRewarded, maybeInterstitial } from '../ads.js';
@@ -95,7 +95,7 @@ export function classicScreen(stage, params = {}) {
   }
   if (match.teams !== 2) lousa.append(h('div', { class: 'round' }));
   const roundLbl = lousa.querySelector('.round');
-  const top = h('div', { class: 'topbar' }, iconBtn('back', 'Sair da mesa', () => confirmExit()), lousa, iconBtn('help', 'Regras', () => rulesModal()));
+  const top = h('div', { class: 'topbar' }, iconBtn('back', 'Sair da mesa', () => confirmExit()), lousa, h('div', { class: 'top-stack' }, iconBtn('help', 'Regras', () => rulesModal()), muteBtn()));
 
   const seats = [];
   const mkSeat = (p) => {
