@@ -10,6 +10,7 @@ import { settings, go, stats, saveStats, wallet, setWallet, money, rivals, addRi
 import { iconBtn, rulesModal } from './home.js';
 import { isDouble, pipSum, BUCHA_NAMES } from '../core/tiles.js';
 import { track } from '../progress.js';
+import { showRewarded, maybeInterstitial } from '../ads.js';
 
 export const QUICK_POOLS = {
   facil: ['zezao', 'naldo', 'marquinhos', 'careca'],
@@ -999,6 +1000,24 @@ export function classicScreen(stage, params = {}) {
       if (delta) sfx.coins();
     } else sfx.lose();
     const canDouble = stake && wallet() >= stake * 2;
+    const leave = async (fn) => {
+      m.close();
+      await maybeInterstitial();
+      fn();
+    };
+    const dobra = won && delta > 0
+      ? h('button', { class: 'btn blue wide' }, `Ver um vídeo e dobrar: +${money(delta)}`)
+      : null;
+    if (dobra) {
+      dobra.addEventListener('click', async () => {
+        dobra.disabled = true;
+        if (await showRewarded()) {
+          setWallet(wallet() + delta);
+          sfx.coins();
+          dobra.textContent = `Prêmio dobrado! +${money(delta)}`;
+        } else dobra.disabled = false;
+      });
+    }
     const again = () => go('classic', { ...params, players: n, opps, stake: canDouble ? stake * 2 : Math.min(stake, wallet()), revanche: true });
     const m = modal(
       [
@@ -1007,15 +1026,16 @@ export function classicScreen(stage, params = {}) {
         h('div', { class: 'big' }, match.score.join(' × ')),
         delta ? h('div', { class: `money-delta ${won ? 'up' : 'down'}` }, `${won ? '+' : '−'}${money(Math.abs(delta))}`) : null,
         h('p', {}, `Carteira: ${money(wallet())}`),
+        dobra,
         h(
           'div',
           { class: 'actions col' },
           stake
-            ? h('button', { class: 'btn chili wide', disabled: !wallet(), onClick: () => { m.close(); again(); } }, canDouble ? `Revanche valendo ${money(stake * 2)}` : 'Revanche')
+            ? h('button', { class: 'btn chili wide', disabled: !wallet(), onClick: () => leave(again) }, canDouble ? `Revanche valendo ${money(stake * 2)}` : 'Revanche')
             : null,
           h('div', { class: 'actions' },
-            h('button', { class: 'btn ghost', onClick: () => { m.close(); go('home'); } }, 'Sair'),
-            h('button', { class: 'btn amber', onClick: () => { m.close(); go('classic', { players: n, stake: Math.min(stake, wallet()) }); } }, 'Nova mesa'),
+            h('button', { class: 'btn ghost', onClick: () => leave(() => go('home')) }, 'Sair'),
+            h('button', { class: 'btn amber', onClick: () => leave(() => go('classic', { players: n, stake: Math.min(stake, wallet()) })) }, 'Nova mesa'),
           ),
         ),
       ],

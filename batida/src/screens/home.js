@@ -6,6 +6,7 @@ import { CAMPEONATOS, MESAS_VISUAL, DOMINOS_VISUAL, DESAFIO_OPPS, CAST } from '.
 import { sfx } from '../ui/audio.js';
 import { track, pendingRewards, getStats } from '../progress.js';
 import { confetti } from '../ui/fx.js';
+import { showRewarded } from '../ads.js';
 
 export const ICONS = {
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
@@ -119,6 +120,8 @@ export function walletModal() {
   ]);
 }
 
+const videoHoje = () => store.get('fiadoVideo', 0) === today();
+
 export function fiadoModal() {
   const m = modal(
     [
@@ -126,6 +129,16 @@ export function fiadoModal() {
       h('h2', {}, 'Pendura no fiado!'),
       h('p', { class: 'quote' }, '“Tranquilo, depois você acerta. Só não some, hein!”', h('span', {}, ' · Zezão, dono do boteco')),
       h('div', { class: 'big', style: { color: 'var(--good)' } }, '+R$ 50'),
+      videoHoje() ? null : h('button', { class: 'btn blue wide', style: { marginTop: '12px' }, onClick: async (e) => {
+        e.currentTarget.disabled = true;
+        if (await showRewarded()) {
+          store.set('fiadoVideo', today());
+          setWallet(wallet() + 100);
+          sfx.coins();
+          m.close();
+          toast('Fiado + vídeo: +R$ 100');
+        }
+      } }, 'Ver um vídeo e pegar R$ 100'),
       h('div', { class: 'actions' }, h('button', { class: 'btn amber wide', onClick: () => { setWallet(wallet() + 50); sfx.coins(); m.close(); } }, 'Valeu, Zezão')),
     ],
     { cls: 'result' },

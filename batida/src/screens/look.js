@@ -6,6 +6,7 @@ import { sfx } from '../ui/audio.js';
 import { go, settings, saveSettings, owned, addOwned, wallet, setWallet, money } from '../app.js';
 import { CAMPEONATOS, MESAS_VISUAL, DOMINOS_VISUAL } from '../classic/cast.js';
 import { iconBtn, walletChip } from './home.js';
+import { buyRemoveAds, adsRemoved } from '../ads.js';
 
 const tex = {};
 function texUrl(id) {
@@ -37,6 +38,17 @@ export function lookScreen(stage) {
       ),
     );
     const wrap = h('div', { class: 'look' });
+    const noAds = h('button', { class: `no-ads ${adsRemoved() ? 'done' : ''}`, disabled: adsRemoved() },
+      h('div', {}, h('b', {}, adsRemoved() ? 'Sem anúncios' : 'Tirar os anúncios'), h('small', {}, adsRemoved() ? 'Obrigado pelo apoio!' : 'Compra única. Os vídeos premiados continuam, se você quiser.')),
+      h('span', { class: 'na-price' }, adsRemoved() ? 'Ativo' : 'R$ 9,90'));
+    noAds.addEventListener('click', async () => {
+      const r = await buyRemoveAds();
+      if (r.ok) return render();
+      if (r.reason === 'loja') {
+        const m = modal([h('h2', {}, 'Na versão da loja'), h('p', {}, 'A compra para tirar os anúncios fica disponível quando o jogo estiver na Play Store.'), h('div', { class: 'actions' }, h('button', { class: 'btn amber', onClick: () => m.close() }, 'Beleza'))]);
+      }
+    });
+    wrap.append(noAds);
     for (const kind of ['mesa', 'domino']) {
       const list = kind === 'mesa' ? MESAS_VISUAL : DOMINOS_VISUAL;
       const have = owned(kind);

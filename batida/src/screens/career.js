@@ -7,6 +7,7 @@ import { go, career, saveCareer, settings, saveSettings, wallet, setWallet, mone
 import { CAST, CAMPEONATOS, FASES, MESAS_VISUAL, DOMINOS_VISUAL, PARCEIROS } from '../classic/cast.js';
 import { iconBtn, walletChip, fiadoModal } from './home.js';
 import { track } from '../progress.js';
+import { maybeInterstitial } from '../ads.js';
 
 const SUBS = ['marquinhos', 'careca', 'tonhao', 'paulao', 'valter', 'cida'];
 
@@ -188,7 +189,10 @@ export function careerScreen(stage, params = {}) {
       partner: car.partner,
       partnerLevel: { skill: pt.skill, master: pt.master },
       rules: { players: 4, buchaVale2: true, laeloVale2: true, comecaSena: true, cincoBuchas: true, votacao: true, ...c.format },
-      onEnd: (won, match, quit) => go('career', { result: { id: c.id, fase, won, quit, score: match.score } }),
+      onEnd: async (won, match, quit) => {
+        await maybeInterstitial();
+        go('career', { result: { id: c.id, fase, won, quit, score: match.score } });
+      },
     });
   };
 
