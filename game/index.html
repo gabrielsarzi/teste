@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0d0b0a">
+<title>Último Bunker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: coluna de celular em pé — HUD no topo, mapa no meio, ações no rodapé (zona do polegar). Visual escuro único: ferrugem, areia e luz tóxica. */
+:root{
+  color-scheme: dark;
+  --bg:#0d0b0a; --panel:#1d1815; --panel2:#2a221d; --line:#4a3b30; --ink:#ece6d3; --muted:#a39886;
+  --amber:#e0a640; --amber2:#f5d27a; --rust:#b8692e; --toxic:#9be04a; --blood:#b04a5a; --ice:#5ab0d8; --teal:#5cc4ae;
+  --f-pix:"Silkscreen", "Courier New", monospace; --f-body:"IBM Plex Sans", system-ui, sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);overflow:hidden;overscroll-behavior:none;user-select:none;-webkit-user-select:none;touch-action:none}
+#app{height:100%;display:grid;grid-template-rows:auto 1fr auto;max-width:560px;margin:0 auto;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+button{font:inherit;color:inherit;cursor:pointer;border-radius:0}
+button:focus-visible{outline:3px solid var(--amber2);outline-offset:2px}
+.ico{display:inline-block;width:18px;height:18px;background-size:contain;background-repeat:no-repeat;image-rendering:pixelated;vertical-align:middle;flex:none}
+
+#hud{display:flex;align-items:center;gap:6px;padding:8px 10px;background:linear-gradient(var(--panel),var(--bg));border-bottom:2px solid var(--line)}
+.stat{display:flex;align-items:center;gap:5px;font-family:var(--f-pix);font-size:15px;font-variant-numeric:tabular-nums;background:#0006;padding:4px 7px;box-shadow:inset 0 0 0 2px #0008;min-width:0}
+.stat b{font-weight:400}
+#goldBox b{color:var(--amber2)} #essBox b{color:var(--toxic)}
+#hpBox.low b{color:var(--blood);animation:blink .6s steps(2) infinite}
+@keyframes blink{50%{opacity:.35}}
+.hsp{flex:1}
+.hbtn{font-family:var(--f-pix);font-size:14px;background:var(--panel2);border:0;box-shadow:inset 0 0 0 2px var(--line),0 3px 0 #000;padding:6px 10px;min-width:42px;min-height:34px}
+.hbtn:active{transform:translateY(2px);box-shadow:inset 0 0 0 2px var(--line)}
+
+#stage{position:relative;overflow:hidden;touch-action:none;min-height:0}
+#gl,#fx{position:absolute;inset:0;width:100%;height:100%;display:block}
+#fx{pointer-events:none}
+
+#radial{position:absolute;width:0;height:0;z-index:5}
+.rb{position:absolute;left:-31px;top:-31px;width:62px;height:62px;background:var(--panel);border:0;box-shadow:inset 0 0 0 2px var(--line),0 0 0 2px #000,0 4px 0 #000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:2px;transition:transform .12s ease-out}
+.rb img{width:30px;height:30px;image-rendering:pixelated}
+.rb .nm{font-size:10px;line-height:1.05;text-align:center;font-weight:600;max-width:58px}
+.rb .nm.big{font-family:var(--f-pix);font-size:13px}
+.rb .nm.b{color:var(--amber2)}
+.rb .up{color:var(--toxic);font-size:14px;line-height:1}
+.rb .cost{font-family:var(--f-pix);font-size:11px;color:var(--amber2)}
+.rb .cost.poor{color:var(--blood)}
+.rb .cost.gain{color:var(--toxic)}
+.rb.br-a{box-shadow:inset 0 0 0 2px var(--amber),0 0 0 2px #000,0 4px 0 #000}
+.rb.br-b{box-shadow:inset 0 0 0 2px var(--teal),0 0 0 2px #000,0 4px 0 #000}
+.rb.sell{background:#2a1517}
+.rb.off{opacity:.6}
+.rb:active{filter:brightness(1.3)}
+.rlabel{pointer-events:none;position:absolute;left:0;top:0;white-space:nowrap;background:#000c;padding:4px 8px;text-align:center;display:flex;flex-direction:column;box-shadow:0 0 0 2px var(--line)}
+.rlabel b{font-family:var(--f-pix);font-weight:400;font-size:12px;color:var(--amber2)}
+.rlabel span{font-size:11px;color:var(--muted)}
+.rlabel span:empty{display:none}
+
+.toast{position:absolute;left:50%;bottom:12px;transform:translate(-50%,8px);max-width:calc(100% - 32px);background:#000d;box-shadow:0 0 0 2px var(--line);padding:8px 12px;font-size:13px;text-align:center;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:6}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.big{font-family:var(--f-pix);font-size:22px;color:var(--blood);bottom:auto;top:35%;padding:10px 18px}
+
+#bar{display:flex;gap:8px;padding:8px 10px 10px;background:linear-gradient(var(--bg),var(--panel));border-top:2px solid var(--line)}
+.big{flex:1;font-family:var(--f-pix);background:var(--amber);color:#1c1206;border:0;box-shadow:0 4px 0 #6b4510,0 0 0 2px #000;padding:8px 10px;display:flex;flex-direction:column;align-items:center;gap:1px;min-height:52px;justify-content:center}
+.big small{font-family:var(--f-body);font-size:12px;font-weight:600;opacity:.85}
+.big:active{transform:translateY(3px);box-shadow:0 1px 0 #6b4510,0 0 0 2px #000}
+.big:disabled{background:#5a4a33;color:#d8c9a8;box-shadow:0 4px 0 #2b2420,0 0 0 2px #000}
+.alt{font-family:var(--f-pix);font-size:13px;background:var(--panel2);border:0;box-shadow:inset 0 0 0 2px var(--line),0 4px 0 #000;padding:8px 12px}
+
+.screen{position:fixed;inset:0;z-index:20;background:#0d0b0ae6;display:flex;align-items:center;justify-content:center;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));touch-action:auto}
+.card{width:100%;max-width:420px;max-height:100%;overflow:auto;background:var(--panel);box-shadow:0 0 0 2px var(--line),0 0 0 4px #000,6px 8px 0 4px #0008;padding:20px;display:flex;flex-direction:column;gap:14px}
+.card h2{font-family:var(--f-pix);font-weight:400;font-size:22px;margin:0;color:var(--amber2);text-wrap:balance}
+.card p{margin:0;color:var(--muted);line-height:1.45}
+.logo{font-family:var(--f-pix);font-weight:700;font-size:clamp(34px,11vw,52px);line-height:.95;margin:0;color:var(--amber);text-shadow:0 4px 0 #6b4510,0 8px 0 #000;letter-spacing:.02em}
+.logo span{display:block;color:var(--ink);font-size:.55em;text-shadow:0 3px 0 #000}
+.tag{font-family:var(--f-pix);font-size:12px;color:var(--toxic);letter-spacing:.12em;text-transform:uppercase}
+#scrMenu{background:radial-gradient(ellipse at 50% 120%,#3a2a12 0,#0d0b0a 60%)}
+#scrMenu .card{background:transparent;box-shadow:none;text-align:left}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row > *{flex:1}
+.menuStats{display:flex;flex-direction:column;gap:6px;font-family:var(--f-pix);font-size:14px}
+.menuStats div{display:flex;align-items:center;gap:8px}
+#menuOffline{font-family:var(--f-body);font-size:12px;color:var(--muted)}
+.opts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.opt{background:var(--panel2);border:0;box-shadow:inset 0 0 0 2px var(--line);padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted)}
+.opt .val{font-family:var(--f-pix);font-size:13px;color:var(--ink)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:8px 16px;font-size:15px}
+.kv b{font-family:var(--f-pix);font-weight:400;font-variant-numeric:tabular-nums;text-align:right}
+#overEss{color:var(--toxic)}
+
+#talTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+#talTabs button{font-family:var(--f-pix);font-size:12px;background:var(--panel2);border:0;box-shadow:inset 0 0 0 2px var(--line);padding:8px 2px;color:var(--muted)}
+#talTabs button[aria-selected="true"]{background:var(--amber);color:#1c1206;box-shadow:none}
+#talList{display:flex;flex-direction:column;gap:0}
+.tal{display:flex;gap:10px;align-items:center;padding:10px;background:#0004;box-shadow:inset 0 0 0 2px var(--line);position:relative;margin-bottom:14px}
+.tal:not(:last-child)::after{content:"";position:absolute;left:22px;bottom:-16px;width:4px;height:14px;background:var(--line)}
+.tal.has{box-shadow:inset 0 0 0 2px #6b8a3a}
+.tal.has:not(:last-child)::after{background:#6b8a3a}
+.tal.locked{opacity:.5}
+.tinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tinfo b{font-family:var(--f-pix);font-weight:400;font-size:13px}
+.tinfo p{font-size:12px}
+.tinfo small{font-family:var(--f-pix);font-size:11px;color:var(--amber2)}
+.buy{font-family:var(--f-pix);font-size:13px;background:var(--toxic);color:#10200a;border:0;box-shadow:0 3px 0 #3d6a1c;padding:8px 10px;display:flex;align-items:center;gap:4px;min-width:74px;justify-content:center}
+.buy:disabled{background:#3a3a30;color:#8c8a76;box-shadow:0 3px 0 #1a1a14}
+.essHead{display:flex;align-items:center;justify-content:space-between}
+.essHead span{font-family:var(--f-pix);font-size:16px;color:var(--toxic);display:flex;align-items:center;gap:6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="hud">
+    <div class="stat" id="goldBox"><i class="ico" data-ico="coin"></i><b id="gold">0</b></div>
+    <div class="stat"><i class="ico" data-ico="skull"></i><b id="wave">0</b></div>
+    <div class="stat" id="hpBox"><i class="ico" data-ico="heart"></i><b id="hp">20</b></div>
+    <div class="stat" id="essBox"><i class="ico" data-ico="ess"></i><b id="essRun">+0</b></div>
+    <span class="hsp"></span>
+    <button class="hbtn" id="btnSpeed" type="button">x1</button>
+    <button class="hbtn" id="btnPause" type="button" aria-label="Pausa">II</button>
+  </header>
+  <div id="stage">
+    <canvas id="gl"></canvas><canvas id="fx"></canvas>
+    <div id="radial" hidden></div>
+    <div id="toast" class="toast"></div>
+  </div>
+  <footer id="bar">
+    <button class="big" id="btnWave" type="button"><span id="waveLbl">—</span><small id="waveBonus"></small></button>
+    <button class="alt" id="btnRetreat" type="button" data-t="retreat">Recuar</button>
+  </footer>
+</div>
+
+<div class="screen" id="scrMenu">
+  <div class="card">
+    <div class="tag" data-t="subtitle">Tower defense incremental</div>
+    <h1 class="logo" id="logo">ÚLTIMO<span>BUNKER</span></h1>
+    <div class="menuStats">
+      <div><i class="ico" data-ico="skull"></i><span id="menuBest"></span></div>
+      <div><i class="ico" data-ico="ess"></i><span id="menuEss">0</span><span data-t="essence" style="font-family:var(--f-body);font-size:13px;color:var(--muted)"></span></div>
+      <div id="menuOffline"></div>
+    </div>
+    <button class="big" id="btnPlay" type="button" data-t="play">Jogar</button>
+    <button class="alt" id="btnTalents" type="button" data-t="talents">Talentos</button>
+    <div class="opts">
+      <button class="opt optLang" type="button"><span data-t="language"></span><span class="val">PT</span></button>
+      <button class="opt optSfx" type="button"><span data-t="sfx"></span><span class="val"></span></button>
+      <button class="opt optMusic" type="button"><span data-t="music"></span><span class="val"></span></button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="scrTalents" hidden>
+  <div class="card">
+    <div class="essHead"><h2 data-t="talents">Talentos</h2><span><i class="ico" data-ico="ess"></i><b id="talEss">0</b></span></div>
+    <div id="talTabs" role="tablist">
+      <button type="button" data-br="atk" data-t="br_atk"></button>
+      <button type="button" data-br="eco" data-t="br_eco"></button>
+      <button type="button" data-br="tec" data-t="br_tec"></button>
+    </div>
+    <div id="talList"></div>
+    <button class="alt" id="btnTalBack" type="button" data-t="back">Voltar</button>
+  </div>
+</div>
+
+<div class="screen" id="scrOver" hidden>
+  <div class="card">
+    <h2 id="overTitle"></h2>
+    <div class="kv">
+      <span data-t="reachedWave"></span><b id="overWave">0</b>
+      <span data-t="kills"></span><b id="overKills">0</b>
+      <span data-t="earned"></span><b id="overEss">0</b>
+    </div>
+    <button class="big" id="btnAgain" type="button" data-t="again"></button>
+    <div class="row">
+      <button class="alt" id="btnOverTalents" type="button" data-t="talents"></button>
+      <button class="alt" id="btnOverMenu" type="button" data-t="menu"></button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="scrPause" hidden>
+  <div class="card">
+    <h2 data-t="paused"></h2>
+    <button class="big" id="btnResume" type="button" data-t="resume"></button>
+    <div class="opts">
+      <button class="opt optLang" type="button"><span data-t="language"></span><span class="val">PT</span></button>
+      <button class="opt optSfx" type="button"><span data-t="sfx"></span><span class="val"></span></button>
+      <button class="opt optMusic" type="button"><span data-t="music"></span><span class="val"></span></button>
+    </div>
+    <button class="alt" id="btnPauseEnd" type="button" data-t="endRun"></button>
+  </div>
+</div>
+
+<div class="screen" id="scrConfirm" hidden>
+  <div class="card">
+    <p id="confirmText"></p>
+    <button class="big" id="btnNo" type="button" data-t="no"></button>
+    <button class="alt" id="btnYes" type="button" data-t="yes"></button>
+  </div>
+</div>
+
+<div class="screen" id="scrOffline" hidden>
+  <div class="card">
+    <h2 data-t="offlineTitle"></h2>
+    <p id="offBody"></p>
+    <button class="big" id="btnCollect" type="button" data-t="collect"></button>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="src/i18n.js"></script>
+<script src="src/data.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/art.js"></script>
+<script src="src/game.js"></script>
+</body>
+</html>
