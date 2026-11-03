@@ -993,7 +993,7 @@ export function classicScreen(stage, params = {}) {
   function confirmExit() {
     const m = modal([
       h('h2', {}, 'Levantar da mesa?'),
-      h('p', {}, mode === 'career' ? 'Se sair agora, conta como derrota neste jogo do campeonato.' : mode === 'desafio' ? 'Sair agora conta como desafio perdido hoje.' : stake ? `Quem levanta perde a aposta (${money(stake)}).` : 'A partida em andamento vai ser perdida.'),
+      h('p', {}, mode === 'career' ? 'Se sair agora, conta como derrota neste jogo do campeonato.' : mode === 'desafio' ? 'Sair agora conta como desafio perdido hoje.' : mode === 'online' ? (stake ? `Quem levanta perde a aposta (${money(stake)}) e fica 5 minutos sem entrar em mesa valendo dinheiro.` : 'Sair no meio conta como derrota.') : stake ? `Quem levanta perde a aposta (${money(stake)}).` : 'A partida em andamento vai ser perdida.'),
       h(
         'div',
         { class: 'actions' },

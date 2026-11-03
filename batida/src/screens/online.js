@@ -4,6 +4,27 @@ import { confetti } from '../ui/fx.js';
 import { go, settings, saveSettings, wallet, setWallet, money } from '../app.js';
 import { guest } from '../classic/cast.js';
 import { LocalBackend, WsBackend } from '../online/backend.js';
+import { PONTOS, PREMIOS, addPoints, settlePrevWeek } from '../online/ranking.js';
+
+const ROOM_PHRASES = ['Bora jogar!', 'Pronto aí?', 'Completa com bot', 'Boa sorte, galera', 'Valendo o dobro?', 'Já volto'];
+const PENALTY_MIN = 5;
+
+// Anti-abandono: quem sai no meio de partida valendo dinheiro fica um tempo sem mesa com aposta
+function penaltyLeft() {
+  const until = store.get('penalty', 0);
+  return Math.max(0, until - Date.now());
+}
+function penalize() {
+  store.set('penalty', Date.now() + PENALTY_MIN * 60000);
+}
+function penaltyMsg() {
+  const m = Math.ceil(penaltyLeft() / 60000);
+  return `Você levantou no meio de uma partida valendo dinheiro. Espere ${m} min para entrar em mesa com aposta.`;
+}
+function scorePts(pts) {
+  addPoints(pts);
+  if (S.backend && S.backend.score) S.backend.score(pts);
+}
 import { iconBtn, walletChip, seg } from './home.js';
 
 // Estado que sobrevive enquanto você entra e sai da mesa de jogo.
@@ -14,6 +35,7 @@ const ICON = {
   crown: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg>',
   bot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>',
+  trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 14v4M8 20h8"/></svg>',
   wifi: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 9a13 13 0 0 1 18 0M6.5 12.5a8 8 0 0 1 11 0M10 16a3 3 0 0 1 4 0"/><circle cx="12" cy="19" r="1" fill="currentColor"/></svg>',
 };
 
@@ -57,6 +79,8 @@ export function onlineScreen(stage, params = {}) {
   function afterConnect() {
     off && off();
     off = S.backend.on(onEvent);
+    const prize = settlePrevWeek(S.me.name);
+    if (prize && prize.pts > 0) setTimeout(() => prizeModal(prize), 400);
     if (S.room) roomView();
     else lobby();
   }
@@ -132,7 +156,7 @@ export function onlineScreen(stage, params = {}) {
     return h(
       'div',
       { class: 'topbar' },
-      iconBtn('back', 'Voltar', () => (current === 'room' ? confirmLeave() : exitOnline())),
+      iconBtn('back', 'Voltar', () => (current === 'room' ? confirmLeave() : current === 'ranking' ? lobby() : exitOnline())),
       h('div', { class: 'grow' }, h('div', { class: 'eyebrow' }, sub || 'Online'), h('div', { class: 'title-sm' }, title)),
       walletChip(),
     );
@@ -192,6 +216,7 @@ export function onlineScreen(stage, params = {}) {
       stage.append(
         top('Salão online'),
         h('div', { class: 'online-status' }, h('span', { class: 'live', html: ICON.wifi }), `${S.online} jogando agora`, h('button', { class: 'link-btn', onClick: serverModal }, S.backend.label)),
+        h('button', { class: 'rank-btn', onClick: rankingView }, h('span', { class: 'rk-ico', html: ICON.trophy }), h('span', { class: 'rk-t' }, 'Ranking da semana'), h('span', { class: 'rk-s' }, 'Top 100 ganha prêmio'), h('span', { class: 'mc-go' }, '›')),
         h('div', { class: 'lobby-tabs' }, tabs),
         h('div', { class: 'search-row' }, h('span', { class: 'search-ico', html: ICON.search }), search, h('button', { class: 'btn ghost small', onClick: codeModal }, 'Código')),
         listEl,
@@ -214,6 +239,7 @@ export function onlineScreen(stage, params = {}) {
   }
 
   async function joinRoom(code, s) {
+    if (s && (s.stake || s.kind === 'campeonato') && penaltyLeft()) return toast(penaltyMsg());
     if (s && s.kind === 'rapido' && s.stake > wallet()) return toast(`Essa mesa vale ${money(s.stake)}. Falta dinheiro.`);
     if (s && s.kind === 'campeonato' && s.fee > wallet()) return toast(`A inscrição é ${money(s.fee)}. Falta dinheiro.`);
     const r = await S.backend.join(code);
@@ -243,6 +269,7 @@ export function onlineScreen(stage, params = {}) {
         onClick: async () => {
           o.name = name.value.trim() || o.name;
           o.private = priv.checked;
+          if ((o.stake || isCamp) && penaltyLeft()) return toast(penaltyMsg());
           m.close();
           const r = await S.backend.create(o);
           if (!r.ok) return toast(r.error);
@@ -296,14 +323,71 @@ export function onlineScreen(stage, params = {}) {
       } else {
         actions.append(h('button', { class: `btn wide ${mine && mine.ready ? 'ghost' : 'amber'}`, onClick: () => call('ready', !(mine && mine.ready)) }, mine && mine.ready ? 'Não estou pronto' : 'Estou pronto'));
       }
+      const quick = h('div', { class: 'room-phrases' }, ROOM_PHRASES.map((t) => h('button', { class: 'chip-btn', onClick: () => sayRoom(t) }, t)));
       stage.append(
         top(room.name, room.kind === 'rapido' ? 'Sala de jogo rápido' : 'Campeonato online'),
         h('div', { class: 'room-head' }, h('div', { class: 'room-info' }, info), codeChip),
         seatsBox,
         log,
+        quick,
         actions,
       );
     });
+  }
+
+  let lastSay = 0;
+  async function sayRoom(text) {
+    if (Date.now() - lastSay < 1500) return;
+    lastSay = Date.now();
+    sfx.pick();
+    const r = await S.backend.say(text);
+    if (!r.ok) toast(r.error);
+  }
+
+  // ---------- ranking ----------
+  async function rankingView() {
+    current = 'ranking';
+    show(() => stage.append(top('Ranking da semana'), h('div', { class: 'online-wait' }, h('div', { class: 'spinner' }))));
+    const r = await S.backend.ranking();
+    if (dead || current !== 'ranking') return;
+    if (!r.ok) return toast(r.error);
+    const t = r.data;
+    const me = t.rows.find((x) => x.you);
+    show(() => {
+      const tiers = h('div', { class: 'prize-tiers' }, PREMIOS.map((p) => h('div', {}, h('small', {}, p.label), money(p.valor))));
+      const list = h('div', { class: 'rank-list' });
+      for (const row of t.rows.slice(0, 100)) {
+        list.append(h('div', { class: `rank-row ${row.you ? 'you' : ''} ${row.pos <= 3 ? 'top' + row.pos : ''}` }, h('span', { class: 'pos' }, `${row.pos}º`), h('span', { class: 'nm' }, row.you ? `${row.name} (você)` : row.name), h('span', { class: 'pts' }, `${row.pts} pts`)));
+      }
+      const back = top('Ranking da semana', t.left ? `Termina em ${t.left}` : 'Online');
+      stage.append(
+        back,
+        h('p', { class: 'rank-help' }, `Vitória online vale ${PONTOS.vitoria} pontos (${PONTOS.vitoriaAposta} com aposta), derrota vale ${PONTOS.derrota}, título de campeonato vale ${PONTOS.titulo}. Na segunda-feira o ranking zera e o top 100 recebe o prêmio.`),
+        tiers,
+        list,
+        me ? h('div', { class: 'rank-me' }, h('span', {}, `Você: ${me.pos}º`), h('b', {}, `${me.pts} pts`)) : null,
+      );
+      const meRow = list.querySelector('.you');
+      if (meRow) setTimeout(() => meRow.scrollIntoView({ block: 'center' }), 50);
+    });
+  }
+
+  function prizeModal(p) {
+    if (p.premio) {
+      setWallet(wallet() + p.premio);
+      confetti(120);
+      sfx.coins();
+    }
+    const m = modal(
+      [
+        h('div', { class: 'eyebrow' }, 'Ranking da semana passada'),
+        h('h2', {}, p.premio ? `Você ficou em ${p.pos}º!` : `Você ficou em ${p.pos}º`),
+        h('p', {}, `${p.pts} pontos.`),
+        p.premio ? h('div', { class: 'money-delta up' }, `+${money(p.premio)}`) : h('p', {}, 'Fica no top 100 para ganhar prêmio. Nova semana, novo ranking!'),
+        h('div', { class: 'actions' }, h('button', { class: 'btn amber wide', onClick: () => m.close() }, 'Bora')),
+      ],
+      { cls: 'result' },
+    );
   }
 
   function seatMenu(s, i) {
@@ -354,6 +438,7 @@ export function onlineScreen(stage, params = {}) {
   }
 
   async function startGame() {
+    if ((S.room.stake || S.room.kind === 'campeonato') && penaltyLeft()) return toast(penaltyMsg());
     const r = await S.backend.start();
     if (!r.ok) return toast(r.error);
   }
@@ -364,6 +449,10 @@ export function onlineScreen(stage, params = {}) {
   }
 
   function launch(room) {
+    if ((room.stake || room.kind === 'campeonato') && penaltyLeft()) {
+      toast(penaltyMsg());
+      return S.backend.leave().then(() => lobby());
+    }
     if (room.kind === 'campeonato') return startTorneio(room);
     const n = room.capacity;
     const ids = seatIds(room);
@@ -384,9 +473,11 @@ export function onlineScreen(stage, params = {}) {
         const payers = n === 4 ? 1 : n - 1;
         const delta = room.stake ? (won ? room.stake * payers : -room.stake) : 0;
         if (delta) setWallet(wallet() + delta);
+        if (quit && room.stake) penalize();
+        if (!quit) scorePts(won ? (room.stake ? PONTOS.vitoriaAposta : PONTOS.vitoria) : PONTOS.derrota);
         S.backend.finish(quit ? 'Alguém levantou no meio do jogo.' : `Fim de jogo: ${match.score.join(' × ')}`).then((r) => {
           if (r && r.ok && r.data) S.room = r.data;
-          go('online', { back: { won, delta, quit } });
+          go('online', { back: { won, delta, quit, pts: quit ? 0 : won ? (room.stake ? PONTOS.vitoriaAposta : PONTOS.vitoria) : PONTOS.derrota } });
         });
       },
     });
@@ -435,21 +526,34 @@ export function onlineScreen(stage, params = {}) {
       opps: T.duplas[opp].ids,
       partner,
       rules: { players: 4, buchaVale2: true, laeloVale2: true, comecaSena: true, cincoBuchas: true, votacao: true, metaPontos: 4 },
-      onEnd: (won) => {
+      onEnd: (won, match, quit) => {
+        if (quit) {
+          penalize();
+          T.out = true;
+          T.champion = opp;
+          T.final = T.final || [opp, opp];
+          return go('online', { torneio: true, won: false });
+        }
         if (T.fase === 'semi') {
           const mineIdx = T.semis.findIndex((p) => p.includes(T.myD));
           T.winners[mineIdx] = won ? T.myD : opp;
           const other = T.semis[1 - mineIdx];
           T.winners[1 - mineIdx] = other[Math.random() < 0.5 ? 0 : 1]; // a outra semi é simulada
           T.final = [T.winners[0], T.winners[1]];
-          if (won) T.fase = 'final';
-          else {
+          if (won) {
+            T.fase = 'final';
+            scorePts(PONTOS.final);
+          } else {
+            scorePts(PONTOS.derrota);
             T.out = true;
             T.champion = T.final[Math.random() < 0.5 ? 0 : 1];
           }
         } else {
           T.champion = won ? T.myD : opp;
-          if (won) setWallet(wallet() + T.room.fee * 4);
+          if (won) {
+            setWallet(wallet() + T.room.fee * 4);
+            scorePts(PONTOS.titulo);
+          }
         }
         go('online', { torneio: true, won });
       },
@@ -470,7 +574,8 @@ export function onlineScreen(stage, params = {}) {
     off = S.backend.on(onEvent);
     const b = params.back;
     roomView();
-    if (b.delta) toast(`${b.won ? 'Ganhou' : 'Perdeu'} ${money(Math.abs(b.delta))}`);
+    if (b.quit && penaltyLeft()) toast(`Saiu no meio: perdeu a aposta e fica ${PENALTY_MIN} min sem mesa valendo dinheiro.`);
+    else if (b.delta || b.pts) toast([b.delta ? `${b.won ? 'Ganhou' : 'Perdeu'} ${money(Math.abs(b.delta))}` : '', b.pts ? `+${b.pts} pts no ranking` : ''].filter(Boolean).join(' · '));
   } else enter();
 
   return {

@@ -13,6 +13,7 @@ import { RoomService, RoomError } from '../src/online/rooms.js';
 const PORT = Number(process.env.PORT) || 8787;
 const svc = new RoomService();
 const clients = new Map(); // uid -> { ws, user }
+const ranking = new Map(); // apelido -> pontos da semana
 let seq = 1;
 
 const send = (ws, msg) => ws.readyState === 1 && ws.send(JSON.stringify(msg));
@@ -84,6 +85,21 @@ const ops = {
   },
   moveSeat(c, { seat }) {
     return svc.moveSeat(c.user.uid, seat);
+  },
+  say(c, { text }) {
+    return svc.say(c.user.uid, text);
+  },
+  // ranking simples em memória (somar pontos ainda é confiado ao cliente)
+  ranking(c) {
+    const rows = [...ranking.entries()].map(([name, pts]) => ({ name, pts, you: name === c.user.name }));
+    if (!rows.some((r) => r.you)) rows.push({ name: c.user.name, pts: 0, you: true });
+    rows.sort((a, b) => b.pts - a.pts);
+    rows.forEach((r, i) => (r.pos = i + 1));
+    return { week: '', left: '', rows: rows.slice(0, 100).concat(rows.filter((r) => r.you && r.pos > 100)) };
+  },
+  score(c, { pts }) {
+    ranking.set(c.user.name, (ranking.get(c.user.name) || 0) + Math.max(0, Math.min(50, pts | 0)));
+    return ranking.get(c.user.name);
   },
   remove(c) {
     svc.remove(c.user.uid);

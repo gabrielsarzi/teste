@@ -3,6 +3,9 @@
 //    serve para testar todo o fluxo sem internet.
 //  - WsBackend: fala com o servidor de verdade (pasta server/) por WebSocket.
 import { RoomService, RoomError, summary } from './rooms.js';
+import { localRanking } from './ranking.js';
+
+const ROOM_REPLIES = ['Bora!', 'Partiu!', 'Pronto aqui.', 'Só esperando vocês.', 'Boa sorte pra todo mundo.', 'Hoje eu tô com sorte.', 'Pode completar com bot.', 'Valendo a cerveja!'];
 
 const FAKE = ['Marcão', 'Dudu_RJ', 'Tati', 'Seu Lourival', 'NinjaDoDominó', 'Kelly', 'Jorginho', 'Paty', 'Gordão', 'Lucas_SP', 'Vovó Zilda', 'Bigode', 'Raí', 'Fabinho', 'Cris', 'Mineiro'];
 const ROOM_NAMES = ['Mesa do fundo', 'Só os bons', 'Valendo a cerveja', 'Treino', 'Bate e volta', 'Galera do bar', 'Sem choro', 'Dupla raiz'];
@@ -102,6 +105,24 @@ export class LocalBackend {
   }
   remove() {
     return this._net(() => this.svc.remove(this.me.uid));
+  }
+  say(text) {
+    return this._net(() => {
+      const r = this.svc.say(this.me.uid, text);
+      // alguém da sala responde
+      const others = r.seats.filter((s) => s && !s.bot && s.uid !== this.me.uid);
+      if (others.length && Math.random() < 0.8) {
+        const o = others[Math.floor(Math.random() * others.length)];
+        setTimeout(() => this.svc.roomOf(o.uid) && this.svc.say(o.uid, ROOM_REPLIES[Math.floor(Math.random() * ROOM_REPLIES.length)]), 900 + Math.random() * 1500);
+      }
+      return clone(r);
+    });
+  }
+  ranking() {
+    return this._net(() => localRanking(this.me.name));
+  }
+  score() {
+    return Promise.resolve({ ok: true });
   }
   start() {
     return this._net(() => {
@@ -275,6 +296,9 @@ export class WsBackend {
   ready(v) { return this._call('ready', { v }); }
   moveSeat(i) { return this._call('moveSeat', { seat: i }); }
   remove() { return this._call('remove'); }
+  say(text) { return this._call('say', { text }); }
+  ranking() { return this._call('ranking'); }
+  score(pts) { return this._call('score', { pts }); }
   start() { return this._call('start'); }
   finish(text) { return this._call('finish', { text }); }
 }

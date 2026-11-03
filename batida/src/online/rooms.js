@@ -179,6 +179,16 @@ export class RoomService {
     return room;
   }
 
+  // Recado rápido na sala (aparece no quadro de avisos)
+  say(uid, text) {
+    const room = this.roomOf(uid);
+    if (!room) throw new RoomError('Você não está numa sala.');
+    const s = room.seats.find((x) => x && x.uid === uid);
+    this._log(room, `${s.name}: ${String(text).slice(0, 60)}`);
+    this._changed(room);
+    return room;
+  }
+
   remove(hostUid) {
     const room = this._asHost(hostUid);
     this._close(room, 'O dono fechou a sala.');
