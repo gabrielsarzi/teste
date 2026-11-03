@@ -418,3 +418,64 @@ b, strong { font-weight: 650; }
 .footer .maker b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 700; }
 .footer .maker:hover { border-color: #6d5dfc; text-decoration: none; }
 .footer :focus-visible { outline-color: #a5b4ff; }
+
+/* ------------------------------------------------------------------ recursos compactos (áreas) */
+.areas { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+.area {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 20px;
+  transition: border-color .15s, transform .15s, box-shadow .15s;
+}
+.area:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: var(--shadow); transform: translateY(-2px); }
+.area h3 { font-size: 20px; font-weight: 750; margin-top: 16px; }
+.area > p { color: var(--muted); font-size: 14.5px; margin-top: 4px; }
+.area ul { display: grid; gap: 8px; margin-top: 16px; }
+.area li { display: flex; gap: 8px; align-items: flex-start; font-size: 14.5px; font-weight: 500; line-height: 1.35; }
+.area li .ico { width: 17px; height: 17px; color: var(--ok); stroke-width: 2.3; margin-top: 1px; }
+@media (max-width: 1100px) { .areas { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 760px) { .areas { grid-template-columns: 1fr 1fr; gap: 12px; } .area { padding: 20px 16px; } }
+@media (max-width: 480px) { .areas { grid-template-columns: 1fr; } }
+
+/* ------------------------------------------------------------------ carrossel */
+.carousel { position: relative; max-width: 1080px; margin: 0 auto; }
+.car-track {
+  display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth;
+  border-radius: 16px; box-shadow: var(--shadow-lg); background: var(--navy); scrollbar-width: none;
+}
+.car-track::-webkit-scrollbar { display: none; }
+.car-track:focus-visible { outline-offset: 4px; }
+.slide { flex: 0 0 100%; margin: 0; scroll-snap-align: start; position: relative; }
+.slide img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top left; }
+.slide figcaption {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); white-space: nowrap;
+  padding: 8px 16px; border-radius: 999px; font-size: 14.5px; font-weight: 600; color: #fff;
+  background: rgba(15, 20, 38, .78); backdrop-filter: blur(6px);
+}
+.car-btn {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; display: grid; place-items: center;
+  width: 52px; height: 52px; border-radius: 50%; cursor: pointer; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow);
+  transition: background .15s, color .15s, transform .15s;
+}
+.car-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.car-btn .ico { width: 24px; height: 24px; stroke-width: 2.2; }
+.car-prev { left: -26px; }
+.car-next { right: -26px; }
+.car-dots { display: flex; justify-content: center; gap: 8px; margin-top: 22px; }
+.car-dots button {
+  width: 9px; height: 9px; padding: 0; border: 0; border-radius: 999px; cursor: pointer;
+  background: color-mix(in srgb, var(--muted) 40%, transparent); transition: width .2s, background .2s;
+}
+.car-dots button[aria-selected="true"] { width: 26px; background: var(--accent); }
+@media (max-width: 1160px) { .car-prev { left: 10px; } .car-next { right: 10px; } }
+@media (max-width: 600px) {
+  .car-btn { width: 40px; height: 40px; }
+  .car-btn .ico { width: 20px; height: 20px; }
+  .slide figcaption { font-size: 12.5px; bottom: 10px; padding: 6px 12px; }
+  .car-track { border-radius: 12px; }
+}
+
+/* ------------------------------------------------------------------ segurança compacta */
+.safety li { display: flex; gap: 16px; align-items: center; padding: 20px; }
+.safety li .chip { width: 44px; height: 44px; border-radius: 12px; }
+.safety h3 { margin-top: 0; font-size: 16.5px; }
+.safety p { margin-top: 2px; font-size: 14.5px; }
