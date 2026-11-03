@@ -49,7 +49,7 @@ function jitter(uid) {
   const b = Math.sin(uid * 78.233) * 12345.678;
   const c = Math.sin(uid * 39.425) * 9876.543;
   const fr = (v) => v - Math.floor(v) - 0.5;
-  return { r: fr(a) * 5, x: fr(b) * 3, y: fr(c) * 3 };
+  return { r: fr(a) * 3, x: fr(b) * 1.6, y: fr(c) * 1.6 };
 }
 
 export class BoardView {
@@ -92,7 +92,8 @@ export class BoardView {
     else if (vy < -0.5) ang = 180;
     // pedra "mexida": cada uma fica um pouquinho torta e fora do lugar, como na mesa de verdade
     const j = rec.tile && rec.tile.uid != null ? jitter(rec.tile.uid) : { r: 0, x: 0, y: 0 };
-    return `translate(${cx * BASE - BASE / 2 + j.x}px, ${cy * BASE - BASE + j.y}px) rotate(${ang + j.r}deg)`;
+    // scale < 1 deixa um respiro entre as pedras (buchas vizinhas não grudam)
+    return `translate(${cx * BASE - BASE / 2 + j.x}px, ${cy * BASE - BASE + j.y}px) rotate(${ang + j.r}deg) scale(0.93)`;
   }
 
   addRec(rec, { pending = false } = {}) {

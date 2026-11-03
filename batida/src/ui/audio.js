@@ -170,57 +170,40 @@ export function haptic(ms = 12) {
   }
 }
 
-// ---------- barulho de bar ao fundo ----------
+// ---------- sons do bar ao fundo ----------
+// Nada de chiado: só copos tilintando e pedras batendo em outras mesas, de vez em quando.
 let amb = null;
 export function setAmbient(on) {
-  try {
-    if (!on || !enabled) {
-      if (amb) {
-        amb.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.4);
-        const a = amb;
-        setTimeout(() => a.src.stop(), 1500);
-        clearInterval(a.timer);
-        amb = null;
-      }
-      return;
-    }
-    if (amb || !ctx) return;
-    // conversa abafada: ruído marrom filtrado com volume que sobe e desce
-    const len = ctx.sampleRate * 4;
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    let last = 0;
-    for (let i = 0; i < len; i++) {
-      last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
-      d[i] = last * 3.5;
-    }
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    src.loop = true;
-    const f = ctx.createBiquadFilter();
-    f.type = 'bandpass';
-    f.frequency.value = 500;
-    f.Q.value = 0.6;
-    const gain = ctx.createGain();
-    gain.gain.value = 0;
-    gain.gain.setTargetAtTime(0.09, ctx.currentTime, 1.5);
-    const lfo = ctx.createOscillator();
-    const lfoG = ctx.createGain();
-    lfo.frequency.value = 0.13;
-    lfoG.gain.value = 0.03;
-    lfo.connect(lfoG).connect(gain.gain);
-    lfo.start();
-    src.connect(f).connect(gain).connect(master);
-    src.start();
-    // copo tilintando de vez em quando
-    const timer = setInterval(() => {
-      if (!ready() || Math.random() < 0.5) return;
-      const base = 2400 + Math.random() * 1600;
-      tone(base, 0.25, { type: 'sine', vol: 0.025 });
-      tone(base * 1.5, 0.2, { type: 'sine', vol: 0.015, delay: 0.02 });
-    }, 3500);
-    amb = { src, gain, timer };
-  } catch {
+  if (!on || !enabled) {
+    if (amb) clearTimeout(amb);
     amb = null;
+    return;
   }
+  if (amb || !ctx) return;
+  const next = () => {
+    amb = setTimeout(() => {
+      if (ready()) {
+        const r = Math.random();
+        if (r < 0.45) {
+          // copo de vidro
+          const base = 2600 + Math.random() * 1400;
+          tone(base, 0.4, { type: 'sine', vol: 0.02 });
+          tone(base * 2.76, 0.25, { type: 'sine', vol: 0.008, delay: 0.005 });
+        } else if (r < 0.85) {
+          // pedra batendo numa mesa longe
+          const n = 1 + Math.floor(Math.random() * 2);
+          for (let i = 0; i < n; i++) {
+            burst(0.04, 2200, 1.4, 0.06, i * 0.22);
+            tone(160, 0.06, { vol: 0.05, delay: i * 0.22, slide: 0.6 });
+          }
+        } else {
+          // dois copos brindando
+          tone(3100, 0.35, { type: 'sine', vol: 0.018 });
+          tone(3350, 0.3, { type: 'sine', vol: 0.016, delay: 0.03 });
+        }
+      }
+      if (amb) next();
+    }, 3500 + Math.random() * 6000);
+  };
+  next();
 }

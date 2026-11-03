@@ -44,22 +44,23 @@ export function homeScreen(stage) {
   const desafio = store.get('desafio', {});
   const desafioFeito = desafio.date === today();
 
-  // ---------- fachada do boteco ----------
-  const bulbs = h('div', { class: 'bulbs', 'aria-hidden': 'true' });
-  for (let i = 0; i < 18; i++) bulbs.append(h('i', { style: { animationDelay: `${(i % 6) * 0.18}s` } }));
-  const facade = h(
+  // ---------- capa: título sob a luz e uma mão de dominó aberta em leque ----------
+  const hero = h(
     'div',
-    { class: 'facade' },
-    h('div', { class: 'awning', 'aria-hidden': 'true' }),
-    h('div', { class: 'signboard' }, bulbs, h('h1', {}, 'Batida', h('span', { class: 'dot' }, '!')), h('p', {}, 'dominó de boteco')),
+    { class: 'hero' },
+    h('div', { class: 'lamp-glow', 'aria-hidden': 'true' }),
+    h('h1', { class: 'brand' }, 'Batida', h('span', { class: 'dot' }, '!')),
+    h('p', { class: 'brand-sub' }, 'dominó de boteco'),
   );
-
-  const deco = h('div', { class: 'home-tiles', 'aria-hidden': 'true' });
-  [[6, 6, -86, -18, -6], [6, 3, -38, -26, 8], [3, 3, 6, -14, 84], [3, 1, 56, -30, 14], [1, 5, 98, -12, -10]].forEach(([a, b, x, y, r], i) => {
-    const t = tileEl(makeTile(a, b), { top: a, bot: b, u: 26 });
-    t.style.transform = `translate(${x - 13}px, ${y - 26}px) rotate(${r}deg)`;
-    t.style.animation = `dealIn .5s ${0.15 + i * 0.08}s cubic-bezier(.3,.7,.4,1.2) both`;
-    deco.append(t);
+  const fan = h('div', { class: 'fan', 'aria-hidden': 'true' });
+  const hand = [[6, 6], [6, 4], [5, 3], [4, 4], [3, 1], [2, 0], [1, 1]];
+  hand.forEach(([a, b], i) => {
+    const ang = (i - 3) * 9;
+    const t = tileEl(makeTile(a, b), { top: a, bot: b, u: 40 });
+    t.style.setProperty('--ang', `${ang}deg`);
+    t.style.setProperty('--lift', `${Math.abs(i - 3) * 2}px`);
+    t.style.animationDelay = `${0.1 + i * 0.06}s`;
+    fan.append(t);
   });
 
   const top = h(
@@ -93,7 +94,7 @@ export function homeScreen(stage) {
     h('button', { class: 'foot-btn', onClick: () => settingsModal() }, h('span', { html: ICONS.gear }), 'Ajustes'),
   );
 
-  stage.append(top, facade, deco, h('div', { class: 'home-actions' }, play, h('div', { class: 'tile-cards' }, careerCard, desafioCard), foot));
+  stage.append(top, hero, fan, h('div', { class: 'home-actions' }, play, h('div', { class: 'tile-cards' }, careerCard, desafioCard), foot));
   if (wallet() < 10) setTimeout(() => fiadoModal(), 500);
 }
 
@@ -196,7 +197,7 @@ export function settingsModal() {
     row('Ritmo da mesa', 'Quanto tempo os outros levam para jogar', seg([['lento', 'Calmo'], ['normal', 'Normal'], ['rapido', 'Rápido']], settings.speed, (v) => { settings.speed = v; saveSettings(); })),
     h('h3', {}, 'Som'),
     sw('set-sound', 'Som e vibração', null, 'sound'),
-    sw('set-bar', 'Barulho de bar', 'Conversa e copos ao fundo', 'somBar'),
+    sw('set-bar', 'Sons do bar', 'Copos e pedras batendo em outras mesas, de vez em quando', 'somBar'),
     h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onClick: (e) => e.target.closest('.modal-back').click() }, 'Fechar')),
   ]);
 }

@@ -1,7 +1,7 @@
 // Estado global do app: configurações, visual escolhido, carreira e navegação.
 import { h, store, setSpeed } from './ui/dom.js';
 import { setSound, setAmbient } from './ui/audio.js';
-import { tableTexture } from './ui/art.js';
+import { tableTexture, grainTexture } from './ui/art.js';
 
 export const settings = Object.assign(
   {
@@ -12,7 +12,7 @@ export const settings = Object.assign(
     conversa: true, // provocações e frases na mesa
     telaLimpa: false, // esconde os textos de ajuda da mesa
     tempo: 30, // segundos para jogar (0 = sem limite)
-    somBar: true, // barulho de bar ao fundo
+    somBar: false, // sons do bar ao fundo (copos e pedras)
     jogadores: 4, // jogo rápido: 2, 3 ou 4
     aposta: 20,
     buchaVale2: true,
@@ -34,6 +34,10 @@ if (settings.rv < 3) {
   delete settings.formato; // agora é sempre até 4 pontos
   settings.rv = 3;
 }
+if (settings.rv < 4) {
+  settings.somBar = false; // o ruído antigo saiu; o novo começa desligado
+  settings.rv = 4;
+}
 store.set('settings', settings);
 
 export function applySettings() {
@@ -53,6 +57,14 @@ export function applyLook() {
   const app = document.getElementById('app');
   if (!app) return;
   app.dataset.mesa = settings.mesa;
+  if (!texCache.grain) {
+    try {
+      texCache.grain = grainTexture();
+      app.style.setProperty('--grain', `url(${texCache.grain})`);
+    } catch {
+      /* sem canvas */
+    }
+  }
   app.dataset.domino = settings.domino;
   try {
     if (!texCache[settings.mesa]) texCache[settings.mesa] = tableTexture(settings.mesa);

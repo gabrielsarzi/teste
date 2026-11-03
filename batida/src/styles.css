@@ -34,6 +34,7 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
 html, body { height: 100%; }
 body {
   margin: 0;
@@ -54,11 +55,16 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
   position: relative;
   height: 100%;
   overflow: hidden;
+  /* salão do boteco: parede escura e quente, luz da luminária no alto */
   background:
-    radial-gradient(120% 70% at 50% 34%, rgba(255, 196, 110, 0.26), rgba(255, 170, 80, 0.06) 45%, transparent 70%),
-    radial-gradient(160% 110% at 50% 40%, transparent 50%, rgba(0, 0, 0, 0.75)),
-    var(--table-img, none) center / var(--table-size, 100% auto) repeat,
-    var(--table-base, var(--wood));
+    radial-gradient(85% 50% at 50% 26%, rgba(255, 186, 104, 0.22), rgba(255, 170, 80, 0.05) 55%, transparent 75%),
+    radial-gradient(150% 100% at 50% 45%, transparent 45%, rgba(0, 0, 0, 0.72)),
+    linear-gradient(180deg, #26180f 0%, #170f0a 60%, #0f0907 100%);
+}
+#app::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background: var(--grain, none);
+  mix-blend-mode: overlay;
 }
 #stage {
   position: relative;
@@ -473,26 +479,36 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 }
 [data-domino="preto"] .tile.back, [data-domino="dourado"] .tile.back { filter: saturate(1.1); }
 
-/* ---------- Temas de mesa ---------- */
-#app[data-mesa="plastico"] { --table-base: #f0be2c; --table-size: 512px 512px; }
-#app[data-mesa="feltro"] { --table-base: #1f5a3a; --table-size: 256px 256px; }
-#app[data-mesa="marmore"] { --table-base: #e6e1d8; --table-size: 512px 512px; }
-#app[data-mesa="toalha"] {
-  --table-base: #f5efe4;
-  --table-img: none;
+/* ---------- Tampo da mesa (por tema) ---------- */
+.felt {
+  --rim1: #2b180d; --rim2: #7a5233; --surf: #5a3520;
+  margin: 2px 0 6px; border-radius: 26px;
   background:
-    radial-gradient(120% 70% at 50% 34%, rgba(255, 220, 150, 0.22), transparent 70%),
-    radial-gradient(160% 110% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.55)),
-    repeating-linear-gradient(0deg, rgba(196, 44, 38, .55) 0 22px, transparent 22px 44px),
-    repeating-linear-gradient(90deg, rgba(196, 44, 38, .55) 0 22px, transparent 22px 44px),
+    radial-gradient(70% 55% at 50% 38%, rgba(255, 214, 150, .16), transparent 70%),
+    radial-gradient(130% 110% at 50% 50%, transparent 55%, rgba(0, 0, 0, .38)),
+    var(--table-img, none) center / var(--table-size, 100% auto) repeat,
+    var(--surf);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, .06),
+    inset 0 0 30px rgba(0, 0, 0, .35),
+    0 0 0 4px var(--rim1),
+    0 0 0 6px var(--rim2),
+    0 0 0 7px rgba(0, 0, 0, .5),
+    0 22px 40px rgba(0, 0, 0, .55);
+}
+#app[data-mesa="plastico"] .felt { --surf: #f2c232; --rim1: #d9a515; --rim2: #f7d561; --table-size: 512px 512px; }
+#app[data-mesa="feltro"] .felt { --surf: #1d5b3c; --rim1: #2b180d; --rim2: #7a5233; --table-size: 256px 256px; }
+#app[data-mesa="marmore"] .felt { --surf: #e7e2d9; --rim1: #a59b8e; --rim2: #d8d1c6; --table-size: 512px 512px; }
+#app[data-mesa="toalha"] .felt {
+  --rim1: #d8cdb9; --rim2: #f3ecdf; --table-img: none;
+  background:
+    radial-gradient(70% 55% at 50% 38%, rgba(255, 230, 190, .2), transparent 70%),
+    radial-gradient(130% 110% at 50% 50%, transparent 55%, rgba(0, 0, 0, .25)),
+    repeating-linear-gradient(0deg, rgba(196, 44, 38, .5) 0 18px, transparent 18px 36px),
+    repeating-linear-gradient(90deg, rgba(196, 44, 38, .5) 0 18px, transparent 18px 36px),
     #f5efe4;
 }
-/* em mesas claras, o texto solto fica num fundo escuro */
-#app[data-mesa="plastico"] .hint, #app[data-mesa="marmore"] .hint, #app[data-mesa="toalha"] .hint,
-#app[data-mesa="plastico"] .home-foot, #app[data-mesa="marmore"] .home-foot, #app[data-mesa="toalha"] .home-foot {
-  background: rgba(20, 14, 11, .72); border-radius: 10px; padding: 5px 9px; color: var(--text);
-}
-#app[data-mesa="plastico"] .sign p, #app[data-mesa="marmore"] .sign p, #app[data-mesa="toalha"] .sign p { color: #6a2a12; }
+.felt .board { border-radius: inherit; }
 
 /* ---------- Assentos com rosto ---------- */
 .table-classic { grid-template-columns: 56px 1fr 56px; }
@@ -591,7 +607,7 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 .swatch { background: var(--panel); border: 0; border-radius: 16px; padding: 8px 8px 12px; text-align: left; box-shadow: inset 0 0 0 1.5px var(--line); display: grid; gap: 6px; }
 .swatch.on { box-shadow: inset 0 0 0 2.5px var(--amber), 0 0 20px rgba(242,169,59,.25); }
 .swatch.locked { opacity: .55; }
-.sw-prev { height: 78px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #4a2c1b; background-size: 200px; box-shadow: inset 0 0 18px rgba(0,0,0,.45); }
+.sw-prev { height: 78px; border-radius: 12px; box-shadow: 0 0 0 3px #2b180d, 0 0 0 4px #7a5233 !important; display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #4a2c1b; background-size: 200px; box-shadow: inset 0 0 18px rgba(0,0,0,.45); }
 .sw-prev[data-mesa="plastico"] { background-color: #f0be2c; }
 .sw-prev[data-mesa="feltro"] { background-color: #1f5a3a; }
 .sw-prev[data-mesa="marmore"] { background-color: #e6e1d8; }
@@ -743,33 +759,30 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 .home-stats { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13px; color: var(--text); background: rgba(20,14,11,.6); padding: 7px 11px; border-radius: 99px; }
 .home-stats svg { width: 16px; height: 16px; color: var(--amber-hi); display: block; }
 .home-stats .sep { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); }
-.facade { position: relative; margin: 6px -4px 0; }
-.awning {
-  height: 34px; border-radius: 10px 10px 0 0;
-  background: repeating-linear-gradient(90deg, #c8382c 0 26px, #f3ead6 26px 52px);
-  box-shadow: inset 0 -6px 10px rgba(0,0,0,.25), 0 8px 14px rgba(0,0,0,.35);
-  -webkit-mask: radial-gradient(13px 9px at 13px 100%, transparent 98%, #000) 0 0 / 26px 100% repeat-x;
-          mask: radial-gradient(13px 9px at 13px 100%, transparent 98%, #000) 0 0 / 26px 100% repeat-x;
+.hero { position: relative; text-align: center; margin-top: 4vh; }
+.lamp-glow {
+  position: absolute; left: 50%; top: -60px; width: 320px; height: 240px; transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(255, 200, 120, .35), rgba(255, 170, 80, .08) 60%, transparent);
+  pointer-events: none; filter: blur(4px);
 }
-.signboard {
-  position: relative; margin: 10px auto 0; width: min(330px, 92%);
-  padding: 16px 12px 14px; border-radius: 16px; text-align: center;
-  background: linear-gradient(180deg, #2a1a12, #170f0b);
-  box-shadow: inset 0 0 0 3px #6b4a2e, inset 0 0 0 5px #2a1a12, 0 16px 30px rgba(0,0,0,.5);
+.brand {
+  position: relative; margin: 0;
+  font: 400 clamp(64px, 21vw, 104px)/0.88 var(--f-display); letter-spacing: -0.015em; color: var(--bone);
+  text-shadow: 0 2px 0 #c9b796, 0 4px 0 #9c8564, 0 6px 0 #6e5537, 0 18px 30px rgba(0,0,0,.55);
+  transform: rotate(-3deg);
 }
-.signboard h1 {
-  margin: 0; font: 400 clamp(56px, 17vw, 84px)/0.9 var(--f-display); color: var(--bone);
-  text-shadow: 0 0 18px rgba(255,190,90,.55), 0 3px 0 #b5a283, 0 6px 0 #6e5537;
-  transform: rotate(-2deg);
+.brand .dot { color: var(--amber); text-shadow: 0 2px 0 #b8701d, 0 4px 0 #8a4f12, 0 6px 0 #5e340a, 0 18px 30px rgba(0,0,0,.55); }
+.brand-sub { position: relative; margin: 14px 0 0; font: 700 26px/1 var(--f-chalk); color: var(--amber-hi); transform: rotate(-2deg); }
+.fan { position: relative; flex: 1; min-height: 130px; max-height: 230px; margin: 10px auto 0; width: 100%; }
+.fan .tile {
+  position: absolute; left: 50%; top: 50%; margin: -40px 0 0 -20px;
+  transform-origin: 50% 260%;
+  transform: rotate(var(--ang)) translateY(var(--lift));
+  animation: fanIn .55s cubic-bezier(.3,.7,.4,1.2) both;
 }
-.signboard h1 .dot { color: var(--amber); }
-.signboard p { margin: 8px 0 0; font: 700 22px/1 var(--f-chalk); color: var(--amber-hi); }
-.bulbs { position: absolute; inset: 6px; pointer-events: none; display: flex; flex-wrap: wrap; justify-content: space-between; align-content: space-between; }
-.bulbs i { width: 7px; height: 7px; border-radius: 50%; background: #ffe2a0; box-shadow: 0 0 8px 2px rgba(255,200,100,.75); animation: bulb 1.1s ease-in-out infinite alternate; }
-.bulbs i:nth-child(n+10) { display: none; }
-@keyframes bulb { from { opacity: .35; } to { opacity: 1; } }
-.home-tiles { height: 96px; margin: 4px auto; }
-.home-actions { margin-top: auto; display: grid; gap: 10px; }
+@keyframes fanIn { from { transform: rotate(0deg) translateY(40px); opacity: 0; } }
+@media (max-height: 700px) { .fan .tile { --u: 30px !important; margin: -30px 0 0 -15px; } .hero { margin-top: 1vh; } }
+.home-actions { margin-top: auto; display: grid; gap: 10px; flex: none; }
 .play-btn {
   border: 0; border-radius: 20px; padding: 16px 18px; text-align: center;
   background: linear-gradient(180deg, var(--amber-hi), var(--amber)); color: #2a1608;
@@ -792,4 +805,5 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 .home-foot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 2px; }
 .foot-btn { border: 0; border-radius: 12px; padding: 10px 6px; display: flex; align-items: center; justify-content: center; gap: 6px; background: rgba(20,14,11,.62); box-shadow: inset 0 0 0 1.5px var(--line); font-weight: 700; font-size: 14px; }
 .foot-btn svg { width: 18px; height: 18px; display: block; }
-@media (max-height: 700px) { .home-tiles { height: 60px; } .awning { height: 26px; } .signboard { padding: 12px; } .play-btn { padding: 12px; } }
+@media (max-height: 700px) { .play-btn { padding: 12px; } }
+.seat.top { padding-bottom: 10px !important; }

@@ -124,33 +124,52 @@ function noise(g, w, h, amount, alpha) {
   g.putImageData(img, 0, 0);
 }
 
+// Madeira de tampo envernizado: tábuas largas, veio longo e suave, sem riscos duros.
 function wood(w, h) {
   const [c, g] = canvas(w, h);
-  g.fillStyle = 'rgb(74,44,27)';
+  const grad = g.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, '#6a4026');
+  grad.addColorStop(1, '#55321d');
+  g.fillStyle = grad;
   g.fillRect(0, 0, w, h);
-  const plank = h / 4;
-  for (let p = 0; p < 4; p++) {
-    const tone = (Math.random() - 0.5) * 16;
-    g.fillStyle = `rgba(${tone > 0 ? '255,220,180' : '0,0,0'},${Math.abs(tone) / 160})`;
-    g.fillRect(0, p * plank, w, plank);
-    for (let i = 0; i < 70; i++) {
-      const y0 = p * plank + Math.random() * plank;
-      g.strokeStyle = `rgba(${Math.random() < 0.5 ? '30,15,8' : '140,90,55'},${0.08 + Math.random() * 0.14})`;
-      g.lineWidth = 0.6 + Math.random() * 1.6;
+  const boards = 3;
+  const bw = w / boards;
+  for (let k = 0; k < boards; k++) {
+    // leve variação de tom por tábua
+    g.fillStyle = `rgba(${k % 2 ? '255,225,190' : '20,8,2'},${0.035 + Math.random() * 0.03})`;
+    g.fillRect(k * bw, 0, bw, h);
+    // veios verticais longos e macios
+    for (let i = 0; i < 26; i++) {
+      const x0 = k * bw + Math.random() * bw;
+      g.strokeStyle = `rgba(${Math.random() < 0.6 ? '35,16,6' : '150,100,60'},${0.04 + Math.random() * 0.06})`;
+      g.lineWidth = 1 + Math.random() * 3;
       g.beginPath();
-      const amp = 1 + Math.random() * 3;
-      const f = (Math.PI * 2 * (1 + Math.floor(Math.random() * 3))) / w;
-      const ph = Math.random() * 10;
-      for (let x = 0; x <= w; x += 8) {
-        const y = y0 + Math.sin(x * f + ph) * amp + Math.sin(x * f * 3 + ph) * amp * 0.3;
-        x === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+      const amp = 2 + Math.random() * 5;
+      const f = (Math.PI * 2 * (1 + Math.floor(Math.random() * 2))) / h;
+      const ph = Math.random() * 6;
+      for (let y = 0; y <= h; y += 6) {
+        const x = x0 + Math.sin(y * f + ph) * amp;
+        y === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
       }
       g.stroke();
     }
-    g.fillStyle = 'rgba(0,0,0,.45)';
-    g.fillRect(0, p * plank, w, 1.5);
+    // junta entre tábuas, bem discreta
+    g.fillStyle = 'rgba(0,0,0,.22)';
+    g.fillRect(k * bw, 0, 1, h);
+    g.fillStyle = 'rgba(255,220,180,.05)';
+    g.fillRect(k * bw + 1, 0, 1, h);
   }
-  return c.toDataURL('image/jpeg', 0.82);
+  noise(g, w, h, 8, 0);
+  return c.toDataURL('image/jpeg', 0.86);
+}
+
+// granulado fino para o fundo do salão
+export function grainTexture() {
+  const [c, g] = canvas(160, 160);
+  g.fillStyle = '#808080';
+  g.fillRect(0, 0, 160, 160);
+  noise(g, 160, 160, 60, 0);
+  return c.toDataURL('image/png');
 }
 
 function felt(w, h) {
@@ -203,5 +222,5 @@ export function tableTexture(kind) {
   if (kind === 'marmore') return marble(512, 512);
   if (kind === 'plastico') return plastic(512, 512);
   if (kind === 'toalha') return null; // feita só com CSS
-  return wood(512, 512);
+  return wood(384, 384);
 }
