@@ -753,6 +753,29 @@ export function classicScreen(stage, params = {}) {
     });
   }
 
+  // Fim da rodada: as pedras dos outros viram na mesa, rapidinho (uma onda só, sem demora)
+  async function revealHands() {
+    let any = false;
+    for (let p = 1; p < n; p++) {
+      const s = seats[p];
+      const hand = round.hands[p];
+      if (!hand.length) continue;
+      any = true;
+      const u = s.pos === 'top' ? 15 : 13;
+      const delay = (p - 1) * 90;
+      s.backs.innerHTML = '';
+      hand.forEach((t, i) => {
+        const el = tileEl(t, { u, cls: 'reveal-flip' });
+        el.style.animationDelay = `${(delay + i * 35) * speedFactor()}ms`;
+        s.backs.append(el);
+      });
+    }
+    if (any) {
+      sfx.shuffle();
+      await sleep(650);
+    }
+  }
+
   // ---------- embaralhar e distribuir ----------
   async function shuffleAndDeal() {
     for (let q = 1; q < n; q++) seats[q].backs.innerHTML = '';
@@ -878,13 +901,14 @@ export function classicScreen(stage, params = {}) {
     setTurn(-1);
     refreshHand();
     const res = round.result;
+    await revealHands();
     // a reação vem depois que a pedra assentou
     if (res.type === 'fechado') {
       const q = res.closer;
       if (q !== 0) bubble(q, say(ids[q], 'close_us'));
       setHint('Jogo fechado. Contando...', true, 3000);
     }
-    await sleep(1700);
+    await sleep(1200);
     match.applyResult(res);
     track('round', { won: res.team === 0, lost: res.team != null && res.team !== 0, batiEu: res.type === 'batida' && res.winner === 0, bucha: res.type === 'batida' && isDouble(res.tile), laelo: res.type === 'batida' && res.kinds.includes('laelo'), fechado: res.type === 'fechado' });
     const st = stats();

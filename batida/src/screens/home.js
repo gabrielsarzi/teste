@@ -211,6 +211,7 @@ export function settingsModal() {
     sw('set-num', 'Números nas pedras', 'Troca as pintas por números. Bom para vista cansada e daltônicos', 'numeros'),
     h('h3', {}, 'Som'),
     sw('set-sound', 'Som e vibração', null, 'sound'),
+    sw('set-musica', 'Música', 'Violão de bossa nova baixinho no fundo', 'musica'),
     sw('set-bar', 'Sons do bar', 'Copos e pedras batendo em outras mesas, de vez em quando', 'somBar'),
     h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onClick: (e) => e.target.closest('.modal-back').click() }, 'Fechar')),
   ]);

@@ -1,6 +1,6 @@
 import { initFx } from './ui/fx.js';
 import { unlockAudio, setAmbient, sfx, haptic } from './ui/audio.js';
-import { applySettings, registerScreen, go, settings } from './app.js';
+import { applySettings, registerScreen, go, settings, updateMusic } from './app.js';
 import { homeScreen } from './screens/home.js';
 import { classicScreen } from './screens/classic.js';
 import { careerScreen } from './screens/career.js';
@@ -22,6 +22,7 @@ function boot() {
   const unlock = () => {
     unlockAudio();
     setAmbient(settings.sound && settings.somBar);
+    updateMusic();
   };
   addEventListener('pointerdown', unlock, { passive: true });
   // som em todo botão do menu (a mão e a mesa têm os sons próprios)

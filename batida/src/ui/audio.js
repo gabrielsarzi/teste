@@ -229,3 +229,8 @@ export function setAmbient(on) {
   };
   next();
 }
+
+// Acesso ao contexto de áudio para a música (src/ui/music.js)
+export function audioCtx() {
+  return ready() ? { ctx, master } : null;
+}

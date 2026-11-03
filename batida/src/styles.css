@@ -1001,3 +1001,9 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 .stat small { font: 700 11px var(--f-body); color: var(--muted); letter-spacing: .02em; }
 .stat b { font: 400 18px/1.1 var(--f-display); overflow-wrap: anywhere; }
 .rank-list.static { flex: none; overflow: visible; }
+
+/* pedras dos adversários virando no fim da rodada */
+.backs .tile.reveal-flip { animation: flipIn .32s cubic-bezier(.3,.7,.4,1.2) both; }
+@keyframes flipIn { from { transform: rotateY(90deg) scale(.9); filter: brightness(.6); } }
+.seat.side .backs .tile.reveal-flip { animation-name: flipInSide; }
+@keyframes flipInSide { from { transform: rotate(90deg) rotateX(90deg) scale(.9); filter: brightness(.6); } to { transform: rotate(90deg); } }
