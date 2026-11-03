@@ -1,8 +1,9 @@
 """Reparo da configuração de rede do Windows ("Código 56" e afins).
 
-O script é o mesmo do pacote corrigir-wifi/CORRIGIR-WIFI.bat do repositório: faz backup do registro de rede,
-remove componentes de rede órfãos que não são da Microsoft, limpa ligações inválidas, reativa serviços,
-reseta a pilha de rede, reinstala as placas e, se preciso, roda o SFC. Gera relatório na Área de Trabalho.
+Versão do app (mais conservadora que o pacote corrigir-wifi/): primeiro DIAGNOSTICA. Só mexe em algo se encontrar
+um problema real (componente de rede cujo arquivo não existe mais, ou placa com erro). Nunca instala drivers,
+nunca remove componentes que funcionam e só faz o reset completo (netcfg -d) se houver componente quebrado ou
+placa com Código 56. Faz backup do registro de rede e gera relatório na Área de Trabalho.
 """
 import os
 import tempfile
@@ -11,46 +12,51 @@ from .utils import IS_WIN, log
 
 SCRIPT = r'''@echo off
 rem ==================================================================
-rem  CORRIGIR WI-FI (LimpaOne) - Lenovo IdeaPad Slim 3 15ARP10 (83MM)
-rem  Tenta de tudo para recuperar o Wi-Fi ("Codigo 56" e outros):
+rem  REPARAR REDE (LimpaOne) - diagnostica e so corrige o que estiver quebrado
 rem   1. backup do registro de rede
-rem   2. remove componentes de rede quebrados (nao-Microsoft)
-rem   3. limpa ligacoes/filtros invalidos das placas
-rem   4. restaura os servicos de rede do Windows
-rem   5. reseta a pilha de rede (winsock, IP, netcfg)
-rem   6. instala os drivers oficiais Lenovo (Wi-Fi e Bluetooth) da pasta "drivers"
-rem   7. reinstala as placas com problema
-rem   8. se ainda houver erro: reparo de arquivos do sistema (SFC)
-rem  Relatorio e backup ficam na Area de Trabalho.
+rem   2. procura componentes de rede cujo arquivo nao existe mais
+rem   3. remove SO os quebrados (nao-Microsoft) e limpa as ligacoes deles
+rem   4. reativa servicos de rede do Windows que estiverem DESATIVADOS
+rem   5. reset da pilha de rede SO se houver problema
+rem   6. reinstala placas com erro (nunca as desativadas pelo usuario)
+rem   7. se ainda houver erro: reparo de arquivos do sistema (SFC)
+rem  NAO instala drivers. Relatorio e backup ficam na Area de Trabalho.
 rem ==================================================================
-net session >nul 2>&1
+set "LIMPA_BAT=%~f0"
+%SystemRoot%\System32\net.exe session >nul 2>&1
 if not errorlevel 1 goto admin
 echo Pedindo permissao de administrador...
-powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -Command "Start-Process -FilePath $env:LIMPA_BAT -Verb RunAs"
 exit /b
 :admin
-set "LIMPA_DIR=%~dp0"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=[IO.File]::ReadAllText('%~f0'); $i=$s.LastIndexOf('#__PS_START__'); Invoke-Expression $s.Substring($i+13)"
+set "LIMPA_BAT=%~f0"
+%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$s=[IO.File]::ReadAllText($env:LIMPA_BAT); $i=$s.LastIndexOf('#__PS_START__'); Invoke-Expression $s.Substring($i+13)"
 echo.
 pause
 exit /b
 #__PS_START__
 $ErrorActionPreference = 'Continue'
 $desk = [Environment]::GetFolderPath('Desktop')
-$log = Join-Path $desk 'corrigir-wifi-relatorio.txt'
+$log = Join-Path $desk 'reparar-rede-relatorio.txt'
 $bk = Join-Path $desk ('backup-rede-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
 New-Item -ItemType Directory -Force -Path $bk | Out-Null
-Set-Content -Path $log -Value ('=== Corrigir Wi-Fi (LimpaOne) ' + (Get-Date) + ' ===')
+Set-Content -Path $log -Value ('=== Reparar rede (LimpaOne) ' + (Get-Date) + ' ===')
 function L([string]$t) { Add-Content -Path $log -Value $t; Write-Host $t }
 function T([string]$t) { L ''; L ('==== ' + $t); Write-Host '' }
 L ('Windows: ' + [Environment]::OSVersion.VersionString)
-L ('Pasta do script: ' + $env:LIMPA_DIR)
 
 $CS = 'HKLM:\SYSTEM\CurrentControlSet'
 $NET = '{4d36e972-e325-11ce-bfc1-08002be10318}'
 $CLASSES = @('{4d36e973-e325-11ce-bfc1-08002be10318}', '{4d36e974-e325-11ce-bfc1-08002be10318}', '{4d36e975-e325-11ce-bfc1-08002be10318}')
 $SYS = [Environment]::SystemDirectory
 $msBroken = $false
+
+function Resolve-Dll([string]$d) {
+  if (-not $d) { return $null }
+  $d = [Environment]::ExpandEnvironmentVariables($d.Trim().Trim('"'))
+  if (-not [IO.Path]::IsPathRooted($d)) { $d = Join-Path $SYS $d }
+  return $d
+}
 
 function Resolve-Img([string]$p) {
   if (-not $p) { return $null }
@@ -97,8 +103,7 @@ foreach ($c in $CLASSES) {
     $ndi = Get-ItemProperty -Path (Join-Path $key.PSPath 'Ndi') -ErrorAction SilentlyContinue
     $prob = @()
     if ($ndi -and $ndi.ComponentDll) {
-      $dll = [string]$ndi.ComponentDll
-      if (-not [IO.Path]::IsPathRooted($dll)) { $dll = Join-Path $SYS $dll }
+      $dll = Resolve-Dll ([string]$ndi.ComponentDll)
       if (-not (Test-Path -LiteralPath $dll)) { $prob += ('DLL ausente: ' + $ndi.ComponentDll) }
     }
     if ($ndi -and $ndi.Service) {
@@ -118,10 +123,13 @@ foreach ($c in $CLASSES) {
 }
 
 T '[3] Removendo componentes quebrados que NAO sao da Microsoft'
-$badSvc = @('VMnetBridge')
+$badSvc = @()
+$fixed = 0
 if ($broken.Count -eq 0) { L '  nenhum componente quebrado nas classes' }
 foreach ($b in $broken) {
   if ($b.Id.ToLower().StartsWith('ms_')) { $msBroken = $true; L ('  ' + $b.Id + ': e da Microsoft - NAO removido (o SFC no final tenta reparar)'); continue }
+  if ($b.Svc) { reg export ('HKLM\SYSTEM\CurrentControlSet\Services\' + $b.Svc) (Join-Path $bk ('servico-' + $b.Svc + '.reg')) /y 2>&1 | Out-Null }
+  $fixed++
   Remove-Item -Path $b.Path -Recurse -Force -ErrorAction SilentlyContinue
   L ('  removido (Class): ' + $b.Id)
   if ($b.Inst) {
@@ -139,9 +147,10 @@ foreach ($c in $CLASSES) {
     $id = [string]$p.ComponentId
     $ndi = Get-ItemProperty -Path (Join-Path $key.PSPath 'Ndi') -ErrorAction SilentlyContinue
     $missing = $false
-    if ($ndi -and $ndi.ComponentDll) { $missing = -not (Test-Path -LiteralPath (Join-Path $SYS ([string]$ndi.ComponentDll))) }
-    $isVm = $id.ToLower().Contains('vmware') -or $id.ToLower().Contains('vmnet')
-    if (($missing -or $isVm) -and -not $id.ToLower().StartsWith('ms_')) {
+    if ($ndi -and $ndi.ComponentDll) { $missing = -not (Test-Path -LiteralPath (Resolve-Dll ([string]$ndi.ComponentDll))) }
+    # so remove se o arquivo do componente REALMENTE nao existe mais (nunca pelo nome do fabricante)
+    if ($missing -and -not $id.ToLower().StartsWith('ms_')) {
+      $fixed++
       Remove-Item -Path $key.PSPath -Recurse -Force -ErrorAction SilentlyContinue
       L ('  removido orfao: ' + $id + ' (' + $key.PSChildName + ')')
       if ($ndi -and $ndi.Service) { $badSvc += [string]$ndi.Service }
@@ -157,7 +166,7 @@ foreach ($key in (Get-ChildItem -Path "$CS\Control\Class\$NET" -ErrorAction Sile
   $lp = Get-ItemProperty -Path $lk -ErrorAction SilentlyContinue
   if ($lp -and $lp.UpperBind) {
     $old = @($lp.UpperBind)
-    $new = @($old | Where-Object { ($badSvc -notcontains $_) -and ($_ -notlike 'VMnet*') })
+    $new = @($old | Where-Object { $badSvc -notcontains $_ })
     if ($new.Count -ne $old.Count) {
       Set-ItemProperty -Path $lk -Name 'UpperBind' -Value ([string[]]$new)
       L ('  ' + $key.PSChildName + ': UpperBind limpo')
@@ -174,10 +183,6 @@ foreach ($v in @('UpperFilters', 'LowerFilters')) {
       L ('  filtro de classe ' + $v + ' limpo')
     }
   }
-}
-if (Test-Path "$CS\Services\VMnetBridge") {
-  Remove-Item -Path "$CS\Services\VMnetBridge" -Recurse -Force -ErrorAction SilentlyContinue
-  L '  chave do servico VMnetBridge removida'
 }
 L '  ok'
 
@@ -197,33 +202,21 @@ foreach ($n in $svcs.Keys) {
 
 # ================================================================ 5
 T '[6] Reset da pilha de rede'
-netsh winsock reset 2>&1 | Out-Null; L ('  winsock reset: ' + $LASTEXITCODE)
-netsh int ip reset 2>&1 | Out-Null; L ('  ip reset: ' + $LASTEXITCODE)
-netsh int ipv6 reset 2>&1 | Out-Null; L ('  ipv6 reset: ' + $LASTEXITCODE)
-ipconfig /flushdns 2>&1 | Out-Null
-$o = (netcfg -d 2>&1 | Out-String); L '  netcfg -d:'; L $o
-
-# ================================================================ 6
-T '[7] Drivers oficiais Lenovo (pasta drivers)'
-$drv = Join-Path $env:LIMPA_DIR 'drivers'
-if (Test-Path $drv) {
-  foreach ($exe in (Get-ChildItem -Path $drv -Recurse -Filter '*.exe' -ErrorAction SilentlyContinue)) {
-    $out = 'C:\LimpaOneDrivers\' + $exe.BaseName
-    New-Item -ItemType Directory -Force -Path $out | Out-Null
-    L ('  extraindo ' + $exe.Name + ' ...')
-    $pr = Start-Process -FilePath $exe.FullName -ArgumentList ('/VERYSILENT /DIR="' + $out + '" /EXTRACT="YES"') -Wait -PassThru
-    $infs = @(Get-ChildItem -Path $out -Recurse -Filter '*.inf' -ErrorAction SilentlyContinue)
-    L ('    codigo ' + $pr.ExitCode + ', ' + $infs.Count + ' arquivos .inf')
-    if ($infs.Count -gt 0) {
-      $r = (pnputil /add-driver ($out + '\*.inf') /subdirs /install 2>&1 | Out-String)
-      L ('    pnputil: ' + (($r -split "`n" | Where-Object { $_ -match 'adicionad|added|instalad|installed|total|falh|fail' }) -join ' | '))
-    }
-  }
-} else { L '  pasta drivers nao encontrada - pulando (o zip completo traz os drivers)' }
+ipconfig /flushdns 2>&1 | Out-Null; L '  cache de DNS limpo'
+$err56 = @(Get-CimInstance Win32_PnPEntity -ErrorAction SilentlyContinue | Where-Object { $_.PNPClass -eq 'Net' -and $_.ConfigManagerErrorCode -eq 56 })
+if ($fixed -gt 0 -or $err56.Count -gt 0) {
+  L '  problema confirmado (componente quebrado ou Codigo 56): resetando a pilha de rede'
+  L '  (isso apaga IPs fixos, VPNs e adaptadores virtuais - o backup do registro esta na pasta acima)'
+  netsh winsock reset 2>&1 | Out-Null; L ('  winsock reset: ' + $LASTEXITCODE)
+  netsh int ip reset 2>&1 | Out-Null; L ('  ip reset: ' + $LASTEXITCODE)
+  netsh int ipv6 reset 2>&1 | Out-Null; L ('  ipv6 reset: ' + $LASTEXITCODE)
+  $o = (netcfg -d 2>&1 | Out-String); L '  netcfg -d:'; L $o
+} else { L '  nenhum componente quebrado nem Codigo 56: reset completo NAO foi necessario' }
 
 # ================================================================ 7
-T '[8] Reinstalando placas com problema'
-$bad = Get-CimInstance Win32_PnPEntity -ErrorAction SilentlyContinue | Where-Object { $_.PNPClass -eq 'Net' -and $_.ConfigManagerErrorCode -ne 0 }
+T '[7] Reinstalando placas com problema'
+# 22 = desativada pelo usuario, 45 = nao conectada: essas NUNCA sao removidas
+$bad = Get-CimInstance Win32_PnPEntity -ErrorAction SilentlyContinue | Where-Object { $_.PNPClass -eq 'Net' -and @(0, 22, 45) -notcontains $_.ConfigManagerErrorCode }
 foreach ($d in $bad) {
   L ('  ' + $d.Name + ' - codigo ' + $d.ConfigManagerErrorCode + ' - removendo para reinstalar')
   pnputil /remove-device "$($d.PNPDeviceID)" 2>&1 | Out-Null
@@ -232,10 +225,10 @@ pnputil /scan-devices 2>&1 | Out-Null
 Start-Sleep -Seconds 10
 L '  Situacao agora:'
 Net-Status
-$still = @(Get-CimInstance Win32_PnPEntity -ErrorAction SilentlyContinue | Where-Object { $_.PNPClass -eq 'Net' -and $_.ConfigManagerErrorCode -ne 0 -and $_.ConfigManagerErrorCode -ne 45 })
+$still = @(Get-CimInstance Win32_PnPEntity -ErrorAction SilentlyContinue | Where-Object { $_.PNPClass -eq 'Net' -and @(0, 22, 45) -notcontains $_.ConfigManagerErrorCode })
 
 # ================================================================ 8
-T '[9] Componentes de rede instalados (netcfg -s n)'
+T '[8] Componentes de rede instalados (netcfg -s n)'
 L ((netcfg -s n 2>&1) | Out-String)
 L 'Linhas relevantes do setupapi.dev.log:'
 $sl = Join-Path $env:windir 'INF\setupapi.dev.log'
@@ -244,15 +237,15 @@ if (Test-Path $sl) {
 }
 
 if ($msBroken -or $still.Count -gt 0) {
-  T '[10] Reparo de arquivos do sistema (SFC) - pode levar de 10 a 20 minutos'
+  T '[9] Reparo de arquivos do sistema (SFC) - pode levar de 10 a 20 minutos'
   L '  Nao feche esta janela...'
   $sfc = (sfc /scannow 2>&1 | Out-String) -replace "`0", ''
   L (($sfc -split "`n" | Where-Object { $_.Trim() } | Select-Object -Last 4) -join ' | ')
-} else { T '[10] SFC nao foi necessario' }
+} else { T '[9] SFC nao foi necessario' }
 
 L ''
 L '=============================================================='
-L ' PRONTO. Relatorio: corrigir-wifi-relatorio.txt (Area de Trabalho)'
+L ' PRONTO. Relatorio: reparar-rede-relatorio.txt (Area de Trabalho)'
 L (' Backup do registro: ' + $bk)
 L ' REINICIE o computador para concluir.'
 L '=============================================================='
@@ -265,7 +258,8 @@ def run_network_repair() -> str:
     """Grava o script em um .bat temporário e o executa (ele mesmo pede permissão de administrador)."""
     if not IS_WIN:
         return "O reparo de rede está disponível apenas no Windows."
-    path = os.path.join(tempfile.gettempdir(), "LimpaOne-reparar-rede.bat")
+    # pasta nova e exclusiva (não um nome fixo no TEMP que outro processo poderia preparar antes)
+    path = os.path.join(tempfile.mkdtemp(prefix="LimpaOne-rede-"), "reparar-rede.bat")
     with open(path, "w", encoding="ascii", errors="replace", newline="\r\n") as f:
         f.write(SCRIPT)
     log("FERRAMENTA reparar rede")

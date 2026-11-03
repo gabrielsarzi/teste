@@ -42,12 +42,12 @@ def restore_enabled() -> bool | None:
         return False
 
 
-def create_restore_point(reason: str) -> tuple[bool, str]:
+def create_restore_point(reason: str, force: bool = False) -> tuple[bool, str]:
     """Ativa a Proteção do Sistema (se preciso) e cria um ponto de restauração. Pede UAC."""
     global _last_ok
     if not IS_WIN:
         return True, ""
-    if time.time() - _last_ok < 1800:          # já criado há menos de 30 minutos nesta sessão
+    if not force and time.time() - _last_ok < 1800:   # já criado há menos de 30 minutos nesta sessão
         return True, ""
     from .winutil import run_ps_elevated
     desc = re.sub(r"[^\w\s\-.,]", "", reason or "alteracao")[:60]
@@ -63,7 +63,7 @@ def create_restore_point(reason: str) -> tuple[bool, str]:
     return False, str(err or f"código {rc}")
 
 
-def guarded(widget, reason: str, action, progress=None):
+def guarded(widget, reason: str, action, progress=None, on_cancel=None):
     """Cria o ponto de restauração em segundo plano e só então executa `action()` (na thread da interface).
 
     Se não der para criar, pergunta ao usuário — com NÃO como resposta padrão."""
@@ -91,7 +91,25 @@ def guarded(widget, reason: str, action, progress=None):
                 "Continuar mesmo assim?", icon="warning", default="no", parent=widget):
             log(f"SEM PONTO DE RESTAURAÇÃO (usuário confirmou): {reason}")
             action()
-        elif progress:
-            progress("Cancelado: nenhuma alteração foi feita.")
+        else:
+            if progress:
+                progress("Cancelado: nenhuma alteração foi feita.")
+            if on_cancel:
+                on_cancel()
 
+    widget.after(200, poll)
+
+
+def make_now(widget, reason: str, on_done) -> None:
+    """Cria um ponto de restauração AGORA (sem usar o cache) e chama on_done(ok, erro) na thread da interface.
+    Para os botões "Ativar"/"Criar agora": a mensagem mostrada depende do resultado real."""
+    box: dict = {}
+    th = threading.Thread(target=lambda: box.setdefault("r", create_restore_point(reason, force=True)), daemon=True)
+    th.start()
+
+    def poll():
+        if th.is_alive():
+            widget.after(200, poll)
+            return
+        on_done(*box.get("r", (False, "erro desconhecido")))
     widget.after(200, poll)

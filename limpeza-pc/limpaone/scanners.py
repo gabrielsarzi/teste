@@ -8,7 +8,8 @@ import os
 import time
 
 from .utils import (IS_LINUX, IS_MAC, IS_WIN, Item, _is_junction, entry_size, fmt_date,
-                    fmt_days, fmt_size, home, is_protected, norm)
+                    fmt_days, fmt_size, home, is_protected, newest_time, norm,
+                    unsafe_clear_target)
 
 # Pastas que nunca são percorridas (sistema / pseudo-sistemas de arquivos).
 _ALWAYS_SKIP_NAMES = {"$recycle.bin", "system volume information", "config.msi", "recovery",
@@ -151,6 +152,23 @@ def _hash(path, cancel, partial=False, block=1 << 20):
     return h.hexdigest()
 
 
+def _unique_roots(roots):
+    """Remove raízes repetidas ou contidas em outra (comparando o caminho REAL, depois de links)."""
+    reals = []
+    for r in roots:
+        try:
+            reals.append((norm(os.path.realpath(r)), r))
+        except (OSError, ValueError):
+            continue
+    reals.sort(key=lambda x: len(x[0]))
+    keep = []
+    for real, r in reals:
+        if any(real == k or real.startswith(k.rstrip(os.sep) + os.sep) for k, _ in keep):
+            continue
+        keep.append((real, r))
+    return [r for _, r in keep]
+
+
 def scan_duplicates(roots, min_bytes, skip_app_dirs, keep, cancel, progress):
     """Encontra arquivos idênticos: tamanho -> hash parcial -> hash completo.
 
@@ -158,16 +176,30 @@ def scan_duplicates(roots, min_bytes, skip_app_dirs, keep, cancel, progress):
     """
     skip = APP_DIR_NAMES if skip_app_dirs else frozenset()
     by_size: dict[int, list] = {}
-    inodes = set()
-    for path, st in walk_files(roots, cancel, progress, skip_names=skip, skip_hidden=skip_app_dirs):
+    for path, st in walk_files(_unique_roots(roots), cancel, progress, skip_names=skip,
+                               skip_hidden=skip_app_dirs):
         if st.st_size < min_bytes:
             continue
-        key = (st.st_dev, st.st_ino)
-        if st.st_ino and key in inodes:  # hardlink: mesmo arquivo físico
-            continue
-        inodes.add(key)
         by_size.setdefault(st.st_size, []).append((path, st))
-    candidates = [v for v in by_size.values() if len(v) > 1]
+    candidates = []
+    for v in by_size.values():
+        if len(v) < 2:
+            continue
+        # O MESMO arquivo físico pode aparecer por dois caminhos (hardlink, junction, unidade "subst",
+        # pasta mapeada). No Windows o DirEntry.stat() devolve st_ino = 0, então pede o stat completo.
+        seen, uniq = set(), []
+        for path, st in v:
+            try:
+                full = os.stat(path)
+                key = (full.st_dev, full.st_ino)
+            except OSError:
+                continue
+            if key[1] and key in seen:
+                continue
+            seen.add(key)
+            uniq.append((path, st))
+        if len(uniq) > 1:
+            candidates.append(uniq)
     total = sum(len(v) for v in candidates)
     done = 0
     groups = []
@@ -224,14 +256,16 @@ def junk_locations():
     locs = []
     if IS_WIN:
         env = os.environ.get
-        windir = env("WINDIR", r"C:\Windows")
-        local = env("LOCALAPPDATA", os.path.join(h, "AppData", "Local"))
-        roaming = env("APPDATA", os.path.join(h, "AppData", "Roaming"))
-        progdata = env("PROGRAMDATA", r"C:\ProgramData")
-        temp = env("TEMP", os.path.join(local, "Temp"))
+        windir = env("WINDIR") or r"C:\Windows"
+        local = env("LOCALAPPDATA") or os.path.join(h, "AppData", "Local")
+        roaming = env("APPDATA") or os.path.join(h, "AppData", "Roaming")
+        progdata = env("PROGRAMDATA") or r"C:\ProgramData"
+        temp = env("TEMP") or os.path.join(local, "Temp")
+        if os.path.basename(temp.rstrip("\\/")).lower() not in ("temp", "tmp"):
+            temp = os.path.join(local, "Temp")   # TEMP aponta para uma pasta estranha: usa a padrão
         locs += [
-            ("Arquivos temporários do usuário", temp, None, 2, False),
-            ("Arquivos temporários do Windows", os.path.join(windir, "Temp"), None, 2, False),
+            ("Arquivos temporários do usuário", temp, None, 24, False),
+            ("Arquivos temporários do Windows", os.path.join(windir, "Temp"), None, 24, False),
             ("Cache do Windows Update", os.path.join(windir, "SoftwareDistribution", "Download"), None, 0, False),
             ("Relatórios de erro do Windows", os.path.join(progdata, "Microsoft", "Windows", "WER", "ReportArchive"), None, 0, False),
             ("Relatórios de erro (fila)", os.path.join(progdata, "Microsoft", "Windows", "WER", "ReportQueue"), None, 0, False),
@@ -273,7 +307,8 @@ def junk_locations():
             locs.append((f"Cache do Firefox — {os.path.basename(os.path.dirname(prof))}", prof, None, 0, False))
         winold = os.path.join(os.environ.get("SystemDrive", "C:") + "\\", "Windows.old")
         if os.path.isdir(winold):
-            locs.append(("Instalação anterior do Windows (Windows.old)", winold, None, 0, False))
+            locs.append(("⚠ Instalação anterior do Windows (Windows.old) — tira a opção de voltar e pode ter "
+                         "arquivos do perfil antigo; confira antes", winold, None, 0, False))
     elif IS_MAC:
         locs += [
             ("Caches de aplicativos", os.path.join(h, "Library", "Caches"), None, 0, False),
@@ -324,7 +359,7 @@ def _sized_contents(path, patterns, min_age_hours, only_mine, cancel):
             if patterns and not any(fnmatch.fnmatch(e.name.lower(), p) for p in patterns):
                 continue
             st = e.stat(follow_symlinks=False)
-            if min_age_hours and st.st_mtime > limit:
+            if min_age_hours and newest_time(e.path, st, limit) > limit:
                 continue
             if uid is not None and st.st_uid != uid:
                 continue
@@ -384,6 +419,12 @@ def privacy_locations():
     return locs
 
 
+def _manual_only(path: str) -> bool:
+    """Locais que NUNCA entram na limpeza automática nem vêm marcados (o usuário decide)."""
+    p = path.lower().replace("/", "\\")
+    return "windows.old" in p or "softwaredistribution" in p
+
+
 def scan_junk(cancel, progress, include_recycle=True, include_privacy=True):
     from .system import recycle_bin_info
     items = []
@@ -393,7 +434,7 @@ def scan_junk(cancel, progress, include_recycle=True, include_privacy=True):
     for label, path, patterns, age, only_mine, privacy, procs in entries:
         if cancel.is_set():
             break
-        if not os.path.isdir(path):
+        if not os.path.isdir(path) or unsafe_clear_target(path) or is_excluded(path):
             continue
         progress(f"Verificando: {label}")
         size, files = _sized_contents(path, patterns, age, only_mine, cancel)
@@ -403,9 +444,9 @@ def scan_junk(cancel, progress, include_recycle=True, include_privacy=True):
         items.append(Item(path=path, size=size,
                           values=(shown, fmt_size(size), f"{files:,}".replace(",", "."), path),
                           raw=(shown.lower(), size, files, path.lower()),
-                          kind="dircontents", checked=not privacy,
+                          kind="dircontents", checked=not privacy and not _manual_only(path),
                           data={"patterns": patterns, "age": age, "only_mine": only_mine, "privacy": privacy,
-                                "procs": procs}))
+                                "procs": procs, "auto_ok": not privacy and not _manual_only(path)}))
     if include_recycle:
         size, count = recycle_bin_info()
         if size or count:

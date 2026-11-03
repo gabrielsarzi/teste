@@ -18,7 +18,7 @@ import string
 import tempfile
 import time
 
-from .utils import is_protected, log
+from .utils import _is_junction, is_link_like, is_protected, log, remove_link
 
 CHUNK = 1024 * 1024
 METHODS = {
@@ -45,30 +45,43 @@ def _pattern_block(kind: str, rnd: random.Random) -> bytes:
 
 
 def collect(paths) -> tuple[list[str], list[str], int]:
-    """Arquivos a destruir (sem seguir links), pastas (de baixo para cima) e total de bytes."""
+    """Arquivos a destruir, pastas (de baixo para cima) e total de bytes.
+
+    NUNCA entra em links simbólicos nem em junctions do Windows (que o os.walk segue): esses entram na
+    lista de arquivos e são só removidos — o conteúdo do destino não é tocado."""
     files, dirs, total = [], [], 0
     for p in paths:
-        if os.path.islink(p) or os.path.isfile(p):
-            files.append(p)
-            if not os.path.islink(p):
-                total += os.path.getsize(p)
-        elif os.path.isdir(p):
-            for root, ds, fs in os.walk(p, topdown=False, followlinks=False):
-                for f in fs:
-                    fp = os.path.join(root, f)
-                    files.append(fp)
-                    if not os.path.islink(fp):
-                        try:
-                            total += os.path.getsize(fp)
-                        except OSError:
-                            pass
-                for d in ds:
-                    dp = os.path.join(root, d)
-                    if os.path.islink(dp):
-                        files.append(dp)     # link de pasta: apaga só o link
+        if is_link_like(p) or not os.path.isdir(p):
+            if os.path.lexists(p):
+                files.append(p)
+                if not is_link_like(p):
+                    try:
+                        total += os.path.getsize(p)
+                    except OSError:
+                        pass
+            continue
+        order: list[str] = []
+        stack = [p]
+        while stack:
+            d = stack.pop()
+            order.append(d)
+            try:
+                with os.scandir(d) as it:
+                    entries = list(it)
+            except OSError:
+                continue
+            for e in entries:
+                try:
+                    if e.is_symlink() or _is_junction(e) or is_link_like(e.path):
+                        files.append(e.path)        # link: apaga só o link
+                    elif e.is_dir(follow_symlinks=False):
+                        stack.append(e.path)
                     else:
-                        dirs.append(dp)
-            dirs.append(p)
+                        files.append(e.path)
+                        total += e.stat(follow_symlinks=False).st_size
+                except OSError:
+                    pass
+        dirs.extend(reversed(order))      # mais fundas primeiro
     return files, dirs, total
 
 
@@ -128,9 +141,16 @@ def shred_file(path: str, method: str = "random3", on_bytes=lambda n: None, canc
     """Destrói um arquivo. Links simbólicos são só removidos (o alvo NÃO é tocado)."""
     if is_protected(path):
         raise PermissionError("caminho protegido do sistema — não será destruído")
-    if os.path.islink(path):
-        os.remove(path)
+    if is_link_like(path):
+        remove_link(path)
         return
+    try:
+        if os.lstat(path).st_nlink > 1:
+            # hardlink: o mesmo conteúdo tem outro nome em outro lugar — sobrescrever destruiria aquele também.
+            os.remove(path)
+            return
+    except OSError:
+        pass
     passes = METHODS[method][1]
     if not os.access(path, os.W_OK):
         _make_writable(path)

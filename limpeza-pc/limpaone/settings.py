@@ -25,10 +25,36 @@ class Settings(dict):
                 data = json.load(f)
             if isinstance(data, dict):
                 self.update(data)
-        except (OSError, ValueError):
+            else:
+                raise ValueError("formato inválido")
+        except FileNotFoundError:
             pass
+        except (OSError, ValueError):
+            # arquivo corrompido: guarda uma cópia para não perder (ex.: lista de exclusões) e segue com o padrão
+            try:
+                os.replace(self.path, self.path + ".corrompido")
+            except OSError:
+                pass
+        self._sanitize()
         if not self.get("roots"):
             self["roots"] = [home()]
+
+    def _sanitize(self):
+        """Garante os tipos certos: um valor estranho no arquivo nunca pode derrubar o app nem ampliar a análise."""
+        def str_list(v):
+            return [x for x in v if isinstance(x, str) and x.strip()] if isinstance(v, list) else None
+        if self.get("theme") not in ("auto", "light", "dark"):
+            self["theme"] = "auto"
+        for k in ("to_trash", "check_updates"):
+            if not isinstance(self.get(k), bool):
+                self[k] = DEFAULTS[k]
+        self["exclusions"] = str_list(self.get("exclusions")) or []
+        self["auto_clean_skip"] = str_list(self.get("auto_clean_skip")) or []
+        roots = str_list(self.get("roots"))
+        self["roots"] = roots if roots else [home()]
+        ls = self.get("last_scan")
+        if ls is not None and not (isinstance(ls, dict) and all(isinstance(v, (int, float, str)) for v in ls.values())):
+            self["last_scan"] = None
 
     def save(self):
         try:

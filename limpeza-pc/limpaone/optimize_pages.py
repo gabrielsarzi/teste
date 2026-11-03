@@ -334,7 +334,8 @@ class TweaksPage(BackgroundMixin, Page):
             on = bool(self.store) and tw.is_applied(self.store, tweak)
             n_on += on
             self.vars[tweak.id].set(on)
-            state = "normal" if self.store and not self.busy else "disabled"
+            outside = on and tweak.id not in self.backup     # ligado por fora do LimpaOne: não mexe
+            state = "normal" if self.store and not self.busy and not outside else "disabled"
             self.checks[tweak.id].state(["!disabled"] if state == "normal" else ["disabled"])
         total = len(tw.TWEAKS)
         if self.store:
@@ -408,14 +409,21 @@ class TweaksPage(BackgroundMixin, Page):
             return
         if any(on for _, on in changes) and not getattr(self, "_rp_ok", False):
             from .safety import guarded
+            self.busy = True            # trava os botões enquanto o ponto de restauração é criado
+            self.refresh()
 
             def go():
+                self.busy = False
                 self._rp_ok = True
                 try:
                     self._run(changes, success)
                 finally:
                     self._rp_ok = False
-            guarded(self, "ajustes do Windows", go)
+
+            def cancel():
+                self.busy = False
+                self.refresh()
+            guarded(self, "ajustes do Windows", go, on_cancel=cancel)
             return
         backup = self.backup
 
@@ -449,7 +457,14 @@ class TweaksPage(BackgroundMixin, Page):
         if self.busy:
             return
         tweak = tw.TWEAK_BY_ID[tid]
-        self._run([(tweak, self.vars[tid].get())], "")
+        on = self.vars[tid].get()
+        if not on and tid not in self.backup:
+            messagebox.showinfo(self.title, "Este ajuste foi configurado fora do LimpaOne (por você, por outro "
+                                "programa ou pela empresa). O LimpaOne só desfaz o que ele mesmo aplicou.",
+                                parent=self)
+            self.refresh()
+            return
+        self._run([(tweak, on)], "")
 
     def apply_recommended(self):
         if not self.store:
@@ -469,7 +484,9 @@ class TweaksPage(BackgroundMixin, Page):
     def undo_all(self):
         if not self.store:
             return
-        todo = [(x, False) for x in tw.TWEAKS if x.id in self.backup or tw.is_applied(self.store, x)]
+        # só desfaz o que o PRÓPRIO LimpaOne aplicou (tem backup do valor original). Configurações feitas fora
+        # (política da empresa, ajuste manual) ficam como estão.
+        todo = [(x, False) for x in tw.TWEAKS if x.id in self.backup]
         if not todo:
             self.app.toast("Não há ajustes para desfazer.")
             return
@@ -676,7 +693,8 @@ class DiskOptimizePage(BackgroundMixin, Page):
                     on_finally=lambda: self._set_busy(False))
 
     def optimize_all(self):
-        self.optimize(list(self.volumes))
+        # pendrives/cartões/externos ficam de fora do "otimizar todos" (o usuário pode escolher um por um)
+        self.optimize([v for v in self.volumes if not v.get("removable") and v.get("bus", "").upper() != "USB"])
 
     def optimize(self, vols):
         if self.busy or not vols:

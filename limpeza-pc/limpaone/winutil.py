@@ -22,6 +22,12 @@ class NotWindows(RuntimeError):
     pass
 
 
+POWERSHELL = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "WindowsPowerShell", "v1.0",
+                          "powershell.exe")
+if not os.path.isfile(POWERSHELL):
+    POWERSHELL = "powershell.exe"
+
+
 def run(cmd, timeout=120, input_text=None) -> tuple[int, str, str]:
     """Executa um comando sem abrir janela. Retorna (código, stdout, stderr)."""
     try:
@@ -41,7 +47,7 @@ def run_ps(script: str, timeout=120) -> tuple[int, str, str]:
     """Executa um script PowerShell (saída em UTF-8)."""
     if not IS_WIN:
         return 1, "", "disponível apenas no Windows"
-    return run(["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+    return run([POWERSHELL, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
                 "-Command", PS_PREFIX + script], timeout=timeout)
 
 
@@ -95,6 +101,14 @@ def shell_execute_wait(exe: str, params: str = "", verb: str = "runas", show: in
     return int(code.value)
 
 
+def ps_quote(s: str) -> str:
+    """Texto entre aspas simples do PowerShell. As aspas tipográficas ‘ ’ ‚ ‛ também fecham a string lá,
+    então todas são duplicadas (D'Avila, nomes com acento etc. ficam seguros)."""
+    for q in ("'", "\u2018", "\u2019", "\u201a", "\u201b"):
+        s = s.replace(q, q + q)
+    return "'" + s + "'"
+
+
 def run_ps_elevated(script: str, timeout=3600, visible=False):
     """Executa um script PowerShell como administrador (pede UAC se preciso) e devolve o que o
     script gravar em $env:LIMPAPC_OUT como JSON. Use no script: `$result | ConvertTo-Json -Depth 5 |
@@ -107,12 +121,12 @@ def run_ps_elevated(script: str, timeout=3600, visible=False):
     out = os.path.join(tmp, "out.json")
     ps1 = os.path.join(tmp, "script.ps1")
     with open(ps1, "w", encoding="utf-8-sig") as f:
-        f.write(PS_PREFIX + f"\n$out = '{out}'\n" + script)
+        f.write(PS_PREFIX + f"\n$out = {ps_quote(out)}\n" + script)
     args = f'-NoProfile -ExecutionPolicy Bypass -File "{ps1}"'
     if is_admin():
-        rc, _, _ = run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1], timeout=timeout)
+        rc, _, _ = run([POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1], timeout=timeout)
     else:
-        rc = shell_execute_wait("powershell.exe", args, "runas", 1 if visible else 0, timeout)
+        rc = shell_execute_wait(POWERSHELL, args, "runas", 1 if visible else 0, timeout)
     data = None
     if os.path.exists(out):
         try:
@@ -128,7 +142,8 @@ def open_admin_console(command: str) -> bool:
     """Abre um console visível (como administrador) executando o comando, para o usuário acompanhar."""
     if not IS_WIN:
         return False
-    rc = ctypes.windll.shell32.ShellExecuteW(None, "runas", "cmd.exe", f'/k "{command}"', None, 1)
+    cmd_exe = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "cmd.exe")
+    rc = ctypes.windll.shell32.ShellExecuteW(None, "runas", cmd_exe, f'/k "{command}"', None, 1)
     return rc > 32
 
 

@@ -584,6 +584,7 @@ class UpdateAppsPage(ResultsPage):
     action_label = "Atualizar selecionados"
     action_style = "Primary.TButton"
     uses_trash = False
+    needs_restore_point = True
     show_open = False
     auto_scan = True
     empty_text = "Clique em “Procurar atualizações” para ver o que pode ser atualizado."
@@ -629,12 +630,14 @@ class UpdateAppsPage(ResultsPage):
     @staticmethod
     def make_item(r: dict) -> Item:
         unknown = bool(r.get("unknown"))
+        risky = is_driver_package(r.get("id", ""), r.get("name", ""))
         name = r.get("name") or r["id"]
         cur = "Desconhecida" if unknown and not (r.get("version") or "").startswith("<") else r.get("version", "")
-        status = "Versão atual desconhecida" if unknown else "Disponível"
+        status = ("⚠ Instala driver (rede/vídeo/VM) — atualize com cuidado" if risky else
+                  "Versão atual desconhecida" if unknown else "Disponível")
         return Item(path=r["id"], values=(name, cur, r.get("available", ""), r["id"], status),
                     raw=(name.lower(), cur, r.get("available", ""), r["id"].lower(), status),
-                    kind="upgrade", checked=not unknown, data=dict(r))
+                    kind="upgrade", checked=not unknown and not risky, data=dict(r, risky=risky))
 
     def row_tags(self, item):
         st = item.data.get("state")
@@ -676,8 +679,14 @@ class UpdateAppsPage(ResultsPage):
     def confirm_text(self, items, to_trash):
         names = "\n".join(f"• {i.values[0]}  ({i.values[1]} → {i.values[2]})" for i in items[:14])
         more = f"\n… e mais {len(items) - 14}" if len(items) > 14 else ""
+        risky = [i.values[0] for i in items if i.data.get("risky")]
+        warn = ""
+        if risky:
+            warn = ("\n\n⚠ " + ", ".join(risky[:5]) + " instala(m) drivers de rede, vídeo ou máquina virtual. "
+                    "Uma atualização com problema pode derrubar a internet ou a tela. Um ponto de restauração "
+                    "será criado antes.")
         return (f"Atualizar {len(items)} programa(s)?\n\n{names}{more}\n\n"
-                "Feche esses programas antes de continuar. O Windows pode pedir permissão de administrador.")
+                "Feche esses programas antes de continuar. O Windows pode pedir permissão de administrador." + warn)
 
     def perform(self, items, to_trash, progress):
         done, errors = [], []
@@ -705,3 +714,17 @@ class UpdateAppsPage(ResultsPage):
 
     def success_text(self, done, freed):
         return f"{len(done)} programa(s) atualizado(s)"
+
+
+# Pacotes que instalam drivers de rede/kernel/vídeo: nunca vêm marcados para atualizar.
+_DRIVER_HINTS = ("vmware", "virtualbox", "openvpn", "wireguard", "npcap", "winpcap", "protonvpn", "nordvpn",
+                 "expressvpn", "surfshark", "cisco", "anyconnect", "fortinet", "forticlient", "globalprotect",
+                 "zerotier", "tailscale", "hamachi", "radmin", "tap-windows", "nvidia", "geforce", "amd.",
+                 "radeon", "intel.", "realtek", "killer", "qualcomm", "mediatek", "dolby", "logitech.ghub",
+                 "razer", "corsair", "asus", "msi.", "docker.dockerdesktop", "hyper", "wsl", "usbpcap",
+                 "wireshark", "parsec", "virtual audio", "vb-audio", "voicemeeter", "obsproject.obs-virtualcam")
+
+
+def is_driver_package(pkg_id: str, name: str = "") -> bool:
+    s = f"{pkg_id} {name}".lower()
+    return any(h in s for h in _DRIVER_HINTS)

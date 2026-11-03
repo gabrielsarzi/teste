@@ -52,5 +52,13 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExe}"; Tasks: deskto
 [Run]
 Filename: "{app}\{#MyAppExe}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
 
+[UninstallRun]
+; remove a limpeza automática agendada (senão ela continuaria rodando sem o programa)
+Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /TN ""LimpaOne\Limpeza automatica"" /F"; Flags: runhidden; RunOnceId: "RemoverTarefa"
+
 [UninstallDelete]
-Type: filesandordirs; Name: "{localappdata}\LimpaOne"
+; apaga só as configurações e o log. Os BACKUPS do registro e dos ajustes ficam (podem ser necessários depois).
+Type: files; Name: "{localappdata}\LimpaOne\config.json"
+Type: files; Name: "{localappdata}\LimpaOne\historico.log"
+Type: files; Name: "{localappdata}\LimpaOne\config.json.corrompido"
+Type: files; Name: "{localappdata}\LimpaOne\relatorio-da-bateria.html"

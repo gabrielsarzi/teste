@@ -5,6 +5,8 @@ on:
     paths:
       - "limpeza-pc/**"
       - ".github/workflows/limpaone-windows.yml"
+      - "!limpeza-pc/site/**"
+      - "!limpeza-pc/**/*.md"
   workflow_dispatch:
 
 permissions:
@@ -45,7 +47,10 @@ jobs:
           path: |
             limpeza-pc/dist/LimpaOne.exe
             limpeza-pc/dist/LimpaOne-Setup.exe
+      # Só publica uma versão para o público quando for pedido: rodar manualmente (workflow_dispatch)
+      # ou commit com [release] na mensagem. Nos outros pushes o .exe fica só como artifact para testes.
       - name: Publicar para download (GitHub Releases)
+        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release]')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: limpaone-v${{ env.VERSION }}
@@ -62,8 +67,9 @@ jobs:
             - Menu lateral em grupos (sanfona) e novas áreas: Limpeza, Programas, Desempenho, Diagnóstico e Recuperação
             - Instalar programas em lote e gerar kit pós-formatação · Atualizar programas em 1 clique
             - Desinstalador avançado (sobras, desinstalação forçada, apps da Store/bloatware)
+            - Segurança: ponto de restauração automático antes de mexer no sistema
             - Limpeza do registro com backup · Limpeza de privacidade · Limpeza automática agendada
-            - Drivers pelo Windows Update · Meu computador (ficha técnica) · Teste de desempenho · Velocidade da internet
+            - Diagnóstico de drivers (o LimpaOne NÃO instala drivers) · Meu computador (ficha técnica) · Teste de desempenho · Velocidade da internet
             - Otimizar Windows · Otimizar discos (TRIM/desfragmentação) · Destruidor de arquivos
 
             Se o Windows mostrar "O Windows protegeu o computador", clique em **Mais informações → Executar assim mesmo** (o programa ainda não tem assinatura digital).

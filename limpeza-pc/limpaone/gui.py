@@ -49,12 +49,15 @@ def _protection_banner(parent, app):
              font=t.f_bold, justify="left", anchor="w", wraplength=t.px(640)).pack(side="left", fill="x", expand=True)
 
     def enable():
-        from .safety import guarded
+        from .safety import make_now
 
-        def done():
-            f.destroy()
-            app.toast("Proteção do Sistema ativada e ponto de restauração criado.")
-        guarded(f, "ativar protecao do sistema", done)
+        def done(ok, err):
+            if ok:
+                f.destroy()
+                app.toast("Proteção do Sistema ativada e ponto de restauração criado.")
+            else:
+                messagebox.showerror("Proteção do Sistema", f"Não foi possível ativar: {err}", parent=f)
+        make_now(f, "ativar protecao do sistema", done)
     ttk.Button(f, text="Ativar agora", style="Primary.TButton", command=enable).pack(side="right", padx=t.px(14))
     return f
 
@@ -307,6 +310,8 @@ class DashboardPage(BackgroundMixin, Page):
         self.h_desc.config(text="Isso pode levar alguns minutos na primeira vez. Você pode continuar usando o PC.")
         self.score.set(0, "…", "analisando", self.t.c["accent"])
         self.step = 0
+        for p in pages.values():
+            p._set_busy(True)
 
         def job(cancel, progress):
             out = {}
@@ -323,24 +328,35 @@ class DashboardPage(BackgroundMixin, Page):
                     out[k] = []
             return out
 
-        def done(out):
+        def finish():
             self.busy = False
-            for k, items in (out or {}).items():
-                p = pages[k]
-                p._scanned = True
-                p.populate(items)
-                p.show_progress(f"{len(items)} itens (da análise completa).")
-            if out:
-                self._summarize(out)
+            for p in pages.values():
+                if p.winfo_exists():
+                    p._set_busy(False)
             self.btn_stop.pack_forget()
             self.prog.pack_forget()
             self.lbl_prog.pack_forget()
             self.btn_scan.pack(side="left")
-            self.render_summary()
-            if out:
-                self.app.toast("Análise concluída!")
 
-        self.run_bg(job, done, "Preparando…")
+        def done(out):
+            out = out or {}
+            interrupted = self.cancel.is_set() or len(out) < len(self.STEPS)
+            for k, items in out.items():
+                p = pages[k]
+                p._scanned = True
+                p.populate(items)
+                p.show_progress(f"{len(items)} itens (da análise completa).")
+            if interrupted:
+                self.render_summary()
+                self.h_title.config(text="Análise interrompida")
+                self.h_desc.config(text="A análise foi parada antes do fim, então o resultado ficaria incompleto. "
+                                        "Clique em “Analisar agora” para fazer a análise completa.")
+                return
+            self._summarize(out)
+            self.render_summary()
+            self.app.toast("Análise concluída!")
+
+        self.run_bg(job, done, "Preparando…", on_finally=finish)
 
     def show_progress(self, text):
         self.lbl_prog.config(text=text)
@@ -367,34 +383,49 @@ class DashboardPage(BackgroundMixin, Page):
         }
         self.app.settings.set("last_scan", self.summary)
 
+    @staticmethod
+    def _safe_junk(jp):
+        """O recomendado é SÓ lixo e cache: nunca privacidade (histórico/cookies) nem a Lixeira."""
+        return [i for i in jp.all_items if i.checked and i.kind == "dircontents" and i.data.get("auto_ok")]
+
     def clean_recommended(self):
         jp = self.app.page("junk")
-        items = jp.checked()
+        if jp.busy:
+            messagebox.showinfo("Aguarde", "A página Lixo e cache está ocupada.", parent=self)
+            return
+        items = self._safe_junk(jp)
         if not items:
             self.app.show("junk")
             return
         total = sum(i.size for i in items)
+        names = "\n".join(f"• {i.values[0]}" for i in items[:8]) + (f"\n… e mais {len(items) - 8}"
+                                                                    if len(items) > 8 else "")
         if not messagebox.askyesno("Limpeza recomendada",
-                                   f"Limpar {len(items)} locais de lixo e cache ({fmt_size(total)})?\n\n"
-                                   "Inclui temporários, caches e a Lixeira (se marcada). Seus documentos, "
-                                   "fotos e programas não são tocados.", parent=self):
+                                   f"Limpar {len(items)} locais de lixo e cache ({fmt_size(total)})?\n\n{names}\n\n"
+                                   "Só temporários e caches (recriados automaticamente). Histórico, cookies, "
+                                   "Lixeira, documentos, fotos e programas NÃO são tocados.", parent=self):
             return
         self.busy = True
+        jp._set_busy(True, stoppable=False)
         self.btn_clean.config(state="disabled")
         self.lbl_prog.pack(anchor="w", pady=(self.t.px(8), 0))
 
-        def done(res):
+        def finish():
             self.busy = False
+            if jp.winfo_exists():
+                jp._set_busy(False)
             self.btn_clean.config(state="normal")
             self.lbl_prog.pack_forget()
+
+        def done(res):
             d, errors, freed = res
-            jp.after_action(d, [], freed)
+            jp.after_action(d, errors, freed)
             if self.summary:
-                self.summary["junk"] = sum(i.size for i in jp.checked())
+                self.summary["junk"] = sum(i.size for i in self._safe_junk(jp))
                 self.app.settings.set("last_scan", self.summary)
             self.refresh()
 
-        self.run_bg(lambda c, p: jp.perform(items, False, p), done, "Limpando…")
+        self.run_bg(lambda c, p: jp.perform(items, False, p), done, "Limpando…", on_finally=finish)
 
     def empty_bin(self):
         size, n = recycle_bin_info()
@@ -718,7 +749,33 @@ class ToolsPage(BackgroundMixin, Page):
             ttk.Button(f, text=tool.button, style="Primary.TButton" if tool.kind != "open" else "TButton",
                        command=lambda tool=tool: self.run(tool)).pack(anchor="w")
 
+    # ferramentas que mudam o sistema: pedem confirmação (resposta padrão NÃO)
+    _CONFIRM = {
+        "netrepair": ("Use isto SÓ se a internet parou de funcionar.\n\n"
+                      "O reparo faz backup do registro de rede e primeiro diagnostica. Se encontrar um componente "
+                      "quebrado ou uma placa com Código 56, ele reseta a rede do Windows — isso apaga IPs fixos, "
+                      "configurações de VPN e adaptadores virtuais (Hyper-V, VirtualBox, VMware), que terão de ser "
+                      "configurados de novo. Depois é preciso reiniciar.\n\n"
+                      "Um ponto de restauração é criado antes.\n\nContinuar?"),
+        "hib_off": ("Desativar a hibernação também desliga a Inicialização Rápida e a opção Hibernar.\n\n"
+                    "Continuar?"),
+        "repair": ("O reparo do Windows (DISM + SFC) pode levar de 10 a 30 minutos e baixa arquivos do Windows "
+                   "Update. Não desligue o computador durante o processo.\n\nContinuar?"),
+    }
+
     def run(self, tool):
+        q = self._CONFIRM.get(tool.key)
+        if q and not messagebox.askyesno(tool.title, q, icon="warning", default="no", parent=self):
+            return
+        if tool.key == "netrepair":
+            from .safety import guarded
+
+            def go():
+                msg = run_tool(tool)
+                if msg:
+                    messagebox.showinfo(tool.title, msg, parent=self)
+            guarded(self, "Reparar rede", go, lambda s: self.app.toast(s, kind="info"))
+            return
         if tool.kind in ("open", "admin_console", "battery", "netrepair"):
             msg = run_tool(tool)
             if msg:
@@ -846,10 +903,21 @@ class SettingsPage(Page):
             side="left", padx=t.px(8))
 
     def _make_rp(self):
-        from .safety import guarded
-        guarded(self, "manual", lambda: self.app.toast("Ponto de restauração criado."))
+        from .safety import make_now
+
+        def done(ok, err):
+            if ok:
+                self.app.toast("Ponto de restauração criado.")
+            else:
+                messagebox.showerror("Ponto de restauração", f"Não foi possível criar: {err}", parent=self)
+        make_now(self, "manual", done)
 
     def change_theme(self):
+        if any(p.busy_now() for p in self.app.pages.values()):
+            messagebox.showinfo("Aguarde", "O tema pode ser trocado quando a operação em andamento terminar.",
+                                parent=self)
+            self.theme_var.set(self.app.settings["theme"])
+            return
         self.app.settings.set("theme", self.theme_var.get())
         self.app.rebuild("settings")
 
@@ -1182,6 +1250,12 @@ class App(tk.Tk):
             open_uri(setup or page_url)
 
     def _close(self):
+        if any(p.busy_now() for p in self.pages.values()) and not messagebox.askyesno(
+                "Operação em andamento",
+                "Há uma operação em andamento (análise, limpeza ou instalação).\n\n"
+                "Fechar agora pode deixar a tarefa pela metade. Fechar mesmo assim?",
+                icon="warning", default="no", parent=self):
+            return
         for p in self.pages.values():
             if hasattr(p, "cancel"):
                 p.cancel.set()

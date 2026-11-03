@@ -243,7 +243,19 @@ class RecoverPage(ResultsPage):
 
     def _other_drive(self, dest) -> bool:
         root = getattr(self, "src_root", None) or self._selected_volume()[1]
-        if root and IS_WIN and os.path.splitdrive(os.path.abspath(dest))[0].upper() == root[:2].upper():
+        same = False
+        try:
+            real = os.path.realpath(dest)        # resolve junctions/pastas de montagem
+            if root and IS_WIN:
+                same = (os.path.splitdrive(real)[0].upper() == root[:2].upper()
+                        or os.path.splitdrive(os.path.abspath(dest))[0].upper() == root[:2].upper())
+                if not same and os.path.isdir(root):
+                    same = os.stat(real).st_dev == os.stat(root).st_dev
+            elif root and os.path.isdir(root):
+                same = os.stat(real).st_dev == os.stat(root).st_dev
+        except OSError:
+            same = False
+        if same:
             messagebox.showerror("Escolha outra unidade",
                                  "Salvar na mesma unidade de onde os arquivos foram apagados pode sobrescrever "
                                  "justamente os dados que você quer recuperar.\n\nEscolha um pendrive, HD externo "
@@ -306,12 +318,18 @@ class RecoverPage(ResultsPage):
         os.makedirs(dest, exist_ok=True)
 
         def done(counts):
-            vol.close()
             total = sum(counts.values())
             self.app.toast(f"Busca concluída: {total} arquivo(s) salvos")
             if total:
                 open_location(dest)
 
         self._set_busy(True)
+        def fin():
+            try:
+                vol.close()
+            except Exception:  # noqa: BLE001
+                pass
+            self._set_busy(False)
+
         self.run_bg(lambda c, p: carve(vol, dest, list(CARVE_KINDS), c, p), done, "Varrendo o disco…",
-                    on_finally=lambda: self._set_busy(False))
+                    on_finally=fin)

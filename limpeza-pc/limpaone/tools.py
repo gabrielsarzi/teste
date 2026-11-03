@@ -66,18 +66,18 @@ def available_tools() -> list[Tool]:
                  "Resolve problemas de sites que não carregam ou endereços desatualizados.",
                  "Limpar", "run", ["ipconfig", "/flushdns"]),
             Tool("netrepair", "wifi", "Reparar rede (sem internet / Código 56)",
-                 "Use quando o Wi-Fi ou o cabo pararem de funcionar depois de instalar algo. Faz backup e "
-                 "corrige a configuração de rede do Windows: remove componentes de rede quebrados, limpa "
-                 "ligações inválidas, reseta a rede e reinstala as placas. Gera um relatório na Área de Trabalho.",
+                 "Só para quando o Wi-Fi ou o cabo pararem de funcionar. Faz backup, diagnostica e só corrige o "
+                 "que estiver quebrado. Se houver problema, o reset apaga IP fixo, VPNs e adaptadores virtuais. "
+                 "Não instala drivers. Gera um relatório na Área de Trabalho.",
                  "Reparar rede", "netrepair", None),
             Tool("repair", "shield", "Reparar arquivos do Windows",
                  "Verifica e corrige arquivos corrompidos do sistema (SFC) e a imagem do Windows (DISM). Use quando o "
                  "Windows estiver travando ou com erros estranhos. Leva de 10 a 30 minutos.",
                  "Reparar", "admin_console",
-                 "sfc /scannow & Dism.exe /Online /Cleanup-Image /RestoreHealth & echo. & echo Concluido."),
+                 "Dism.exe /Online /Cleanup-Image /RestoreHealth & sfc /scannow & echo. & echo Concluido."),
             Tool("chkdsk", "drive", "Verificar erros no disco",
-                 "Procura erros no sistema de arquivos da unidade C: sem precisar reiniciar (chkdsk /scan).",
-                 "Verificar", "admin_console", "chkdsk C: /scan"),
+                 "Procura erros no sistema de arquivos da unidade do Windows sem precisar reiniciar (chkdsk /scan).",
+                 "Verificar", "admin_console", "chkdsk %SystemDrive% /scan"),
             Tool("battery", "bolt", "Relatório da bateria",
                  "Para notebooks: mostra a saúde da bateria (capacidade original × atual) e o histórico de uso.",
                  "Gerar relatório", "battery", None),
@@ -137,7 +137,8 @@ def run_tool(tool: Tool) -> str:
         from .netrepair import run_network_repair
         return run_network_repair()
     if tool.kind == "battery":
-        out = os.path.join(os.path.expanduser("~"), "Desktop", "LimpaOne - relatorio da bateria.html")
+        from .utils import app_data_dir
+        out = os.path.join(app_data_dir(), "relatorio-da-bateria.html")
         r = subprocess.run(["powercfg", "/batteryreport", "/output", out], capture_output=True, text=True,
                            errors="replace", creationflags=NO_WINDOW)
         if r.returncode == 0 and os.path.exists(out):
@@ -146,7 +147,8 @@ def run_tool(tool: Tool) -> str:
         return "Não foi possível gerar o relatório (este computador tem bateria?)."
     if tool.kind == "admin_console" and IS_WIN:
         # abre um console visível (com pedido de administrador) para o usuário acompanhar
-        rc = ctypes.windll.shell32.ShellExecuteW(None, "runas", "cmd.exe", f'/k "{tool.cmd}"', None, 1)
+        cmd_exe = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "cmd.exe")
+        rc = ctypes.windll.shell32.ShellExecuteW(None, "runas", cmd_exe, f'/k "{tool.cmd}"', None, 1)
         return "" if rc > 32 else "A ação foi cancelada (é preciso permitir como administrador)."
     cmd = list(tool.cmd)
     if tool.kind == "root" and not is_admin():

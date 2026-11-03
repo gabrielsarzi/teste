@@ -25,12 +25,13 @@ def set_schedule(freq: str) -> str:
     if not IS_WIN:
         return "A limpeza automática está disponível no Windows."
     from .winutil import run
+    schtasks = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "schtasks.exe")
     if freq == "off":
-        run(["schtasks", "/Delete", "/TN", TASK_NAME, "/F"])
+        run([schtasks, "/Delete", "/TN", TASK_NAME, "/F"])
         return ""
     sc = {"daily": ["/SC", "DAILY"], "weekly": ["/SC", "WEEKLY", "/D", "SUN"],
           "monthly": ["/SC", "MONTHLY", "/D", "1"]}[freq]
-    rc, out, err = run(["schtasks", "/Create", "/TN", TASK_NAME, "/TR", _command(), *sc, "/ST", "12:00", "/F"])
+    rc, out, err = run([schtasks, "/Create", "/TN", TASK_NAME, "/TR", _command(), *sc, "/ST", "12:00", "/F"])
     return "" if rc == 0 else (err or out).strip() or f"erro {rc}"
 
 
@@ -40,8 +41,10 @@ def run_auto_clean(empty_bin=False, locations=None) -> int:
     from .system import empty_recycle_bin, recycle_bin_info
     if locations is None:
         items = scan_junk(threading.Event(), lambda s: None, include_recycle=False, include_privacy=False)
+        from .settings import Settings
+        skipped = set(Settings().get("auto_clean_skip", []) or [])   # o que o usuário desmarcou na tela
         targets = [(i.path, i.data.get("patterns"), i.data.get("age", 0), i.data.get("only_mine")) for i in items
-                   if i.checked]
+                   if i.checked and i.data.get("auto_ok") and i.path not in skipped]
     else:
         targets = locations
     freed = 0

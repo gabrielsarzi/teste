@@ -237,12 +237,17 @@ class ResultsPage(BackgroundMixin, Page):
         total = sum(i.size for i in items)
         modo = "Os itens vão para a Lixeira (dá para recuperar depois)." if to_trash else \
             "ATENÇÃO: os itens serão apagados PERMANENTEMENTE."
-        return f"Apagar {len(items)} item(ns), liberando {fmt_size(total)}?\n\n{modo}"
+        names = "\n".join(f"• {os.path.basename(i.path) or i.path}" for i in items[:8])
+        more = f"\n… e mais {len(items) - 8}" if len(items) > 8 else ""
+        return f"Apagar {len(items)} item(ns), liberando {fmt_size(total)}?\n\n{names}{more}\n\n{modo}"
 
     def perform(self, items, to_trash, progress):
         done, errors, freed = [], [], 0
         for n, it in enumerate(items, 1):
             progress(f"Apagando {n}/{len(items)}: {os.path.basename(it.path)}")
+            if not os.path.lexists(it.path):
+                errors.append((it.path, "não existe mais (já foi apagado ou movido)"))
+                continue
             try:
                 delete_path(it.path, to_trash)
                 log(f"{'LIXEIRA' if to_trash else 'APAGADO'} {it.path} ({fmt_size(it.size)})")
@@ -310,12 +315,12 @@ class ResultsPage(BackgroundMixin, Page):
     def show_progress(self, text):
         self.lbl_progress.config(text=text)
 
-    def _set_busy(self, busy):
+    def _set_busy(self, busy, stoppable=True):
         self.busy = busy
         state = "disabled" if busy else "normal"
         self.btn_scan.config(state=state)
         self.btn_action.config(state=state)
-        if busy:
+        if busy and stoppable:
             self.btn_stop.pack(side="right", padx=(0, self.t.px(8)), before=self.btn_scan)
         else:
             self.btn_stop.pack_forget()
@@ -382,7 +387,10 @@ class ResultsPage(BackgroundMixin, Page):
                 self.items[iid] = it
                 self.tree.insert("", "end", iid=iid)
                 self.render(iid, n)
-        if self.all_items:
+        if self.all_items and not self.items:
+            self.empty.config(text="Nenhum item corresponde à busca.")
+            self.empty.place(relx=0.5, rely=0.5, anchor="center")
+        elif self.all_items:
             self.empty.place_forget()
         else:
             self.empty.config(text=self.empty_text if not self._scanned else "Tudo limpo por aqui! ✓\nNada encontrado.")
@@ -471,13 +479,20 @@ class ResultsPage(BackgroundMixin, Page):
             self.clipboard_append("\n".join(paths))
 
     def checked(self) -> list[Item]:
-        return [it for it in self.all_items if it.checked]
+        """Só os itens marcados que estão VISÍVEIS na tabela entram em qualquer ação.
+        (Itens escondidos pela busca ou além do limite de exibição nunca são afetados.)"""
+        return [it for it in self.items.values() if it.checked]
+
+    def hidden_checked(self) -> int:
+        return sum(1 for it in self.all_items if it.checked) - len(self.checked())
 
     def update_selection(self):
         sel = self.checked()
         total = sum(i.size for i in sel)
-        if sel:
-            self.lbl_sel.config(text=f"{len(sel)} marcado(s)" + (f"  ·  {fmt_size(total)}" if total else ""))
+        hid = self.hidden_checked()
+        extra = f"  ·  {hid} marcado(s) escondido(s) pela busca não serão afetados" if hid > 0 else ""
+        if sel or hid:
+            self.lbl_sel.config(text=f"{len(sel)} marcado(s)" + (f"  ·  {fmt_size(total)}" if total else "") + extra)
         else:
             self.lbl_sel.config(text=f"{len(self.all_items)} itens" if self.all_items else "")
 
@@ -508,11 +523,15 @@ class ResultsPage(BackgroundMixin, Page):
                                             filetypes=[("Planilha CSV", "*.csv")])
         if not path:
             return
-        with open(path, "w", newline="", encoding="utf-8-sig") as f:
-            w = csv.writer(f, delimiter=";")
-            w.writerow([h for h, _, _ in self.columns] + ["Caminho completo"])
-            for it in self.all_items:
-                w.writerow(list(it.values) + [it.path])
+        try:
+            with open(path, "w", newline="", encoding="utf-8-sig") as f:
+                w = csv.writer(f, delimiter=";")
+                w.writerow([h for h, _, _ in self.columns] + ["Caminho completo"])
+                for it in self.all_items:
+                    w.writerow(list(it.values) + [it.path])
+        except OSError as e:
+            messagebox.showerror("Exportar", f"Não foi possível salvar o arquivo:\n{e}", parent=self)
+            return
         self.app.toast(f"Lista exportada para {os.path.basename(path)}")
 
     # ---- ação principal ----
@@ -533,14 +552,15 @@ class ResultsPage(BackgroundMixin, Page):
         if not messagebox.askyesno("Confirmar", self.confirm_text(items, to_trash), parent=self, icon="warning"):
             return
 
+        self._set_busy(True, stoppable=False)
+
         def go():
-            self._set_busy(True)
             self.run_bg(lambda c, p: self.perform(items, to_trash, p), lambda r: self.after_action(*r),
                         "Processando…", on_finally=lambda: self._set_busy(False))
 
         if self.needs_restore_point:
             from .safety import guarded
-            guarded(self, self.title, go, self.show_progress)
+            guarded(self, self.title, go, self.show_progress, on_cancel=lambda: self._set_busy(False))
         else:
             go()
 
@@ -588,6 +608,13 @@ class JunkPage(ResultsPage):
         return scan_junk(cancel, progress, p["recycle"])
 
     def validate(self, items):
+        # a limpeza automática respeita o que o usuário DESMARCOU aqui
+        try:
+            skip = sorted(i.path for i in self.all_items
+                          if i.kind == "dircontents" and not i.checked and i.data.get("auto_ok"))
+            self.app.settings.set("auto_clean_skip", skip)
+        except Exception:  # noqa: BLE001
+            pass
         procs = {p.lower() for i in items for p in i.data.get("procs", ())}
         if not procs:
             return True
@@ -608,8 +635,12 @@ class JunkPage(ResultsPage):
             return (f"Limpar {len(items)} local(is), liberando até {fmt_size(total)}?\n\n"
                     f"Inclui {len(priv)} item(ns) de privacidade (histórico/cookies): você pode precisar fazer "
                     "login de novo nos sites. Temporários são apagados permanentemente.")
+        warn = ""
+        if any("windows.old" in i.path.lower() for i in items):
+            warn = ("\n\n⚠ Windows.old está marcado: depois disso NÃO dá para voltar à versão anterior do Windows, "
+                    "e arquivos do perfil antigo que estiverem lá serão perdidos.")
         return (f"Limpar {len(items)} local(is), liberando até {fmt_size(total)}?\n\n"
-                "Arquivos temporários são apagados permanentemente. Arquivos em uso são pulados.")
+                "Arquivos temporários são apagados permanentemente. Arquivos em uso são pulados." + warn)
 
     def perform(self, items, to_trash, progress):
         done, errors, freed = [], [], 0
@@ -657,7 +688,7 @@ class LargeFilesPage(ResultsPage):
 class DuplicatesPage(ResultsPage):
     key, icon = "dups", "copy"
     title = "Arquivos repetidos"
-    subtitle = ("Arquivos com conteúdo idêntico (comparados byte a byte). Uma cópia de cada grupo fica "
+    subtitle = ("Arquivos com conteúdo idêntico (conferidos pelo conteúdo, não pelo nome). Uma cópia de cada grupo fica "
                 "desmarcada para ser mantida. Nunca é permitido apagar todas as cópias.")
     columns = FILE_COLUMNS
     hierarchical = True
@@ -700,6 +731,46 @@ class DuplicatesPage(ResultsPage):
 
     def scan_job(self, p, cancel, progress):
         return scan_duplicates(p["roots"], p["min"], p["skip"], p["keep"], cancel, progress)
+
+    def perform(self, items, to_trash, progress):
+        """Só apaga cópias de um grupo se uma cópia NÃO marcada ainda existir com o mesmo tamanho."""
+        groups: dict = {}
+        for it in self.all_items:
+            groups.setdefault(it.group, []).append(it)
+        import threading
+        from .scanners import _hash
+        safe, errors = [], []
+        never = threading.Event()
+        hashes: dict = {}
+
+        def digest(path):
+            if path not in hashes:
+                hashes[path] = _hash(path, never)
+            return hashes[path]
+
+        for n, it in enumerate(items, 1):
+            progress(f"Conferindo de novo antes de apagar… {n}/{len(items)}")
+            keepers = [m for m in groups.get(it.group, []) if not m.checked and m is not it]
+            ok = False
+            try:
+                if os.path.isfile(it.path) and os.path.getsize(it.path) == it.size:
+                    for m in keepers:
+                        if not (os.path.isfile(m.path) and os.path.getsize(m.path) == m.size):
+                            continue
+                        if os.path.samefile(m.path, it.path):
+                            continue        # é o MESMO arquivo por outro caminho: apagar perderia a única cópia
+                        if digest(m.path) == digest(it.path):
+                            ok = True
+                            break
+            except (OSError, InterruptedError):
+                ok = False
+            if ok:
+                safe.append(it)
+            else:
+                errors.append((it.path, "pulado: não há outra cópia idêntica e separada para manter "
+                                        "(o arquivo mudou, a cópia sumiu ou é o mesmo arquivo por outro caminho)"))
+        done, errs, freed = super().perform(safe, to_trash, progress)
+        return done, errors + errs, freed
 
     def validate(self, items):
         groups: dict = {}

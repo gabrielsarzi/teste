@@ -202,7 +202,8 @@ class WinRegStore:
 
 
 def _ps_quote(s) -> str:
-    return "'" + str(s).replace("'", "''") + "'"
+    from .winutil import ps_quote
+    return ps_quote(str(s))
 
 
 def elevated_script(ops) -> str:

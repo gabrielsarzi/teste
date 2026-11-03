@@ -195,8 +195,12 @@ def memory_info() -> tuple[int, int]:
 _EXACT: set[str] = set()
 _PREFIXES: list[str] = []
 _ALLOWED: list[str] = []
+_ALLOWED_INSIDE: list[str] = []   # prefixos protegidos onde só subpastas de cache/lixo conhecidas são liberadas
+_CACHE_SUBDIRS = (("windows", "wer"), ("windows", "inetcache"), ("windows", "explorer"))
+_CACHE_NAMES = {"cache", "code cache", "gpucache", "cache2", "dxcache", "glcache"}
 _PROTECTED_NAMES = {"system volume information", "$recycle.bin", "windowsapps",
-                    "pagefile.sys", "hiberfil.sys", "swapfile.sys", "bootmgr", "bootnxt"}
+                    "pagefile.sys", "hiberfil.sys", "swapfile.sys", "bootmgr", "bootnxt",
+                    "ntuser.dat", "usrclass.dat"}
 
 
 def _init_protection() -> None:
@@ -215,10 +219,39 @@ def _init_protection() -> None:
                 _EXACT.add(norm(v))
         for i in range(26):
             _EXACT.add(norm(f"{chr(65 + i)}:\\"))
+        # pastas inteiras que nunca devem ser apagadas (por prefixo)
+        sysdrive = os.environ.get("SystemDrive", "C:") + "\\"
+        for var in ("CommonProgramFiles", "CommonProgramFiles(x86)", "CommonProgramW6432"):
+            v = os.environ.get(var)
+            if v:
+                _PREFIXES.append(norm(v))
+        pf_roots = {os.environ.get(v) for v in ("ProgramFiles", "ProgramFiles(x86)", "ProgramW6432")}
+        pf_roots |= {os.path.join(sysdrive, "Program Files"), os.path.join(sysdrive, "Program Files (x86)")}
+        for root in filter(None, pf_roots):
+            _EXACT.add(norm(root))
+            for sub in ("Common Files", "Windows Defender", "Windows Defender Advanced Threat Protection",
+                        "Windows NT", "Windows Mail", "Windows Media Player", "Windows Photo Viewer",
+                        "Windows Security", "Windows Sidebar", "WindowsPowerShell", "Internet Explorer",
+                        "ModifiableWindowsApps", "Microsoft Update Health Tools", "dotnet"):
+                _PREFIXES.append(norm(os.path.join(root, sub)))
+        for sub in ("Boot", "EFI", "Recovery", os.path.join("Users", "Default"),
+                    os.path.join("Users", "Public"), os.path.join("Users", "All Users")):
+            _PREFIXES.append(norm(os.path.join(sysdrive, sub)))
+        pd = os.environ.get("ProgramData") or os.path.join(sysdrive, "ProgramData")
+        _PREFIXES.append(norm(os.path.join(pd, "Microsoft")))
+        _ALLOWED_INSIDE.append(norm(os.path.join(pd, "Microsoft")))
+        for v in ("APPDATA", "LOCALAPPDATA"):
+            base = os.environ.get(v)
+            if base:
+                _PREFIXES.append(norm(os.path.join(base, "Microsoft")))
+                _ALLOWED_INSIDE.append(norm(os.path.join(base, "Microsoft")))
+        for p in (".ssh", ".gnupg"):
+            _PREFIXES.append(norm(os.path.join(h, p)))
         users_root = os.path.dirname(h)
         _EXACT.add(norm(users_root))
         for sub in ("Desktop", "Documents", "Downloads", "Pictures", "Music", "Videos",
-                    "AppData", os.path.join("AppData", "LocalLow"), "OneDrive"):
+                    "AppData", os.path.join("AppData", "LocalLow"), "OneDrive", "Favorites", "Saved Games",
+                    "Contacts", "Links", "Searches", "3D Objects", "iCloudDrive", "Dropbox", "Google Drive"):
             _EXACT.add(norm(os.path.join(h, sub)))
     else:
         for p in ("/", "/home", "/root", "/tmp", "/var", "/var/tmp", "/var/cache", "/opt",
@@ -239,27 +272,97 @@ def _init_protection() -> None:
 _init_protection()
 
 
+def is_link_like(path: str) -> bool:
+    """True para link simbólico, junction ou qualquer ponto de reparse (o alvo NÃO deve ser tocado)."""
+    try:
+        if os.path.islink(path):
+            return True
+        isj = getattr(os.path, "isjunction", None)
+        if isj is not None and isj(path):
+            return True
+        st = os.lstat(path)
+        return bool(getattr(st, "st_file_attributes", 0) & 0x400)   # FILE_ATTRIBUTE_REPARSE_POINT
+    except OSError:
+        return False
+
+
+def _unsafe_path_form(p: str) -> bool:
+    """Formas de caminho que driblam a comparação de texto (UNC, prefixo de dispositivo, ponto final)."""
+    if not IS_WIN:
+        return False
+    if p.startswith(("\\\\", "//")):
+        return True
+    return any(seg.endswith((".", " ")) and seg not in (".", "..")
+               for seg in p.replace("/", "\\").split("\\")[1:] if seg)
+
+
 def is_protected(path: str) -> bool:
     """True se o caminho é crítico para o sistema e nunca deve ser apagado."""
+    if _unsafe_path_form(path):
+        return True
+    if _is_protected_text(path):
+        return True
+    try:
+        # resolve junctions, links e nomes curtos 8.3 (GABRIE~1). Para um link, só a pasta onde ele está
+        # importa (apagar um link nunca toca o destino).
+        if is_link_like(path):
+            real = os.path.join(os.path.realpath(os.path.dirname(os.path.abspath(path))), os.path.basename(path))
+        else:
+            real = os.path.realpath(path)
+    except (OSError, ValueError):
+        return True
+    r = norm(real)
+    if r != norm(path) and _is_protected_text(real):
+        return True
+    if IS_WIN and _USERS_ROOT and r.startswith(_USERS_ROOT + os.sep) and not (
+            r == _HOME or r.startswith(_HOME + os.sep)):
+        return True                     # perfil de OUTRO usuário: protegido inteiro
+    return False
+
+
+def _is_protected_text(path: str) -> bool:
     p = norm(path)
     if p in _EXACT:
         return True
+    if IS_WIN and os.path.dirname(p) == _HOME and os.path.basename(p).startswith("onedrive"):
+        return True     # "OneDrive - Empresa" etc. (a pasta em si; apagar apaga em todos os dispositivos)
     parts = [x.lower() for x in p.replace("\\", "/").split("/") if x]
     if any(x in _PROTECTED_NAMES for x in parts):
         return True
     for a in _ALLOWED:
         if p.startswith(a + os.sep):
             return False
+    for a in _ALLOWED_INSIDE:
+        if p.startswith(a + os.sep):
+            rest = [x.lower() for x in p[len(a) + 1:].split(os.sep)]
+            if any(tuple(rest[:len(c)]) == c and len(rest) > len(c) for c in _CACHE_SUBDIRS):
+                return False
+            if any(x in _CACHE_NAMES for x in rest[:-1]):     # algo DENTRO de uma pasta de cache
+                return False
     for pre in _PREFIXES:
         if p == pre or p.startswith(pre + os.sep):
             return True
     return False
 
 
+_HOME = norm(os.path.realpath(home()))
+_USERS_ROOT = norm(os.path.dirname(_HOME)) if IS_WIN else ""
+
+
 # ---------------------------------------------------------------- apagar / lixeira
 def _retry_writable(func, path, *_):
+    if func in (os.path.islink, getattr(os.path, "isjunction", None)):
+        raise OSError(f"recusado: {path} é um link/junction")
     os.chmod(path, stat.S_IWRITE | stat.S_IREAD | stat.S_IEXEC)
     func(path)
+
+
+def remove_link(path: str) -> None:
+    """Remove só o link/junction (nunca o conteúdo do alvo)."""
+    try:
+        os.unlink(path)
+    except (IsADirectoryError, PermissionError, OSError):
+        os.rmdir(path)          # junction de pasta no Windows sai com rmdir (o alvo fica intacto)
 
 
 def _rmtree(path: str) -> None:
@@ -275,10 +378,13 @@ def delete_path(path: str, to_trash: bool) -> None:
         raise PermissionError("caminho protegido do sistema — não será apagado")
     if not os.path.lexists(path):
         return
+    if is_link_like(path):
+        remove_link(path)       # link/junction: apaga só o atalho, nunca o destino
+        return
     if to_trash:
         send_to_trash(path)
         return
-    if os.path.isdir(path) and not os.path.islink(path):
+    if os.path.isdir(path):
         _rmtree(path)
     else:
         try:
@@ -291,7 +397,7 @@ def delete_path(path: str, to_trash: bool) -> None:
 def entry_size(path: str, cancel=None) -> tuple[int, int]:
     """Tamanho total e número de arquivos de um arquivo ou pasta."""
     try:
-        if not os.path.isdir(path) or os.path.islink(path):
+        if not os.path.isdir(path) or is_link_like(path):
             return os.lstat(path).st_size, 1
     except OSError:
         return 0, 0
@@ -342,6 +448,10 @@ def clear_contents(path: str, patterns=None, min_age_hours: float = 0,
     """
     import fnmatch
     freed = errors = 0
+    reason = unsafe_clear_target(path)
+    if reason:
+        log(f"LIMPEZA RECUSADA em {path!r}: {reason}")
+        return 0, 1
     limit = time.time() - min_age_hours * 3600
     uid = os.getuid() if (only_mine and hasattr(os, "getuid")) else None
     try:
@@ -353,7 +463,7 @@ def clear_contents(path: str, patterns=None, min_age_hours: float = 0,
             if patterns and not any(fnmatch.fnmatch(e.name.lower(), p) for p in patterns):
                 continue
             st = e.stat(follow_symlinks=False)
-            if min_age_hours and st.st_mtime > limit:
+            if min_age_hours and newest_time(e.path, st, limit) > limit:
                 continue
             if uid is not None and st.st_uid != uid:
                 continue
@@ -365,8 +475,74 @@ def clear_contents(path: str, patterns=None, min_age_hours: float = 0,
     return freed, errors
 
 
+def unsafe_clear_target(path: str) -> str:
+    """Motivo para NÃO esvaziar esta pasta (ou "" se é segura). Evita apagar um disco ou perfil inteiro
+    quando uma variável (TEMP, LOCALAPPDATA…) está vazia, errada ou aponta para outro lugar."""
+    if not path or not os.path.isabs(path):
+        return "caminho relativo ou vazio"
+    if is_link_like(path):
+        return "a pasta é um link/junction"
+    try:
+        real = os.path.realpath(path)
+    except (OSError, ValueError):
+        return "caminho inválido"
+    if norm(real) != norm(os.path.abspath(path)):
+        return f"o caminho real é outro ({real})"
+    p = norm(path)
+    if os.path.dirname(p) == p:
+        return "é a raiz de um disco"
+    if p == _HOME or p == _USERS_ROOT or (not IS_WIN and p in ("/home", "/root", "/Users")):
+        return "é a pasta de usuários ou o perfil"
+    for sub in ("Desktop", "Documents", "Downloads", "Pictures", "Music", "Videos", "OneDrive",
+                "AppData", os.path.join("AppData", "Local"), os.path.join("AppData", "Roaming")):
+        if p == norm(os.path.join(home(), sub)):
+            return "é uma pasta pessoal"
+    if IS_WIN:
+        for var in ("ProgramFiles", "ProgramFiles(x86)", "ProgramData", "WINDIR", "SystemRoot",
+                    "APPDATA", "LOCALAPPDATA", "USERPROFILE"):
+            v = os.environ.get(var)
+            if v and p == norm(v):
+                return f"é a pasta %{var}%"
+    return ""
+
+
+def newest_time(path: str, st=None, stop_at: float | None = None, budget: int = 5000) -> float:
+    """O momento mais recente em que algo dentro do item foi criado/alterado (mtime e ctime, recursivo).
+    Para quando acha algo mais novo que `stop_at` ou após `budget` entradas (aí devolve "agora")."""
+    if st is None:
+        st = os.lstat(path)
+    best = max(st.st_mtime, getattr(st, "st_birthtime", 0) or 0, st.st_ctime if IS_WIN else 0)
+    if not stat.S_ISDIR(st.st_mode) or is_link_like(path):
+        return best
+    stack, seen = [path], 0
+    while stack:
+        d = stack.pop()
+        try:
+            with os.scandir(d) as it:
+                for e in it:
+                    seen += 1
+                    if seen > budget:
+                        return time.time()
+                    try:
+                        s2 = e.stat(follow_symlinks=False)
+                    except OSError:
+                        continue
+                    t = max(s2.st_mtime, getattr(s2, "st_birthtime", 0) or 0, s2.st_ctime if IS_WIN else 0)
+                    best = max(best, t)
+                    if stop_at is not None and best > stop_at:
+                        return best
+                    if e.is_dir(follow_symlinks=False) and not (e.is_symlink() or _is_junction(e)):
+                        stack.append(e.path)
+        except OSError:
+            continue
+    return best
+
+
 def send_to_trash(path: str) -> None:
     path = os.path.abspath(path)
+    if IS_WIN:
+        _win_trash(path)        # implementação própria: NUNCA apaga de vez sem avisar
+        return
     try:
         from send2trash import send2trash  # type: ignore
         send2trash(path)
@@ -420,8 +596,18 @@ def _win_trash(path: str) -> None:
                     ("fFlags", ctypes.c_uint16), ("fAnyOperationsAborted", wintypes.BOOL),
                     ("hNameMappings", ctypes.c_void_p), ("lpszProgressTitle", wintypes.LPCWSTR)]
 
+    drive = os.path.splitdrive(path)[0]
+    if not drive or drive.startswith("\\\\"):
+        raise OSError("unidade de rede não tem Lixeira — use a exclusão permanente se tiver certeza")
+    dtype = ctypes.windll.kernel32.GetDriveTypeW(drive + "\\")
+    if dtype == 2:
+        raise OSError("pendrive/cartão não tem Lixeira — use a exclusão permanente se tiver certeza")
+    if dtype == 4:
+        raise OSError("unidade de rede não tem Lixeira — use a exclusão permanente se tiver certeza")
     FO_DELETE = 3
-    flags = 0x40 | 0x10 | 0x04 | 0x400  # ALLOWUNDO | NOCONFIRMATION | SILENT | NOERRORUI
+    # ALLOWUNDO | NOCONFIRMATION | SILENT | NOERRORUI | WANTNUKEWARNING
+    # WANTNUKEWARNING: se o item não couber na Lixeira o Windows PERGUNTA antes de apagar de vez.
+    flags = 0x40 | 0x10 | 0x04 | 0x400 | 0x4000
     op = SHFILEOPSTRUCTW(None, FO_DELETE, path + "\0", None, flags, False, None, None)
     rc = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op))
     if rc != 0 or op.fAnyOperationsAborted:

@@ -126,12 +126,13 @@ def parse_analysis(data) -> dict:
 
 
 def optimize_script(vols) -> str:
-    """vols: [(letra, tipo)]. SSD -> -ReTrim; HD -> -Defrag; desconhecido -> o Windows decide."""
+    """vols: [(letra, tipo)]. SSD -> -ReTrim; nos outros casos o próprio Windows decide o que fazer
+    (desfragmentar um disco que na verdade é SSD só gasta a vida útil dele)."""
     lines = ["$res = @()"]
     for letter, kind in vols:
         if not (len(letter) == 1 and letter.isalpha()):
             continue
-        flag = " -ReTrim" if kind == "SSD" else " -Defrag" if kind == "HD" else ""
+        flag = " -ReTrim" if kind == "SSD" else ""
         lines.append(
             f"try {{ Optimize-Volume -DriveLetter {letter}{flag} -ErrorAction Stop; "
             f"$res += [pscustomobject]@{{Letter='{letter}'; Ok=$true; Error=''}} }} "

@@ -9,7 +9,14 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from .pages import ResultsPage
-from .system import _alnum, _GENERIC, delete_reg_key
+from .system import _alnum, _GENERIC as _GENERIC_BASE, delete_reg_key
+
+# Palavras que sozinhas NÃO identificam um programa (fabricante, linguagem, categoria). Só para achar sobras
+# de um programa desinstalado — evita marcar pastas/chaves compartilhadas (Python, Realtek, Intel…).
+_GENERIC = _GENERIC_BASE | {
+    "media", "player", "audio", "video", "driver", "drivers", "network", "wireless", "graphics", "manager",
+    "control", "center", "centre", "office", "studio", "service", "services", "update", "runtime", "system",
+    "tools", "utility", "utilities", "bluetooth", "intel", "realtek", "nvidia", "python", "java"}
 from .utils import IS_WIN, Item, delete_path, entry_size, fmt_size, home, is_protected, log, norm
 from .winutil import ps_json, run_ps
 
@@ -47,14 +54,24 @@ def _match(name: str, full: str, strong: set) -> int:
     return 0
 
 
-def program_leftovers(p: dict, remaining_locations: list[str]) -> list[Item]:
-    """Procura pastas, chaves do registro e atalhos deixados por um programa desinstalado."""
+def program_leftovers(p: dict, remaining_locations: list[str], other_names=()) -> list[Item]:
+    """Procura pastas, chaves do registro e atalhos deixados por um programa desinstalado.
+
+    other_names: nomes dos programas que CONTINUAM instalados. Pastas/chaves que também combinam com eles
+    (ex.: "Python" quando outra versão do Python continua instalada) são compartilhadas e ficam de fora."""
     full, strong, pub = _keys_for(p)
     if not full and not strong:
         return []
+    others = {_alnum(_clean_name(n)) for n in other_names if n}
+    others = {o for o in others if len(o) >= 4 and o != full}
+
+    def shared(name: str) -> bool:
+        n = _alnum(name)
+        return bool(n) and any(n == o or n in o or o in n for o in others)
     items: list[Item] = []
     seen = set()
     keep = [norm(x) for x in remaining_locations if x]
+    loc = p.get("location") or ""
 
     def in_use(path):
         n = norm(path)
@@ -64,6 +81,8 @@ def program_leftovers(p: dict, remaining_locations: list[str]) -> list[Item]:
         n = norm(path)
         if n in seen or is_protected(path) or in_use(path) or not os.path.lexists(path):
             return
+        if path != loc and shared(os.path.basename(path)):
+            return
         seen.add(n)
         size = entry_size(path)[0]
         label = {"dir": "Pasta", "file": "Atalho" if path.lower().endswith(".lnk") else "Arquivo"}[kind]
@@ -71,7 +90,6 @@ def program_leftovers(p: dict, remaining_locations: list[str]) -> list[Item]:
                           raw=(label, os.path.basename(path).lower(), size, path.lower()), kind=kind,
                           checked=certainty >= 2))
 
-    loc = p.get("location") or ""
     if loc and os.path.isdir(loc):
         add_path(loc, "dir", 2)
 
@@ -137,8 +155,10 @@ def program_leftovers(p: dict, remaining_locations: list[str]) -> list[Item]:
             view = "32" if flag == winreg.KEY_WOW64_32KEY else "64"
             for sub, certainty in _reg_candidates(hive, base, flag, full, strong, pub):
                 key = f"{hname}\\{base}\\{sub}"
-                if key.lower() in seen:
+                if key.lower() in seen or any(shared(x) for x in sub.split("\\")):
                     continue
+                if hname == "HKLM" and "\\" not in sub:
+                    certainty = min(certainty, 1)   # chave de 1º nível em HKLM\SOFTWARE: nunca vem marcada
                 seen.add(key.lower())
                 items.append(Item(path=key, size=0, values=("Registro", sub.split("\\")[-1], "—", key),
                                   raw=("registro", sub.lower(), 0, key.lower()), kind="regkey",
@@ -248,13 +268,17 @@ class LeftoverDialog(tk.Toplevel):
         from .system import installed_programs
         try:
             remaining = installed_programs(threading.Event(), lambda s: None)
-            locs = [r.get("location") for r in remaining if r.get("location")]
+            mine = {p["name"].lower() for p in self.programs}
+            # no modo forçado, o próprio programa ainda aparece como instalado: não pode proteger a pasta dele
+            locs = [r.get("location") for r in remaining if r.get("location")
+                    and not (self.forced and r["name"].lower() in mine)]
             names = {r["name"].lower() for r in remaining}
             found = []
             for p in self.programs:
                 if p["name"].lower() in names and not self.forced:
                     continue   # ainda instalado (desinstalação cancelada)
-                found += program_leftovers(p, locs)
+                others = [r["name"] for r in remaining if r["name"].lower() not in mine]
+                found += program_leftovers(p, locs, others)
             if self.forced:
                 for p in self.programs:
                     if p.get("regkey"):
@@ -295,13 +319,34 @@ class LeftoverDialog(tk.Toplevel):
         sel = [i for i in self.items.values() if i.checked]
         if not sel:
             return
-        if not messagebox.askyesno("Remover sobras", f"Remover {len(sel)} item(ns)?", parent=self):
+        to_trash = self.app.settings["to_trash"]
+        names = "\n".join(f"• {i.values[0]}: {i.values[1]}" for i in sel[:10])
+        more = f"\n… e mais {len(sel) - 10}" if len(sel) > 10 else ""
+        modo = ("Pastas e atalhos vão para a Lixeira." if to_trash else "Pastas e atalhos serão apagados PERMANENTEMENTE.") \
+            + " Chaves do registro ganham backup .reg antes."
+        if not messagebox.askyesno("Remover sobras", f"Remover {len(sel)} item(ns)?\n\n{names}{more}\n\n{modo}",
+                                   parent=self, icon="warning"):
             return
         from .safety import guarded
-        guarded(self, "remover sobras de programas", lambda: self._do_remove(sel))
+        self.btn.config(state="disabled")
+        self.sub.config(text="Criando ponto de restauração e removendo…")
+        guarded(self, "remover sobras de programas", lambda: self._do_remove(sel, to_trash),
+                on_cancel=lambda: self.btn.config(state="normal"))
 
-    def _do_remove(self, sel):
-        done, errors, freed = remove_items(sel, self.app.settings["to_trash"])
+    def _do_remove(self, sel, to_trash):
+        box: dict = {}
+        th = threading.Thread(target=lambda: box.setdefault("r", remove_items(sel, to_trash)), daemon=True)
+        th.start()
+
+        def poll():
+            if th.is_alive():
+                self.after(200, poll)
+                return
+            self._removed(*box.get("r", ([], [("?", "erro inesperado")], 0)))
+        self.after(200, poll)
+
+    def _removed(self, done, errors, freed):
+        self.btn.config(state="normal")
         for iid, it in list(self.items.items()):
             if it in done:
                 self.tree.delete(iid)
@@ -331,15 +376,26 @@ BLOAT = {
     "microsoftteams": "Microsoft Teams (pessoal)", "microsoft.outlookforwindows": "Outlook (novo)",
     "microsoft.windows.devhome": "Dev Home", "microsoft.copilot": "Copilot",
 }
-BLOAT_PREFIX = ("king.com.", "spotifyab.", "disney.", "facebook.", "bytedancepte.", "amazon.com.", "5a894077.",
-                "4df9e0f8.", "e046963f.", "adobesystemsincorporated.", "dolbylaboratories.", "a278ab0d.")
+# Úteis para muita gente (ou a única forma de usar algo): aparecem na lista, mas NUNCA vêm marcados.
+NOT_PRECHECKED = {"microsoft.gethelp", "microsoft.zunemusic", "microsoft.todos", "microsoft.windowscommunicationsapps",
+                  "microsoft.yourphone", "msteams", "microsoftteams", "microsoft.outlookforwindows",
+                  "microsoft.copilot", "microsoft.office.onenote", "microsoft.windowsmaps"}
+BLOAT_PREFIX = ("king.com.", "disney.", "facebook.", "bytedancepte.", "amazon.com.", "a278ab0d.")
 PROTECTED_APPX = ("microsoft.windowsstore", "microsoft.desktopappinstaller", "microsoft.sechealthui",
                   "microsoft.windows.shellexperiencehost", "microsoft.windows.startmenuexperiencehost",
                   "microsoft.aad.brokerplugin", "microsoft.accountscontrol", "microsoft.windows.cloudexperiencehost",
                   "microsoft.ui.xaml", "microsoft.vclibs", "microsoft.net", "microsoft.services.store",
                   "microsoft.storepurchaseapp", "microsoft.windowsappruntime", "microsoftwindows.client",
                   "windows.", "microsoft.windows.search", "microsoft.lockapp", "microsoft.xboxgameoverlay",
-                  "microsoft.gamingservices")
+                  "microsoft.gamingservices", "microsoft.languageexperiencepack", "microsoft.winget.source",
+                  "microsoft.hevcvideoextension", "microsoft.heifimageextension", "microsoft.webmediaextensions",
+                  "microsoft.vp9videoextensions", "microsoft.av1videoextension", "microsoft.rawimageextension",
+                  "microsoft.webpimageextension", "microsoft.mpeg2videoextension",
+                  "microsoftcorporationii.windowssubsystemforlinux", "microsoft.xboxidentityprovider",
+                  # apps de suporte de HARDWARE (áudio, vídeo, touchpad, bateria): não voltam pela Store
+                  "e046963f.", "e0469640.", "realteksemiconductorcorp.", "nvidiacorp.", "advancedmicrodevicesinc",
+                  "appup.intel", "wavesaudio.", "synaptics", "ad2f1837.", "dolbylaboratories.", "elantech",
+                  "intelcorp.", "hp.", "dellinc.", "asus", "acer", "msi.", "b9eced6f.", "realtek")
 FRIENDLY = {"microsoft.windowscalculator": "Calculadora", "microsoft.windowsnotepad": "Bloco de Notas",
             "microsoft.paint": "Paint", "microsoft.windows.photos": "Fotos", "microsoft.screensketch": "Ferramenta de Captura",
             "microsoft.windowsalarms": "Relógio", "microsoft.windowscamera": "Câmera", "microsoft.windowssoundrecorder":
@@ -363,6 +419,8 @@ def _friendly(name: str) -> str:
 
 def is_bloat(name: str) -> bool:
     low = name.lower()
+    if low in NOT_PRECHECKED or is_protected_appx(name):
+        return False
     return low in BLOAT or low.startswith(BLOAT_PREFIX)
 
 

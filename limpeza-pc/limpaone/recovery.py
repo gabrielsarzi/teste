@@ -683,9 +683,18 @@ def _len_search_end(r: _Reader, start, limit, end_marker, extra=0, last=False):
 
 def carve(vol: RawVolume, dest_dir: str, kinds, cancel, progress, min_size=8 * 1024) -> dict:
     """Varre o volume inteiro procurando arquivos pelas assinaturas. Retorna contagem por tipo."""
+    import datetime
+    import shutil
     r = _Reader(vol)
     total = vol.size or 0
     counts = {k: 0 for k in kinds}
+    # cada busca grava numa subpasta nova: nunca sobrescreve o que uma busca anterior recuperou
+    dest_dir = os.path.join(dest_dir, "busca " + datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S"))
+    os.makedirs(dest_dir, exist_ok=True)
+    try:
+        reserve = max(5 << 30, shutil.disk_usage(dest_dir).total // 20)   # deixa pelo menos 5 GB / 5% livres
+    except OSError:
+        reserve = 5 << 30
     block = 8 << 20
     pos = 0
     last = 0.0
@@ -724,9 +733,18 @@ def carve(vol: RawVolume, dest_dir: str, kinds, cancel, progress, min_size=8 * 1
                     ln += struct.unpack("<H", tail)[0] if len(tail) == 2 else 0
             if not ln or ln < min_size:
                 continue
+            try:
+                if shutil.disk_usage(dest_dir).free - ln < reserve:
+                    progress("Parado: o disco de destino está ficando sem espaço.")
+                    log(f"BUSCA POR ASSINATURA interrompida por falta de espaço em {dest_dir}")
+                    return counts
+            except OSError:
+                pass
             counts[k] += 1
             ext = {"mp4": "mp4", "zip": "zip"}.get(k, k)
             name = os.path.join(dest_dir, f"{k}_{counts[k]:05d}.{ext}")
+            if os.path.exists(name):
+                continue
             with open(name, "wb") as out:
                 off = 0
                 while off < ln:

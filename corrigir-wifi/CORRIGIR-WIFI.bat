@@ -107,7 +107,7 @@ foreach ($c in $CLASSES) {
 }
 
 T '[3] Removendo componentes quebrados que NAO sao da Microsoft'
-$badSvc = @('VMnetBridge')
+$badSvc = @()
 if ($broken.Count -eq 0) { L '  nenhum componente quebrado nas classes' }
 foreach ($b in $broken) {
   if ($b.Id.ToLower().StartsWith('ms_')) { $msBroken = $true; L ('  ' + $b.Id + ': e da Microsoft - NAO removido (o SFC no final tenta reparar)'); continue }
@@ -128,9 +128,8 @@ foreach ($c in $CLASSES) {
     $id = [string]$p.ComponentId
     $ndi = Get-ItemProperty -Path (Join-Path $key.PSPath 'Ndi') -ErrorAction SilentlyContinue
     $missing = $false
-    if ($ndi -and $ndi.ComponentDll) { $missing = -not (Test-Path -LiteralPath (Join-Path $SYS ([string]$ndi.ComponentDll))) }
-    $isVm = $id.ToLower().Contains('vmware') -or $id.ToLower().Contains('vmnet')
-    if (($missing -or $isVm) -and -not $id.ToLower().StartsWith('ms_')) {
+    if ($ndi -and $ndi.ComponentDll) { $dd = [Environment]::ExpandEnvironmentVariables(([string]$ndi.ComponentDll).Trim('"')); if (-not [IO.Path]::IsPathRooted($dd)) { $dd = Join-Path $SYS $dd }; $missing = -not (Test-Path -LiteralPath $dd) }
+    if ($missing -and -not $id.ToLower().StartsWith('ms_')) {
       Remove-Item -Path $key.PSPath -Recurse -Force -ErrorAction SilentlyContinue
       L ('  removido orfao: ' + $id + ' (' + $key.PSChildName + ')')
       if ($ndi -and $ndi.Service) { $badSvc += [string]$ndi.Service }
@@ -146,7 +145,7 @@ foreach ($key in (Get-ChildItem -Path "$CS\Control\Class\$NET" -ErrorAction Sile
   $lp = Get-ItemProperty -Path $lk -ErrorAction SilentlyContinue
   if ($lp -and $lp.UpperBind) {
     $old = @($lp.UpperBind)
-    $new = @($old | Where-Object { ($badSvc -notcontains $_) -and ($_ -notlike 'VMnet*') })
+    $new = @($old | Where-Object { $badSvc -notcontains $_ })
     if ($new.Count -ne $old.Count) {
       Set-ItemProperty -Path $lk -Name 'UpperBind' -Value ([string[]]$new)
       L ('  ' + $key.PSChildName + ': UpperBind limpo')
@@ -163,10 +162,6 @@ foreach ($v in @('UpperFilters', 'LowerFilters')) {
       L ('  filtro de classe ' + $v + ' limpo')
     }
   }
-}
-if (Test-Path "$CS\Services\VMnetBridge") {
-  Remove-Item -Path "$CS\Services\VMnetBridge" -Recurse -Force -ErrorAction SilentlyContinue
-  L '  chave do servico VMnetBridge removida'
 }
 L '  ok'
 
@@ -212,7 +207,7 @@ if (Test-Path $drv) {
 
 # ================================================================ 7
 T '[8] Reinstalando placas com problema'
-$bad = Get-CimInstance Win32_PnPEntity -ErrorAction SilentlyContinue | Where-Object { $_.PNPClass -eq 'Net' -and $_.ConfigManagerErrorCode -ne 0 }
+$bad = Get-CimInstance Win32_PnPEntity -ErrorAction SilentlyContinue | Where-Object { $_.PNPClass -eq 'Net' -and @(0, 22, 45) -notcontains $_.ConfigManagerErrorCode }
 foreach ($d in $bad) {
   L ('  ' + $d.Name + ' - codigo ' + $d.ConfigManagerErrorCode + ' - removendo para reinstalar')
   pnputil /remove-device "$($d.PNPDeviceID)" 2>&1 | Out-Null

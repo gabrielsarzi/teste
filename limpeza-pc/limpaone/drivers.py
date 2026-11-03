@@ -38,7 +38,8 @@ def run_ps_file(script: str, timeout=180) -> tuple[int, str, str]:
     try:
         with open(ps1, "w", encoding="utf-8-sig") as f:
             f.write(PS_PREFIX + "\n" + PS_FUNCS + "\n" + script)
-        return run(["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", ps1],
+        from .winutil import POWERSHELL
+        return run([POWERSHELL, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", ps1],
                    timeout=timeout)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
