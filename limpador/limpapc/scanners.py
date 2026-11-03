@@ -30,6 +30,19 @@ APP_DIR_NAMES = {"appdata", "programdata", "program files", "program files (x86)
                  "venv", ".venv", "anaconda3", "miniconda3", ".wine", "snap", "flatpak"}
 
 
+_EXCLUDED: list[str] = []
+
+
+def set_exclusions(paths) -> None:
+    """Pastas escolhidas pelo usuário que nunca devem ser analisadas."""
+    _EXCLUDED[:] = [norm(p) for p in paths if p]
+
+
+def is_excluded(path: str) -> bool:
+    p = norm(path)
+    return any(p == e or p.startswith(e + os.sep) for e in _EXCLUDED)
+
+
 def walk_files(roots, cancel, progress=None, skip_names=frozenset(), skip_hidden=False):
     """Percorre as pastas gerando (caminho, stat) de cada arquivo comum."""
     stack = [r for r in roots if os.path.isdir(r)]
@@ -41,7 +54,7 @@ def walk_files(roots, cancel, progress=None, skip_names=frozenset(), skip_hidden
             return
         d = stack.pop()
         nd = norm(d)
-        if nd in seen_dirs or nd in _ALWAYS_SKIP_PATHS:
+        if nd in seen_dirs or nd in _ALWAYS_SKIP_PATHS or (_EXCLUDED and is_excluded(nd)):
             continue
         seen_dirs.add(nd)
         try:
@@ -352,4 +365,4 @@ def scan_junk(cancel, progress, include_recycle=True):
 
 
 __all__ = ["scan_large", "scan_old", "scan_duplicates", "scan_junk", "junk_locations",
-           "walk_files", "IS_LINUX"]
+           "walk_files", "set_exclusions", "is_excluded", "IS_LINUX"]

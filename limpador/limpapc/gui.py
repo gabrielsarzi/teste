@@ -1,4 +1,4 @@
-"""Interface gráfica (tkinter) do LimpaPC."""
+"""Janela principal do LimpaPC: menu lateral, Painel, Mapa do disco, Ferramentas, Configurações e Sobre."""
 from __future__ import annotations
 
 import os
@@ -6,1034 +6,1012 @@ import sys
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
-from tkinter import font as tkfont
 
-from . import __version__
-from .scanners import scan_duplicates, scan_junk, scan_large, scan_old
-from .system import (delete_reg_key, empty_recycle_bin, kill_pid, recycle_bin_info, scan_leftovers,
-                     scan_processes, scan_programs, scan_startup, set_startup_enabled, trim_memory,
-                     uninstall_program)
-from .utils import (IS_LINUX, IS_WIN, Item, app_data_dir, clear_contents, delete_path, disks,
-                    fixed_drives, fmt_size, home, is_admin, log, memory_info,
-                    open_location, open_uri, relaunch_as_admin)
+from . import APP_NAME, HOMEPAGE, __version__
+from .analyzer import CATEGORY_NAMES, analyze, remove_size
+from .pages import (BackgroundMixin, DuplicatesPage, JunkPage, LargeFilesPage, LeftoversPage, OldFilesPage, Page,
+                    ProcessesPage, ProgramsPage, ResultsPage, StartupPage)
+from .recovery_pages import RecoverPage, TrashPage
+from .scanners import set_exclusions
+from .settings import Settings
+from .system import empty_recycle_bin, recycle_bin_info
+from .theme import CATEGORY_COLORS, Theme, draw_icon, draw_logo, set_dark_titlebar
+from .tools import available_tools, run_tool
+from .update import check_for_update
+from .utils import (IS_WIN, app_data_dir, delete_path, disks, fixed_drives, fmt_date, fmt_size, home, is_admin,
+                    is_protected, log, memory_info, open_location, open_uri, relaunch_as_admin)
+from .widgets import CategoryBars, Icon, ListEditor, NavItem, RingGauge, ScrollFrame, Toast, card
 
-MAX_ROWS = 5000
-CHECK, UNCHECK = "☑", "☐"
+
+def _soft_icon(master, t, name, size=40, bg_key="surface", fg=None, soft=None):
+    """Ícone dentro de um círculo suave (usado em cards)."""
+    c = t.c
+    s = t.px(size)
+    cv = tk.Canvas(master, width=s, height=s, bg=c[bg_key], highlightthickness=0, bd=0)
+    cv.create_oval(0, 0, s, s, fill=soft or c["accent_soft"], outline="")
+    draw_icon(cv, name, s * 0.25, s * 0.25, s * 0.5, fg or c["accent"], 2.0, bg=soft or c["accent_soft"])
+    return cv
 
 
-# =================================================================== aba genérica de resultados
-class ResultsTab(ttk.Frame):
-    title = ""
-    hint = ""
-    columns: list[tuple[str, int, str]] = []
-    hierarchical = False
-    scan_label = "Analisar"
-    action_label = "Apagar selecionados"
-    action_style = "Danger.TButton"
-    uses_trash = True          # respeita a opção "enviar para a Lixeira"
-    uses_roots = False         # usa as pastas escolhidas na aba Início
-    show_open = True
-    auto_scan = False
+def health_score(disk_pct, ram_pct, junk, recycle, startup_on, dup_waste):
+    score = 100
+    score -= 30 if disk_pct > 0.92 else 18 if disk_pct > 0.85 else 8 if disk_pct > 0.75 else 0
+    score -= 15 if ram_pct > 0.88 else 8 if ram_pct > 0.75 else 0
+    score -= min(25, int(junk / (1 << 30) * 5))
+    score -= 5 if recycle > (1 << 30) else 0
+    score -= 10 if startup_on > 10 else 5 if startup_on > 5 else 0
+    score -= 5 if dup_waste > (1 << 30) else 0
+    return max(5, score)
+
+
+def score_label(s):
+    return "Ótimo" if s >= 85 else "Bom" if s >= 70 else "Regular" if s >= 50 else "Precisa de atenção"
+
+
+# =================================================================== PAINEL
+class DashboardPage(BackgroundMixin, Page):
+    key, icon, title = "dashboard", "home", "Painel"
+    subtitle = "Visão geral do seu computador. Faça uma análise completa para descobrir quanto espaço dá para liberar."
+    STEPS = [("junk", "Procurando lixo e cache"), ("dups", "Procurando arquivos repetidos"),
+             ("large", "Procurando arquivos grandes"), ("old", "Procurando arquivos antigos"),
+             ("leftovers", "Procurando restos de programas"), ("programs", "Verificando programas"),
+             ("startup", "Verificando a inicialização")]
 
     def __init__(self, master, app):
-        super().__init__(master, padding=10)
-        self.app = app
-        self.items: dict[str, Item] = {}
-        self.cancel = threading.Event()
+        super().__init__(master, app)
+        t = self.t
         self.busy = False
-        self._progress = ""
-        self._sort = (None, False)
-        self._scanned = False
+        self.cancel = threading.Event()
+        self.summary = app.settings.get("last_scan") or None
+        sf = ScrollFrame(self.body, t)
+        sf.pack(fill="both", expand=True)
+        root = sf.inner
+        root.columnconfigure((0, 1, 2), weight=1, uniform="col")
 
-        if self.hint:
-            ttk.Label(self, text=self.hint, wraplength=1000, justify="left",
-                      style="Hint.TLabel").pack(fill="x", pady=(0, 8))
+        # ---- destaque
+        hero = card(root, t, 22)
+        hero.grid(row=0, column=0, columnspan=3, sticky="ew")
+        self.score = RingGauge(hero, t, size=148, thickness=13)
+        self.score.pack(side="left", padx=(0, t.px(26)))
+        txt = ttk.Frame(hero, style="Flat.TFrame")
+        txt.pack(side="left", fill="both", expand=True)
+        self.h_title = ttk.Label(txt, text="", style="Card.H2.TLabel")
+        self.h_title.pack(anchor="w")
+        self.h_desc = ttk.Label(txt, text="", style="Card.Muted.TLabel", wraplength=t.px(560), justify="left")
+        self.h_desc.pack(anchor="w", pady=(t.px(6), t.px(14)))
+        btns = ttk.Frame(txt, style="Flat.TFrame")
+        btns.pack(anchor="w")
+        self.btn_scan = ttk.Button(btns, text="Analisar agora", style="Big.Primary.TButton", command=self.smart_scan)
+        self.btn_scan.pack(side="left")
+        self.btn_clean = ttk.Button(btns, text="Limpar recomendado", style="Big.Primary.TButton",
+                                    command=self.clean_recommended)
+        self.btn_stop = ttk.Button(btns, text="Parar", command=lambda: self.cancel.set())
+        self.prog = ttk.Progressbar(txt, mode="determinate", maximum=len(self.STEPS))
+        self.lbl_prog = ttk.Label(txt, text="", style="Card.Small.TLabel")
 
-        top = ttk.Frame(self)
+        # ---- três cards de status
+        self.disk_card = self._stat_card(root, 1, 0, "Disco do sistema")
+        self.ram_card = self._stat_card(root, 1, 1, "Memória RAM", ("Ver programas", lambda: app.show("ram")))
+        self.bin_card = self._stat_card(root, 1, 2, "Lixeira", ("Esvaziar", self.empty_bin))
+
+        # ---- resultados
+        self.res = card(root, t, 20)
+        self.res.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(t.px(16), 0))
+        # ---- discos
+        self.disks = card(root, t, 20)
+        self.disks.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(t.px(16), t.px(4)))
+        self.refresh()
+
+    def _stat_card(self, root, r, col, title, action=None):
+        t = self.t
+        f = card(root, t, 18)
+        f.grid(row=r, column=col, sticky="nsew", pady=(t.px(16), 0),
+               padx=(0 if col == 0 else t.px(8), 0 if col == 2 else t.px(8)))
+        top = ttk.Frame(f, style="Flat.TFrame")
         top.pack(fill="x")
-        opts = ttk.Frame(top)
-        opts.pack(side="left", fill="x", expand=True)
-        self.build_options(opts)
-        self.btn_stop = ttk.Button(top, text="Parar", command=self.stop, state="disabled")
-        self.btn_stop.pack(side="right", padx=(6, 0))
-        self.btn_scan = ttk.Button(top, text=self.scan_label, style="Accent.TButton", command=self.start_scan)
-        self.btn_scan.pack(side="right")
-        if self.uses_roots:
-            self.lbl_roots = ttk.Label(self, style="Hint.TLabel")
-            self.lbl_roots.pack(fill="x", pady=(6, 0))
-            self.refresh_roots_label()
-
-        self.pbar = ttk.Progressbar(self, mode="indeterminate")
-        self.pbar.pack(fill="x", pady=(8, 2))
-        self.lbl_progress = ttk.Label(self, text=f"Clique em “{self.scan_label}” para começar.")
-        self.lbl_progress.pack(fill="x")
-
-        frame = ttk.Frame(self)
-        frame.pack(fill="both", expand=True, pady=6)
-        cols = ["sel"] + [f"c{i}" for i in range(len(self.columns))]
-        self.tree = ttk.Treeview(frame, columns=cols, selectmode="extended",
-                                 show="tree headings" if self.hierarchical else "headings")
-        if self.hierarchical:
-            self.tree.column("#0", width=30, stretch=False)
-        self.tree.heading("sel", text=CHECK, command=self.toggle_all)
-        self.tree.column("sel", width=40, anchor="center", stretch=False)
-        for i, (head, width, anchor) in enumerate(self.columns):
-            self.tree.heading(f"c{i}", text=head, command=lambda i=i: self.sort_by(i))
-            self.tree.column(f"c{i}", width=width, anchor=anchor, stretch=(i == len(self.columns) - 1))
-        vsb = ttk.Scrollbar(frame, orient="vertical", command=self.tree.yview)
-        hsb = ttk.Scrollbar(frame, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-        self.tree.grid(row=0, column=0, sticky="nsew")
-        vsb.grid(row=0, column=1, sticky="ns")
-        hsb.grid(row=1, column=0, sticky="ew")
-        frame.rowconfigure(0, weight=1)
-        frame.columnconfigure(0, weight=1)
-        self.tree.tag_configure("warn", foreground="#b45309")
-        self.tree.tag_configure("danger", foreground="#b91c1c")
-        self.tree.tag_configure("muted", foreground="#6b7280")
-        self.tree.tag_configure("group", background="#eef2f7", font=app.bold)
-        self.tree.bind("<Button-1>", self.on_click)
-        self.tree.bind("<space>", lambda e: self.toggle_highlighted())
-        self.tree.bind("<Double-1>", lambda e: self.open_highlighted())
-        self.tree.bind("<Button-3>", self.on_menu)
-        self.tree.bind("<Button-2>", self.on_menu)
-
-        bottom = ttk.Frame(self)
-        bottom.pack(fill="x")
-        ttk.Button(bottom, text="Marcar tudo", command=lambda: self.set_all(True)).pack(side="left")
-        ttk.Button(bottom, text="Desmarcar tudo", command=lambda: self.set_all(False)).pack(side="left", padx=4)
-        ttk.Button(bottom, text="Marcar destacados", command=lambda: self.set_highlighted(True)).pack(side="left")
-        if self.show_open:
-            ttk.Button(bottom, text="Abrir local", command=self.open_highlighted).pack(side="left", padx=4)
-        self.build_actions(bottom)
-        self.btn_action = ttk.Button(bottom, text=self.action_label, style=self.action_style,
-                                     command=self.run_action)
-        self.btn_action.pack(side="right")
-        self.lbl_sel = ttk.Label(bottom, text="")
-        self.lbl_sel.pack(side="right", padx=10)
-
-        self.menu = tk.Menu(self, tearoff=0)
-        self.menu.add_command(label="Marcar", command=lambda: self.set_highlighted(True))
-        self.menu.add_command(label="Desmarcar", command=lambda: self.set_highlighted(False))
-        if self.show_open:
-            self.menu.add_command(label="Abrir local", command=self.open_highlighted)
-        self.menu.add_command(label="Copiar caminho", command=self.copy_path)
-
-    # ---- pontos de extensão ----
-    def build_options(self, frame): ...
-    def build_actions(self, frame): ...
-    def get_params(self) -> dict: return {}
-    def scan_job(self, params, cancel, progress) -> list[Item]: raise NotImplementedError
-    def row_tags(self, item: Item) -> tuple: return ()
-
-    def confirm_text(self, items, to_trash) -> str:
-        total = sum(i.size for i in items)
-        modo = "Os itens serão enviados para a Lixeira (dá para recuperar)." if to_trash else \
-            "ATENÇÃO: os itens serão apagados PERMANENTEMENTE."
-        return f"Apagar {len(items)} item(ns), liberando {fmt_size(total)}?\n\n{modo}"
-
-    def perform(self, items, to_trash, progress):
-        """Executa a ação em segundo plano. Retorna (itens concluídos, erros, bytes liberados)."""
-        done, errors, freed = [], [], 0
-        for n, it in enumerate(items, 1):
-            progress(f"Apagando {n}/{len(items)}: {os.path.basename(it.path)}")
-            try:
-                delete_path(it.path, to_trash)
-                log(f"{'LIXEIRA' if to_trash else 'APAGADO'} {it.path} ({fmt_size(it.size)})")
-                done.append(it)
-                freed += it.size
-            except Exception as e:  # noqa: BLE001
-                errors.append((it.path, str(e)))
-        return done, errors, freed
-
-    def after_action(self, done, errors, freed):
-        ids = {id(i) for i in done}
-        for iid, it in list(self.items.items()):
-            if id(it) in ids:
-                self.tree.delete(iid)
-                del self.items[iid]
-        self.cleanup_groups()
-        msg = f"Concluído: {len(done)} item(ns)."
-        if freed:
-            msg += f"\nEspaço liberado: {fmt_size(freed)}."
-        if errors:
-            msg += f"\n\n{len(errors)} item(ns) não puderam ser processados (em uso, sem permissão ou protegidos):\n"
-            msg += "\n".join(f"• {os.path.basename(p) or p}: {m}" for p, m in errors[:12])
-            if len(errors) > 12:
-                msg += f"\n… e mais {len(errors) - 12}."
-            messagebox.showwarning("Resultado", msg, parent=self)
-        else:
-            messagebox.showinfo("Resultado", msg, parent=self)
-        self.update_selection()
-        self.app.refresh_overview()
-
-    def cleanup_groups(self):
-        if not self.hierarchical:
-            return
-        for gid in self.tree.get_children(""):
-            if len(self.tree.get_children(gid)) < 2:
-                for c in self.tree.get_children(gid):
-                    self.items.pop(c, None)
-                self.tree.delete(gid)
-
-    # ---- varredura ----
-    def refresh_roots_label(self):
-        if self.uses_roots:
-            self.lbl_roots.config(text="Pastas analisadas: " + "; ".join(self.app.roots) +
-                                  "   (altere na aba Início)")
-
-    def on_show(self):
-        if self.auto_scan and not self._scanned and not self.busy:
-            self.start_scan()
-
-    def start_scan(self):
-        if self.busy:
-            return
-        if self.uses_roots and not self.app.roots:
-            messagebox.showinfo("Pastas", "Escolha ao menos uma pasta na aba Início.", parent=self)
-            return
-        params = self.get_params()
-        if params is None:
-            return
-        params["roots"] = list(self.app.roots)
-        self._scanned = True
-        self._background(lambda c, p: self.scan_job(params, c, p), self.populate, "Analisando…")
-
-    def stop(self):
-        self.cancel.set()
-        self.lbl_progress.config(text="Parando…")
-
-    def _set_busy(self, busy):
-        self.busy = busy
-        state = "disabled" if busy else "normal"
-        self.btn_scan.config(state=state)
-        self.btn_action.config(state=state)
-        self.btn_stop.config(state="normal" if busy else "disabled")
-        if busy:
-            self.pbar.start(12)
-        else:
-            self.pbar.stop()
-
-    def _background(self, job, on_done, text):
-        self.cancel.clear()
-        self._progress = text
-        self._set_busy(True)
-        box: dict = {}
-
-        def runner():
-            try:
-                box["result"] = job(self.cancel, lambda t: setattr(self, "_progress", t))
-            except Exception as e:  # noqa: BLE001
-                box["error"] = e
-
-        th = threading.Thread(target=runner, daemon=True)
-        th.start()
-
-        def poll():
-            self.lbl_progress.config(text=self._progress)
-            if th.is_alive():
-                self.after(150, poll)
-                return
-            self._set_busy(False)
-            if "error" in box:
-                self.lbl_progress.config(text=f"Erro: {box['error']}")
-                messagebox.showerror("Erro", str(box["error"]), parent=self)
-            else:
-                if self.cancel.is_set():
-                    self._progress += " (interrompido)"
-                    self.lbl_progress.config(text=self._progress)
-                on_done(box.get("result"))
-
-        self.after(150, poll)
-
-    # ---- tabela ----
-    def populate(self, items):
-        self.tree.delete(*self.tree.get_children(""))
-        self.items = {}
-        items = items or []
-        if self.hierarchical:
-            groups: dict[int, list[Item]] = {}
-            for it in items:
-                groups.setdefault(it.group or 0, []).append(it)
-            rows = 0
-            for gi, members in groups.items():
-                if rows > MAX_ROWS:
-                    break
-                size = members[0].size
-                gid = f"g{gi}"
-                head = [""] * len(self.columns)
-                head[0] = f"Grupo {gi}: {len(members)} cópias idênticas"
-                head[1] = fmt_size(size)
-                head[-1] = f"desperdício: {fmt_size(size * (len(members) - 1))}"
-                self.tree.insert("", "end", iid=gid, values=("", *head), open=True, tags=("group",))
-                for n, it in enumerate(members):
-                    iid = f"{gid}_{n}"
-                    self.items[iid] = it
-                    self.tree.insert(gid, "end", iid=iid)
-                    self.render(iid)
-                    rows += 1
-        else:
-            for n, it in enumerate(items[:MAX_ROWS]):
-                iid = str(n)
-                self.items[iid] = it
-                self.tree.insert("", "end", iid=iid)
-                self.render(iid)
-        if len(items) > MAX_ROWS and not self.hierarchical:
-            self._progress += f" Mostrando os {MAX_ROWS} maiores."
-            self.lbl_progress.config(text=self._progress)
-        self.update_selection()
-
-    def render(self, iid):
-        it = self.items[iid]
-        self.tree.item(iid, values=(CHECK if it.checked else UNCHECK, *it.values), tags=self.row_tags(it))
-
-    def on_click(self, event):
-        region = self.tree.identify_region(event.x, event.y)
-        if region not in ("cell", "tree"):
-            return
-        if self.tree.identify_column(event.x) != "#1":
-            return
-        iid = self.tree.identify_row(event.y)
-        if iid in self.items:
-            self.items[iid].checked = not self.items[iid].checked
-            self.render(iid)
-            self.update_selection()
-        elif iid:  # linha de grupo: alterna os filhos
-            kids = self.tree.get_children(iid)
-            state = not all(self.items[k].checked for k in kids)
-            for k in kids:
-                self.items[k].checked = state
-                self.render(k)
-            self.update_selection()
-        return "break"
-
-    def on_menu(self, event):
-        iid = self.tree.identify_row(event.y)
-        if iid and iid not in self.tree.selection():
-            self.tree.selection_set(iid)
-        try:
-            self.menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            self.menu.grab_release()
-
-    def _highlighted(self):
-        out = []
-        for iid in self.tree.selection():
-            if iid in self.items:
-                out.append(iid)
-            else:
-                out.extend(self.tree.get_children(iid))
-        return out
-
-    def set_all(self, state):
-        for iid in self.items:
-            self.items[iid].checked = state
-            self.render(iid)
-        self.update_selection()
-
-    def toggle_all(self):
-        self.set_all(not all(i.checked for i in self.items.values()) if self.items else True)
-
-    def set_highlighted(self, state):
-        for iid in self._highlighted():
-            self.items[iid].checked = state
-            self.render(iid)
-        self.update_selection()
-
-    def toggle_highlighted(self):
-        hl = self._highlighted()
-        if hl:
-            self.set_highlighted(not all(self.items[i].checked for i in hl))
-
-    def open_highlighted(self):
-        for iid in self._highlighted()[:5]:
-            it = self.items[iid]
-            target = it.data.get("location") or it.data.get("exe") or it.data.get("file") or it.path
-            if target and os.path.exists(target):
-                open_location(target)
-
-    def copy_path(self):
-        paths = [self.items[i].path for i in self._highlighted()]
-        if paths:
-            self.clipboard_clear()
-            self.clipboard_append("\n".join(paths))
-
-    def checked(self) -> list[Item]:
-        return [it for it in self.items.values() if it.checked]
-
-    def update_selection(self):
-        sel = self.checked()
-        total = sum(i.size for i in sel)
-        self.lbl_sel.config(text=f"Marcados: {len(sel)}  ({fmt_size(total)})  de {len(self.items)} itens")
-
-    def sort_by(self, col):
-        if self.hierarchical or not self.items:
-            return
-        last, rev = self._sort
-        rev = not rev if last == col else col in self.numeric_cols()
-        self._sort = (col, rev)
-
-        def key(iid):
-            raw = self.items[iid].raw
-            v = raw[col] if col < len(raw) else ""
-            return (0, v) if isinstance(v, (int, float)) else (1, str(v))
-
-        for pos, iid in enumerate(sorted(self.items, key=key, reverse=rev)):
-            self.tree.move(iid, "", pos)
-
-    def numeric_cols(self):
-        it = next(iter(self.items.values()))
-        return {i for i, v in enumerate(it.raw) if isinstance(v, (int, float))}
-
-    # ---- ação principal ----
-    def validate(self, items) -> bool:
-        return True
-
-    def run_action(self):
-        if self.busy:
-            return
-        items = self.checked()
-        if not items:
-            messagebox.showinfo("Nada marcado", "Marque um ou mais itens na coluna ☐ primeiro.", parent=self)
-            return
-        if not self.validate(items):
-            return
-        to_trash = self.app.to_trash.get() if self.uses_trash else False
-        if not messagebox.askyesno("Confirmar", self.confirm_text(items, to_trash), parent=self, icon="warning"):
-            return
-        self._background(lambda c, p: self.perform(items, to_trash, p),
-                         lambda r: self.after_action(*r), "Processando…")
-
-
-# =================================================================== abas de arquivos
-FILE_COLUMNS = [("Nome", 260, "w"), ("Tamanho", 90, "e"), ("Modificado", 95, "center"),
-                ("Último uso", 110, "center"), ("Pasta", 420, "w")]
-
-
-def _spin(frame, label, var, frm, to, inc=1, width=7, suffix=""):
-    ttk.Label(frame, text=label).pack(side="left")
-    ttk.Spinbox(frame, from_=frm, to=to, increment=inc, textvariable=var, width=width).pack(side="left", padx=(4, 2))
-    if suffix:
-        ttk.Label(frame, text=suffix).pack(side="left", padx=(0, 14))
-
-
-def _int(var, default):
-    try:
-        return max(0, int(float(str(var.get()).replace(",", "."))))
-    except (ValueError, tk.TclError):
-        return default
-
-
-class LargeFilesTab(ResultsTab):
-    title = "Arquivos grandes"
-    hint = ("Encontra os arquivos que mais ocupam espaço. Revise com cuidado antes de apagar: "
-            "nem todo arquivo grande é inútil (vídeos, backups, máquinas virtuais…).")
-    columns = FILE_COLUMNS
-    uses_roots = True
-
-    def build_options(self, f):
-        self.min_mb = tk.StringVar(value="100")
-        _spin(f, "Tamanho mínimo:", self.min_mb, 1, 100000, 50, suffix="MB")
-
-    def get_params(self):
-        return {"min": _int(self.min_mb, 100) * 1024 * 1024}
-
-    def scan_job(self, p, cancel, progress):
-        return scan_large(p["roots"], p["min"], cancel, progress)
-
-
-class OldFilesTab(ResultsTab):
-    title = "Arquivos antigos"
-    hint = ("Arquivos que não são abertos nem modificados há muito tempo. Observação: alguns sistemas "
-            "não atualizam a data de último acesso; nesse caso usamos a data de modificação.")
-    columns = FILE_COLUMNS
-    uses_roots = True
-
-    def build_options(self, f):
-        self.days = tk.StringVar(value="365")
-        self.min_mb = tk.StringVar(value="1")
-        self.skip = tk.BooleanVar(value=True)
-        _spin(f, "Sem uso há mais de", self.days, 30, 10000, 30, suffix="dias")
-        _spin(f, "Tamanho mínimo:", self.min_mb, 0, 100000, 1, suffix="MB")
-        ttk.Checkbutton(f, text="Ignorar pastas de programas/sistema", variable=self.skip).pack(side="left")
-
-    def get_params(self):
-        return {"days": _int(self.days, 365), "min": _int(self.min_mb, 1) * 1024 * 1024,
-                "skip": self.skip.get()}
-
-    def scan_job(self, p, cancel, progress):
-        return scan_old(p["roots"], p["days"], p["min"], p["skip"], cancel, progress)
-
-
-class DuplicatesTab(ResultsTab):
-    title = "Arquivos repetidos"
-    hint = ("Arquivos com conteúdo idêntico (comparação byte a byte via hash). Em cada grupo uma cópia "
-            "fica desmarcada para ser mantida. Nunca é permitido apagar todas as cópias de um grupo.")
-    columns = FILE_COLUMNS
-    hierarchical = True
-    uses_roots = True
-    KEEP = {"Manter a mais antiga": "antigo", "Manter a mais recente": "recente",
-            "Manter a de caminho mais curto": "curto"}
-
-    def build_options(self, f):
-        self.min_mb = tk.StringVar(value="1")
-        self.keep = tk.StringVar(value="Manter a mais antiga")
-        self.skip = tk.BooleanVar(value=True)
-        _spin(f, "Tamanho mínimo:", self.min_mb, 0, 100000, 1, suffix="MB")
-        ttk.Combobox(f, textvariable=self.keep, values=list(self.KEEP), state="readonly",
-                     width=28).pack(side="left", padx=(0, 10))
-        ttk.Checkbutton(f, text="Ignorar pastas de programas/sistema", variable=self.skip).pack(side="left")
-
-    def build_actions(self, f):
-        ttk.Button(f, text="Marcar cópias (manter 1 por grupo)", command=self.mark_copies).pack(side="left")
-
-    def mark_copies(self):
-        mode = self.KEEP.get(self.keep.get(), "antigo")
-        for gid in self.tree.get_children(""):
-            kids = list(self.tree.get_children(gid))
-            members = [self.items[k] for k in kids]
-            if mode == "recente":
-                keep = max(members, key=lambda i: i.data["mtime"])
-            elif mode == "curto":
-                keep = min(members, key=lambda i: (len(i.path), i.path))
-            else:
-                keep = min(members, key=lambda i: i.data["mtime"])
-            for k in kids:
-                self.items[k].checked = self.items[k] is not keep
-                self.render(k)
-        self.update_selection()
-
-    def get_params(self):
-        return {"min": max(1, _int(self.min_mb, 1) * 1024 * 1024), "keep": self.KEEP.get(self.keep.get(), "antigo"),
-                "skip": self.skip.get()}
-
-    def scan_job(self, p, cancel, progress):
-        return scan_duplicates(p["roots"], p["min"], p["skip"], p["keep"], cancel, progress)
-
-    def validate(self, items):
-        for gid in self.tree.get_children(""):
-            kids = self.tree.get_children(gid)
-            if kids and all(self.items[k].checked for k in kids):
-                messagebox.showwarning(
-                    "Todas as cópias marcadas",
-                    f"No {self.tree.item(gid, 'values')[1]} todas as cópias estão marcadas.\n"
-                    "Deixe pelo menos uma desmarcada para não perder o arquivo.", parent=self)
-                self.tree.see(gid)
-                self.tree.selection_set(gid)
-                return False
-        return True
-
-
-class JunkTab(ResultsTab):
-    title = "Lixo e temporários"
-    hint = ("Arquivos temporários, caches de navegadores e programas, relatórios de erro, cache do "
-            "Windows Update etc. São recriados automaticamente quando necessário e são apagados "
-            "permanentemente (não vão para a Lixeira). Arquivos em uso são pulados. Feche os navegadores "
-            "antes de limpar. Algumas pastas exigem executar como administrador.")
-    columns = [("Local", 380, "w"), ("Tamanho", 100, "e"), ("Arquivos", 90, "e"), ("Caminho", 450, "w")]
-    scan_label = "Analisar lixo"
-    action_label = "Limpar selecionados"
-    uses_trash = False
-
-    def build_options(self, f):
-        self.recycle = tk.BooleanVar(value=True)
-        ttk.Checkbutton(f, text="Incluir a Lixeira", variable=self.recycle).pack(side="left")
-
-    def get_params(self):
-        return {"recycle": self.recycle.get()}
-
-    def scan_job(self, p, cancel, progress):
-        return scan_junk(cancel, progress, p["recycle"])
-
-    def confirm_text(self, items, to_trash):
-        total = sum(i.size for i in items)
-        return (f"Limpar {len(items)} local(is), liberando até {fmt_size(total)}?\n\n"
-                "Os arquivos temporários serão apagados permanentemente.")
-
-    def perform(self, items, to_trash, progress):
-        done, errors, freed = [], [], 0
-        for it in items:
-            label = it.values[0]
-            progress(f"Limpando: {label}")
-            try:
-                if it.kind == "recyclebin":
-                    empty_recycle_bin()
-                    freed += it.size
-                    done.append(it)
-                    continue
-                f, errs = clear_contents(it.path, it.data.get("patterns"), it.data.get("age", 0),
-                                         it.data.get("only_mine", False))
-                freed += f
-                log(f"LIMPEZA {label}: {fmt_size(f)} liberados, {errs} em uso")
-                if errs:
-                    errors.append((label, f"{errs} item(ns) em uso ou sem permissão — {fmt_size(f)} liberados"))
-                done.append(it)
-            except Exception as e:  # noqa: BLE001
-                errors.append((label, str(e)))
-        return done, errors, freed
-
-
-class LeftoversTab(ResultsTab):
-    title = "Restos de programas"
-    hint = ("Pastas (e, no Windows, chaves do registro) que parecem ter sobrado de programas já "
-            "desinstalados: não pertencem a nenhum programa instalado e não são modificadas há algum tempo. "
-            "É uma estimativa — confira cada item antes de apagar. Chaves do registro têm backup automático "
-            "(.reg) antes de serem removidas.")
-    columns = [("Tipo", 150, "w"), ("Nome", 230, "w"), ("Tamanho", 90, "e"),
-               ("Última modificação", 145, "center"), ("Local", 480, "w")]
-    scan_label = "Procurar restos"
-
-    def build_options(self, f):
-        self.days = tk.StringVar(value="60")
-        _spin(f, "Sem modificação há mais de", self.days, 0, 3650, 30, suffix="dias")
-        if IS_WIN:
-            ttk.Button(f, text="Abrir backups do registro",
-                       command=lambda: open_location(self._backup_dir())).pack(side="left")
-
-    @staticmethod
-    def _backup_dir():
-        d = os.path.join(app_data_dir(), "backup-registro")
-        os.makedirs(d, exist_ok=True)
-        return d
-
-    def get_params(self):
-        return {"days": _int(self.days, 60)}
-
-    def scan_job(self, p, cancel, progress):
-        return scan_leftovers(p["days"], cancel, progress)
-
-    def row_tags(self, item):
-        return ("warn",) if item.kind == "regkey" else ()
-
-    def perform(self, items, to_trash, progress):
-        done, errors, freed = [], [], 0
-        for it in items:
-            progress(f"Removendo {it.values[1]}")
-            try:
-                if it.kind == "regkey":
-                    delete_reg_key(it.path, it.data.get("view", "64"))
-                else:
-                    delete_path(it.path, to_trash)
-                    log(f"RESTO REMOVIDO {it.path}")
-                    freed += it.size
-                done.append(it)
-            except Exception as e:  # noqa: BLE001
-                errors.append((it.path, str(e)))
-        return done, errors, freed
-
-
-# =================================================================== programas / RAM / inicialização
-class ProgramsTab(ResultsTab):
-    title = "Programas"
-    hint = ("Programas instalados, com tamanho e a última vez que foram usados (quando o sistema registra "
-            "isso). Programas não usados há muito tempo aparecem primeiro. Desinstalar abre o desinstalador "
-            "oficial de cada programa.")
-    columns = [("Programa", 280, "w"), ("Versão", 100, "w"), ("Editor", 170, "w"), ("Tamanho", 90, "e"),
-               ("Instalado em", 100, "center"), ("Último uso", 110, "center"), ("Situação", 160, "w")]
-    scan_label = "Listar programas"
-    action_label = "Desinstalar selecionados"
-    uses_trash = False
-
-    def build_options(self, f):
-        self.days = tk.StringVar(value="90")
-        _spin(f, "Considerar pouco usado após", self.days, 7, 3650, 30, suffix="dias")
-        self.only_apps = tk.BooleanVar(value=True)
-        if IS_LINUX:
-            ttk.Checkbutton(f, text="Só aplicativos com ícone no menu", variable=self.only_apps).pack(side="left")
-        if IS_WIN:
-            ttk.Button(f, text="Aplicativos da Microsoft Store…",
-                       command=lambda: open_uri("ms-settings:appsfeatures")).pack(side="left", padx=6)
-
-    def get_params(self):
-        return {"days": _int(self.days, 90), "only_apps": self.only_apps.get()}
-
-    def scan_job(self, p, cancel, progress):
-        return scan_programs(cancel, progress, p["days"], p["only_apps"])
-
-    def row_tags(self, item):
-        st = item.values[-1]
-        return ("danger",) if st == "Desinstalador ausente" else ("warn",) if st == "Pouco usado" else ()
-
-    def confirm_text(self, items, to_trash):
-        names = "\n".join(f"• {i.values[0]}" for i in items[:15])
-        more = f"\n… e mais {len(items) - 15}" if len(items) > 15 else ""
-        return (f"Desinstalar {len(items)} programa(s)?\n\n{names}{more}\n\n"
-                "O desinstalador de cada programa será aberto, um de cada vez. Siga as instruções dele.")
-
-    def perform(self, items, to_trash, progress):
-        done, errors, freed = [], [], 0
-        for n, it in enumerate(items, 1):
-            if self.cancel.is_set():
-                break
-            progress(f"Desinstalando {n}/{len(items)}: {it.values[0]} (aguardando o desinstalador…)")
-            if it.data.get("broken"):
-                errors.append((it.values[0], "desinstalador não existe mais — remova a entrada na aba "
-                                              "“Restos de programas”"))
-                continue
-            try:
-                res = uninstall_program(it.data)
-                if res == "ok" or res.startswith("movido"):
-                    done.append(it)
-                    freed += it.size
-                else:
-                    errors.append((it.values[0], res))
-            except Exception as e:  # noqa: BLE001
-                errors.append((it.values[0], str(e)))
-        return done, errors, freed
-
-    def after_action(self, done, errors, freed):
-        super().after_action(done, errors, 0)
-        self.start_scan()  # atualiza a lista (alguns desinstaladores terminam depois)
-
-
-class ProcessesTab(ResultsTab):
-    title = "Memória RAM"
-    hint = ("Programas abertos agora e quanta memória RAM cada um usa. Finalize os que você não está "
-            "usando para liberar RAM (salve seu trabalho antes!). Processos essenciais do sistema são "
-            "protegidos. Veja também a aba “Inicialização” para impedir que programas abram sozinhos.")
-    columns = [("Processo", 260, "w"), ("PID / Qtd.", 90, "e"), ("Memória", 100, "e"),
-               ("Observação", 150, "w"), ("Caminho", 480, "w")]
-    scan_label = "Atualizar"
-    action_label = "Finalizar selecionados"
-    uses_trash = False
-    auto_scan = True
-
-    def build_options(self, f):
-        self.group = tk.BooleanVar(value=True)
-        ttk.Checkbutton(f, text="Agrupar por programa", variable=self.group,
-                        command=self.start_scan).pack(side="left")
-        self.ram_bar = ttk.Progressbar(f, length=220, maximum=100)
-        self.ram_bar.pack(side="left", padx=(20, 6))
-        self.ram_lbl = ttk.Label(f, text="")
-        self.ram_lbl.pack(side="left")
-
-    def build_actions(self, f):
-        if IS_WIN:
-            ttk.Button(f, text="Liberar memória ociosa", command=self.trim).pack(side="left", padx=4)
-
-    def get_params(self):
-        return {"group": self.group.get()}
-
-    def scan_job(self, p, cancel, progress):
-        return scan_processes(p["group"], cancel, progress)
-
-    def populate(self, items):
-        super().populate(items)
-        total, used = memory_info()
-        if total:
-            self.ram_bar["value"] = used * 100 / total
-            self.ram_lbl.config(text=f"RAM: {fmt_size(used)} de {fmt_size(total)} ({used * 100 // total}%)")
-
-    def row_tags(self, item):
-        return ("muted",) if item.data.get("critical") else ()
-
-    def validate(self, items):
-        crit = [i.values[0] for i in items if i.data.get("critical")]
-        if crit:
-            messagebox.showwarning("Protegido", "Estes processos são essenciais e não serão finalizados:\n"
-                                   + ", ".join(crit), parent=self)
-            for i in items:
-                if i.data.get("critical"):
-                    i.checked = False
-            for iid in self.items:
-                self.render(iid)
-            self.update_selection()
-            return False
-        return True
-
-    def confirm_text(self, items, to_trash):
-        names = ", ".join(i.values[0] for i in items[:12])
-        return (f"Finalizar {len(items)} processo(s)?\n{names}\n\n"
-                f"Libera cerca de {fmt_size(sum(i.size for i in items))} de RAM.\n"
-                "Trabalho não salvo nesses programas será perdido.")
-
-    def perform(self, items, to_trash, progress):
-        done, errors, freed = [], [], 0
-        for it in items:
-            progress(f"Finalizando {it.values[0]}…")
-            ok = True
-            for pid in it.data["pids"]:
-                try:
-                    kill_pid(pid)
-                except Exception as e:  # noqa: BLE001
-                    ok = False
-                    errors.append((f"{it.values[0]} (PID {pid})", str(e) or "acesso negado"))
-            if ok:
-                done.append(it)
-                freed += it.size
-                log(f"PROCESSO FINALIZADO {it.values[0]}")
-        return done, errors, 0
-
-    def after_action(self, done, errors, freed):
-        super().after_action(done, errors, 0)
-        self.start_scan()
-
-    def trim(self):
-        before = memory_info()[1]
-
-        def job(c, p):
-            p("Liberando memória ociosa dos processos…")
-            return trim_memory()
-
-        def done(n):
-            after = memory_info()[1]
-            messagebox.showinfo("Memória", f"Memória ociosa liberada de {n} processos.\n"
-                                f"RAM em uso: {fmt_size(before)} → {fmt_size(after)}\n\n"
-                                "Dica: execute como administrador para alcançar mais processos.", parent=self)
-            self.start_scan()
-
-        self._background(job, done, "Liberando memória…")
-
-
-class StartupTab(ResultsTab):
-    title = "Inicialização"
-    hint = ("Programas que abrem sozinhos quando o computador liga. Cada um consome RAM e deixa a "
-            "inicialização mais lenta. Desativar não desinstala nada e pode ser desfeito a qualquer "
-            "momento (no Windows funciona igual ao Gerenciador de Tarefas).")
-    columns = [("Programa", 260, "w"), ("Situação", 100, "center"), ("Origem", 210, "w"), ("Comando", 520, "w")]
-    scan_label = "Atualizar"
-    action_label = "Desativar selecionados"
-    action_style = "Accent.TButton"
-    uses_trash = False
-    auto_scan = True
-
-    def build_actions(self, f):
-        ttk.Button(f, text="Ativar selecionados", command=lambda: self.toggle(True)).pack(side="left", padx=4)
-
-    def scan_job(self, p, cancel, progress):
-        return scan_startup(cancel, progress)
-
-    def row_tags(self, item):
-        return () if item.data["enabled"] else ("muted",)
-
-    def run_action(self):
-        self.toggle(False)
-
-    def toggle(self, enable):
-        items = self.checked()
-        if not items:
-            messagebox.showinfo("Nada marcado", "Marque um ou mais itens primeiro.", parent=self)
-            return
-        errors = []
-        for it in items:
-            try:
-                set_startup_enabled(it, enable)
-            except Exception as e:  # noqa: BLE001
-                errors.append(f"• {it.values[0]}: {e} (itens de “todos os usuários” exigem administrador)")
-        if errors:
-            messagebox.showwarning("Inicialização", "Alguns itens não puderam ser alterados:\n" + "\n".join(errors),
-                                   parent=self)
-        self.start_scan()
-
-
-# =================================================================== Início e Lixeira
-class OverviewTab(ttk.Frame):
-    title = "Início"
-
-    def __init__(self, master, app):
-        super().__init__(master, padding=14)
-        self.app = app
-        ttk.Label(self, text="Visão geral do computador", style="Title.TLabel").pack(anchor="w")
-        quick = ttk.Frame(self)
-        quick.pack(fill="x", pady=(8, 0))
-        ttk.Button(quick, text="⚡ Limpeza rápida (lixo e temporários)", style="Accent.TButton",
-                   command=lambda: app.show_tab(JunkTab, scan=True)).pack(side="left")
-        ttk.Button(quick, text="Encontrar arquivos grandes",
-                   command=lambda: app.show_tab(LargeFilesTab, scan=True)).pack(side="left", padx=6)
-        ttk.Button(quick, text="Encontrar repetidos",
-                   command=lambda: app.show_tab(DuplicatesTab, scan=True)).pack(side="left")
-
-        self.disk_frame = ttk.LabelFrame(self, text="Discos", padding=10)
-        self.disk_frame.pack(fill="x", pady=(6, 6))
-        self.ram_frame = ttk.LabelFrame(self, text="Memória RAM", padding=10)
-        self.ram_frame.pack(fill="x", pady=6)
-        self.ram_bar = ttk.Progressbar(self.ram_frame, maximum=100, length=400)
-        self.ram_bar.pack(side="left")
-        self.ram_lbl = ttk.Label(self.ram_frame)
-        self.ram_lbl.pack(side="left", padx=10)
-        ttk.Button(self.ram_frame, text="Ver o que está usando a RAM",
-                   command=lambda: app.show_tab(ProcessesTab)).pack(side="right")
-
-        rb = ttk.LabelFrame(self, text="Lixeira", padding=10)
-        rb.pack(fill="x", pady=6)
-        self.rb_lbl = ttk.Label(rb, text="…")
-        self.rb_lbl.pack(side="left")
-        ttk.Button(rb, text="Esvaziar Lixeira", style="Danger.TButton", command=self.empty_bin).pack(side="right")
-        ttk.Button(rb, text="Atualizar", command=self.refresh).pack(side="right", padx=6)
-
-        opts = ttk.LabelFrame(self, text="Opções", padding=10)
-        opts.pack(fill="x", pady=6)
-        ttk.Checkbutton(opts, text="Enviar arquivos apagados para a Lixeira (recomendado — permite recuperar)",
-                        variable=app.to_trash).pack(anchor="w")
-        row = ttk.Frame(opts)
-        row.pack(fill="x", pady=(6, 0))
-        adm = "Executando como administrador ✔" if is_admin() else \
-            "Executando sem privilégios de administrador (algumas pastas do sistema não serão limpas)."
-        ttk.Label(row, text=adm).pack(side="left")
-        if IS_WIN and not is_admin():
-            ttk.Button(row, text="Reabrir como administrador", command=app.elevate).pack(side="left", padx=8)
-        ttk.Button(row, text="Ver histórico de ações",
-                   command=lambda: open_location(os.path.join(app_data_dir(), "historico.log"))).pack(side="right")
-
-        roots = ttk.LabelFrame(self, text="Pastas a analisar (arquivos grandes, repetidos e antigos)", padding=10)
-        roots.pack(fill="both", expand=True, pady=6)
-        self.roots_list = tk.Listbox(roots, height=3, activestyle="none")
-        self.roots_list.pack(side="left", fill="both", expand=True)
-        btns = ttk.Frame(roots)
-        btns.pack(side="left", fill="y", padx=(8, 0))
-        for n, (txt, cmd) in enumerate((("Adicionar pasta…", self.add_root),
-                                        ("Adicionar todos os discos", self.add_drives),
-                                        ("Remover", self.remove_root),
-                                        ("Restaurar padrão", self.reset_roots))):
-            ttk.Button(btns, text=txt, command=cmd).grid(row=n // 2, column=n % 2, sticky="ew", padx=2, pady=2)
-
-        self.refresh_roots()
+        ttk.Label(top, text=title, style="Card.Muted.TLabel").pack(side="left")
+        if action:
+            ttk.Button(top, text=action[0], style="Ghost.TButton", command=action[1]).pack(side="right")
+        body = ttk.Frame(f, style="Flat.TFrame")
+        body.pack(fill="x", pady=(t.px(8), 0))
+        f.gauge = RingGauge(body, t, size=88, thickness=9)
+        f.gauge.pack(side="left")
+        f.big = ttk.Label(body, text="—", style="Card.H2.TLabel")
+        f.big.pack(anchor="w", padx=(t.px(14), 0), pady=(t.px(14), 0))
+        f.small = ttk.Label(body, text="", style="Card.Muted.TLabel")
+        f.small.pack(anchor="w", padx=(t.px(14), 0))
+        return f
+
+    def _color(self, pct):
+        c = self.t.c
+        return c["danger"] if pct > .9 else c["warning"] if pct > .75 else c["success"]
 
     def refresh(self):
-        for w in self.disk_frame.winfo_children():
-            w.destroy()
-        for i, (mount, total, used, free) in enumerate(disks()):
-            ttk.Label(self.disk_frame, text=mount, width=16).grid(row=i, column=0, sticky="w")
-            bar = ttk.Progressbar(self.disk_frame, maximum=100, length=400,
-                                  style="Red.Horizontal.TProgressbar" if total and used / total > 0.9 else
-                                  "Horizontal.TProgressbar")
-            bar["value"] = used * 100 / total if total else 0
-            bar.grid(row=i, column=1, padx=8, pady=2)
-            ttk.Label(self.disk_frame, text=f"{fmt_size(free)} livres de {fmt_size(total)}"
-                      f" ({used * 100 // max(total, 1)}% usado)").grid(row=i, column=2, sticky="w")
+        """Atualiza discos, RAM e Lixeira (rápido) e redesenha o resumo."""
+        t = self.t
+        sysdrive = (os.environ.get("SystemDrive", "C:") + "\\") if IS_WIN else "/"
+        dl = disks()
+        main = next((d for d in dl if d[0].lower() == sysdrive.lower()), dl[0] if dl else None)
+        if main:
+            _, total, used, free = main
+            pct = used / total if total else 0
+            self.disk_card.gauge.set(pct, f"{pct * 100:.0f}%", "", self._color(pct))
+            self.disk_card.big.config(text=fmt_size(free))
+            self.disk_card.small.config(text=f"livres de {fmt_size(total)} ({main[0]})")
         total, used = memory_info()
         if total:
-            self.ram_bar["value"] = used * 100 / total
-            self.ram_lbl.config(text=f"{fmt_size(used)} em uso de {fmt_size(total)} ({used * 100 // total}%)")
+            pct = used / total
+            self.ram_card.gauge.set(pct, f"{pct * 100:.0f}%", "", self._color(pct))
+            self.ram_card.big.config(text=fmt_size(used))
+            self.ram_card.small.config(text=f"em uso de {fmt_size(total)}")
 
         def load_bin():
-            size, count = recycle_bin_info()
-            self.after(0, lambda: self.rb_lbl.config(text=f"{count} item(ns) — {fmt_size(size)}"))
+            size, n = recycle_bin_info()
+            self.after(0, lambda: self._set_bin(size, n))
         threading.Thread(target=load_bin, daemon=True).start()
 
-    def empty_bin(self):
-        size, count = recycle_bin_info()
-        if not count and not size:
-            messagebox.showinfo("Lixeira", "A Lixeira já está vazia.", parent=self)
+        for w in self.disks.winfo_children():
+            w.destroy()
+        ttk.Label(self.disks, text="Unidades de armazenamento", style="Card.H3.TLabel").grid(
+            row=0, column=0, columnspan=3, sticky="w", pady=(0, t.px(10)))
+        for i, (mount, tot, used, free) in enumerate(dl, 1):
+            pct = used / tot if tot else 0
+            ttk.Label(self.disks, text=mount, style="Card.Bold.TLabel", width=18).grid(row=i, column=0, sticky="w")
+            style = "Danger.Horizontal.TProgressbar" if pct > .9 else \
+                "Warning.Horizontal.TProgressbar" if pct > .75 else "Horizontal.TProgressbar"
+            bar = ttk.Progressbar(self.disks, maximum=100, value=pct * 100, style=style)
+            bar.grid(row=i, column=1, sticky="ew", padx=t.px(12), pady=t.px(6))
+            ttk.Label(self.disks, text=f"{fmt_size(free)} livres de {fmt_size(tot)}",
+                      style="Card.Muted.TLabel").grid(row=i, column=2, sticky="e")
+        self.disks.columnconfigure(1, weight=1)
+        self.render_summary()
+
+    def _set_bin(self, size, n):
+        self.bin_size = size
+        self.bin_card.gauge.set(0, str(n), "itens", self.t.c["accent"])
+        self.bin_card.big.config(text=fmt_size(size))
+        self.bin_card.small.config(text="podem ser liberados" if size else "a Lixeira está vazia")
+        self.render_hero()
+
+    # ---- resumo / destaque
+    def render_hero(self):
+        s = self.summary
+        if self.busy:
             return
-        if messagebox.askyesno("Esvaziar Lixeira", f"Apagar permanentemente {count} item(ns) ({fmt_size(size)}) "
-                               "da Lixeira?", icon="warning", parent=self):
+        if not s:
+            self.score.set(0, "—", "saúde", self.t.c["subtle"])
+            self.h_title.config(text="Vamos deixar seu PC mais leve")
+            self.h_desc.config(text="A análise completa procura lixo, cache, arquivos repetidos, grandes e antigos, "
+                                    "restos de programas e o que abre junto com o sistema. Nada é apagado sem a "
+                                    "sua confirmação.")
+            self.btn_clean.pack_forget()
+            self.btn_scan.config(text="Analisar agora", style="Big.Primary.TButton")
+            return
+        dl = disks()
+        dpct = max((u / t for _, t, u, _ in dl if t), default=0)
+        tot, used = memory_info()
+        sc = health_score(dpct, used / tot if tot else 0, s.get("junk", 0), getattr(self, "bin_size", 0),
+                          s.get("startup", 0), s.get("dups", 0))
+        col = self.t.c["success"] if sc >= 70 else self.t.c["warning"] if sc >= 50 else self.t.c["danger"]
+        self.score.set(sc / 100, str(sc), score_label(sc), col)
+        junk = s.get("junk", 0)
+        free_total = junk + s.get("dups", 0)
+        self.h_title.config(text=f"Você pode liberar até {fmt_size(free_total)}" if free_total else
+                            "Seu computador está limpo!")
+        self.h_desc.config(text=f"Última análise em {s.get('when', '—')}. "
+                                f"{fmt_size(junk)} em lixo e cache podem ser limpos com segurança agora; "
+                                "o restante (repetidos, grandes, antigos) vale revisar item a item.")
+        if junk and self.app.page_exists("junk"):
+            self.btn_clean.config(text=f"Limpar {fmt_size(junk)} com segurança")
+            self.btn_clean.pack(side="left", padx=(0, self.t.px(10)), before=self.btn_scan)
+            self.btn_scan.config(text="Analisar de novo", style="TButton")
+        else:
+            self.btn_clean.pack_forget()
+            self.btn_scan.config(text="Analisar de novo", style="Big.Primary.TButton")
+
+    def render_summary(self):
+        t = self.t
+        for w in self.res.winfo_children():
+            w.destroy()
+        ttk.Label(self.res, text="Resultado da análise", style="Card.H3.TLabel").pack(anchor="w")
+        s = self.summary
+        if not s:
+            ttk.Label(self.res, text="Nenhuma análise feita ainda. Clique em “Analisar agora”.",
+                      style="Card.Muted.TLabel").pack(anchor="w", pady=(t.px(8), 0))
+            self.render_hero()
+            return
+        rows = [
+            ("sparkles", "Lixo e cache", "Temporários, caches de navegadores, relatórios de erro e Lixeira",
+             fmt_size(s.get("junk", 0)), "junk", s.get("junk", 0) > 0),
+            ("copy", "Arquivos repetidos", f"{s.get('dup_groups', 0)} grupos de arquivos idênticos",
+             fmt_size(s.get("dups", 0)), "dups", s.get("dups", 0) > 0),
+            ("file", "Arquivos grandes", f"{s.get('large_n', 0)} arquivos grandes para revisar",
+             fmt_size(s.get("large", 0)), "large", False),
+            ("clock", "Arquivos antigos", f"{s.get('old_n', 0)} arquivos sem uso há mais de 1 ano",
+             fmt_size(s.get("old", 0)), "old", False),
+            ("package", "Restos de programas", f"{s.get('left_n', 0)} possíveis sobras de programas desinstalados",
+             fmt_size(s.get("left", 0)), "leftovers", s.get("left_n", 0) > 0),
+            ("grid", "Programas pouco usados", f"Sem uso há mais de 90 dias, de {s.get('prog_total', 0)} instalados",
+             str(s.get("prog_unused", 0)), "programs", s.get("prog_unused", 0) > 0),
+            ("power", "Inicialização", "Programas que abrem sozinhos com o sistema",
+             str(s.get("startup", 0)), "startup", s.get("startup", 0) > 5),
+        ]
+        for icon, title, desc, value, key, attention in rows:
+            ttk.Frame(self.res, style="Sep.TFrame", height=1).pack(fill="x", pady=(t.px(10), t.px(10)))
+            row = ttk.Frame(self.res, style="Flat.TFrame", cursor="hand2")
+            row.pack(fill="x")
+            ic = _soft_icon(row, t, icon, 38, soft=t.c["warning_soft"] if attention else None,
+                            fg=t.c["warning"] if attention else None)
+            ic.pack(side="left")
+            mid = ttk.Frame(row, style="Flat.TFrame")
+            mid.pack(side="left", fill="x", expand=True, padx=t.px(14))
+            ttk.Label(mid, text=title, style="Card.Bold.TLabel").pack(anchor="w")
+            ttk.Label(mid, text=desc, style="Card.Small.TLabel").pack(anchor="w")
+            ttk.Button(row, text="Ver  ›", style="Ghost.TButton", command=lambda k=key: self.app.show(k)).pack(side="right")
+            ttk.Label(row, text=value, style="Card.H3.TLabel").pack(side="right", padx=t.px(16))
+            for w in (row, mid, ic):
+                w.bind("<Button-1>", lambda e, k=key: self.app.show(k))
+        self.render_hero()
+
+    # ---- análise completa
+    def smart_scan(self):
+        if self.busy:
+            return
+        pages = {k: self.app.page(k) for k, _ in self.STEPS}
+        if any(p.busy for p in pages.values()):
+            messagebox.showinfo("Aguarde", "Há uma análise em andamento em outra página.", parent=self)
+            return
+        params = {}
+        for k, p in pages.items():
+            prm = p.get_params() or {}
+            prm["roots"] = list(self.app.settings["roots"])
+            params[k] = prm
+        self.busy = True
+        self.btn_scan.pack_forget()
+        self.btn_clean.pack_forget()
+        self.btn_stop.pack(side="left")
+        self.prog.configure(value=0)
+        self.prog.pack(fill="x", pady=(self.t.px(14), 0))
+        self.lbl_prog.pack(anchor="w", pady=(self.t.px(6), 0))
+        self.h_title.config(text="Analisando seu computador…")
+        self.h_desc.config(text="Isso pode levar alguns minutos na primeira vez. Você pode continuar usando o PC.")
+        self.score.set(0, "…", "analisando", self.t.c["accent"])
+        self.step = 0
+
+        def job(cancel, progress):
+            out = {}
+            for i, (k, label) in enumerate(self.STEPS):
+                if cancel.is_set():
+                    break
+                self.step = i
+                progress(f"Etapa {i + 1} de {len(self.STEPS)}: {label}…")
+                try:
+                    out[k] = pages[k].scan_job(params[k], cancel, lambda s, lb=label, i=i:
+                                               progress(f"Etapa {i + 1} de {len(self.STEPS)}: {lb} — {s}"))
+                except Exception as e:  # noqa: BLE001
+                    log(f"ERRO na análise ({k}): {e}")
+                    out[k] = []
+            return out
+
+        def done(out):
+            self.busy = False
+            for k, items in (out or {}).items():
+                p = pages[k]
+                p._scanned = True
+                p.populate(items)
+                p.show_progress(f"{len(items)} itens (da análise completa).")
+            if out:
+                self._summarize(out)
+            self.btn_stop.pack_forget()
+            self.prog.pack_forget()
+            self.lbl_prog.pack_forget()
+            self.btn_scan.pack(side="left")
+            self.render_summary()
+            if out:
+                self.app.toast("Análise concluída!")
+
+        self.run_bg(job, done, "Preparando…")
+
+    def show_progress(self, text):
+        self.lbl_prog.config(text=text)
+        self.prog.configure(value=getattr(self, "step", 0) + 0.5)
+
+    def _summarize(self, out):
+        import datetime
+        junk = out.get("junk", [])
+        dups = out.get("dups", [])
+        large = out.get("large", [])
+        old = out.get("old", [])
+        left = out.get("leftovers", [])
+        progs = out.get("programs", [])
+        start = out.get("startup", [])
+        self.summary = {
+            "when": datetime.datetime.now().strftime("%d/%m/%Y às %H:%M"),
+            "junk": sum(i.size for i in junk if i.checked),
+            "dups": sum(i.size for i in dups if i.checked), "dup_groups": len({i.group for i in dups}),
+            "large": sum(i.size for i in large), "large_n": len(large),
+            "old": sum(i.size for i in old), "old_n": len(old),
+            "left": sum(i.size for i in left), "left_n": len(left),
+            "prog_total": len(progs), "prog_unused": sum(1 for i in progs if i.values[-1] == "Pouco usado"),
+            "startup": sum(1 for i in start if i.data.get("enabled")),
+        }
+        self.app.settings.set("last_scan", self.summary)
+
+    def clean_recommended(self):
+        jp = self.app.page("junk")
+        items = jp.checked()
+        if not items:
+            self.app.show("junk")
+            return
+        total = sum(i.size for i in items)
+        if not messagebox.askyesno("Limpeza recomendada",
+                                   f"Limpar {len(items)} locais de lixo e cache ({fmt_size(total)})?\n\n"
+                                   "Inclui temporários, caches e a Lixeira (se marcada). Seus documentos, "
+                                   "fotos e programas não são tocados.", parent=self):
+            return
+        self.busy = True
+        self.btn_clean.config(state="disabled")
+        self.lbl_prog.pack(anchor="w", pady=(self.t.px(8), 0))
+
+        def done(res):
+            self.busy = False
+            self.btn_clean.config(state="normal")
+            self.lbl_prog.pack_forget()
+            d, errors, freed = res
+            jp.after_action(d, [], freed)
+            if self.summary:
+                self.summary["junk"] = sum(i.size for i in jp.checked())
+                self.app.settings.set("last_scan", self.summary)
+            self.refresh()
+
+        self.run_bg(lambda c, p: jp.perform(items, False, p), done, "Limpando…")
+
+    def empty_bin(self):
+        size, n = recycle_bin_info()
+        if not n and not size:
+            self.app.toast("A Lixeira já está vazia.")
+            return
+        if messagebox.askyesno("Esvaziar Lixeira", f"Apagar permanentemente {n} item(ns) ({fmt_size(size)})?",
+                               icon="warning", parent=self):
             try:
                 empty_recycle_bin()
-                messagebox.showinfo("Lixeira", f"Lixeira esvaziada. {fmt_size(size)} liberados.", parent=self)
+                self.app.toast(f"Lixeira esvaziada · {fmt_size(size)} liberados")
             except Exception as e:  # noqa: BLE001
                 messagebox.showerror("Lixeira", str(e), parent=self)
             self.refresh()
 
-    def refresh_roots(self):
-        self.roots_list.delete(0, "end")
-        for r in self.app.roots:
-            self.roots_list.insert("end", r)
-        self.app.roots_changed()
+    def on_show(self):
+        if not self.busy:
+            self.refresh()
 
-    def add_root(self):
-        d = filedialog.askdirectory(parent=self, title="Escolha uma pasta para analisar")
+    def busy_now(self):
+        return self.busy
+
+
+# =================================================================== MAPA DO DISCO
+class DiskMapPage(BackgroundMixin, Page):
+    key, icon, title = "diskmap", "pie", "Mapa do disco"
+    subtitle = ("Descubra o que está ocupando espaço: veja o tamanho de cada pasta, navegue pelas subpastas e "
+                "apague o que não precisa. O gráfico mostra o espaço por tipo de arquivo.")
+
+    def __init__(self, master, app):
+        super().__init__(master, app)
+        t, c = self.t, self.t.c
+        self.busy = False
+        self.cancel = threading.Event()
+        self.nodes: dict[str, object] = {}
+        self.root_node = None
+        bar = card(self.body, t, 12, fill="x")
+        targets = [d[0] for d in disks()] + [home()]
+        self.target = tk.StringVar(value=home())
+        ttk.Label(bar, text="Analisar", style="Card.TLabel").pack(side="left")
+        self.cb = ttk.Combobox(bar, textvariable=self.target, values=targets, width=40)
+        self.cb.pack(side="left", padx=t.px(8))
+        ttk.Button(bar, text="Escolher pasta…", command=self.pick).pack(side="left")
+        self.btn_scan = ttk.Button(bar, text="Analisar", style="Primary.TButton", command=self.start)
+        self.btn_scan.pack(side="right")
+        self.btn_stop = ttk.Button(bar, text="Parar", command=lambda: self.cancel.set())
+        prog = ttk.Frame(self.body)
+        prog.pack(fill="x", pady=(t.px(10), t.px(6)))
+        self.lbl = ttk.Label(prog, text="", style="Small.TLabel")
+        self.lbl.pack(side="left")
+        self.pbar = ttk.Progressbar(prog, mode="indeterminate", style="Thin.Horizontal.TProgressbar")
+
+        main = ttk.Frame(self.body)
+        main.pack(fill="both", expand=True)
+        main.columnconfigure(0, weight=1)
+        main.rowconfigure(0, weight=1)
+        tc = ttk.Frame(main, style="Card.TFrame", padding=1)
+        tc.grid(row=0, column=0, sticky="nsew")
+        self.tree = ttk.Treeview(tc, columns=("size", "bar", "items", "mod"), selectmode="extended")
+        self.tree.heading("#0", text="NOME", anchor="w")
+        self.tree.column("#0", width=t.px(330))
+        for col, head, w, anc in (("size", "TAMANHO", 95, "e"), ("bar", "USO NA PASTA", 190, "w"),
+                                  ("items", "ARQUIVOS", 90, "e"), ("mod", "MODIFICADO", 105, "center")):
+            self.tree.heading(col, text=head, anchor=anc if anc != "center" else "center")
+            self.tree.column(col, width=t.px(w), anchor=anc, stretch=col == "bar")
+        vsb = ttk.Scrollbar(tc, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=vsb.set)
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        tc.rowconfigure(0, weight=1)
+        tc.columnconfigure(0, weight=1)
+        self.tree.tag_configure("odd", background=c["row_alt"])
+        self.tree.tag_configure("file", foreground=c["muted"])
+        self.tree.bind("<<TreeviewOpen>>", self.on_open)
+        self.tree.bind("<Double-1>", lambda e: self.open_sel())
+        self.empty = ttk.Label(tc, text="Escolha um disco ou pasta e clique em “Analisar”.",
+                               style="Card.Muted.TLabel", justify="center")
+        self.empty.place(relx=0.5, rely=0.5, anchor="center")
+        self.img_folder, self.img_file = self._make_icons()
+
+        side = card(main, t, 18)
+        side.grid(row=0, column=1, sticky="nsew", padx=(t.px(16), 0))
+        ttk.Label(side, text="Por tipo de arquivo", style="Card.H3.TLabel").pack(anchor="w")
+        self.lbl_total = ttk.Label(side, text="", style="Card.Muted.TLabel")
+        self.lbl_total.pack(anchor="w", pady=(t.px(2), t.px(14)))
+        self.chart = CategoryBars(side, t, CATEGORY_COLORS, width=280)
+        self.chart.pack(fill="x")
+        self.chart.set([])
+
+        foot = ttk.Frame(self.body)
+        foot.pack(fill="x", pady=(t.px(12), 0))
+        ttk.Button(foot, text="Abrir local", command=self.open_sel).pack(side="left")
+        ttk.Label(foot, text="Selecione linhas (Ctrl/Shift para várias) e use o botão ao lado.",
+                  style="Small.TLabel").pack(side="left", padx=t.px(12))
+        self.btn_del = ttk.Button(foot, text="Apagar selecionados", style="Danger.TButton", command=self.delete_sel)
+        self.btn_del.pack(side="right")
+
+    def _make_icons(self):
+        s = self.t.px(16)
+        c = self.t.c
+        folder = tk.PhotoImage(width=s, height=s)
+        k = s / 16
+        rect = lambda img, x0, y0, x1, y1, col: img.put(col, to=(int(x0 * k), int(y0 * k), int(x1 * k), int(y1 * k)))  # noqa: E731
+        rect(folder, 1, 3, 7, 5, "#f2b33d")
+        rect(folder, 1, 4, 15, 14, "#f6c453")
+        rect(folder, 1, 6, 15, 7, "#e9a92a")
+        file = tk.PhotoImage(width=s, height=s)
+        rect(file, 3, 1, 13, 15, c["subtle"])
+        rect(file, 4, 2, 12, 14, c["surface"])
+        rect(file, 5, 5, 11, 6, c["subtle"])
+        rect(file, 5, 8, 11, 9, c["subtle"])
+        rect(file, 5, 11, 9, 12, c["subtle"])
+        return folder, file
+
+    def pick(self):
+        d = filedialog.askdirectory(parent=self, title="Escolha a pasta para analisar")
         if d:
-            d = os.path.normpath(d)
-            if d not in self.app.roots:
-                self.app.roots.append(d)
-            self.refresh_roots()
+            self.target.set(os.path.normpath(d))
 
-    def add_drives(self):
-        for d in fixed_drives():
-            if d not in self.app.roots:
-                self.app.roots.append(d)
-        self.refresh_roots()
+    def show_progress(self, text):
+        self.lbl.config(text=text)
 
-    def remove_root(self):
-        for idx in reversed(self.roots_list.curselection()):
-            del self.app.roots[idx]
-        self.refresh_roots()
+    def busy_now(self):
+        return self.busy
 
-    def reset_roots(self):
-        self.app.roots[:] = [home()]
-        self.refresh_roots()
+    def _busy(self, b):
+        self.busy = b
+        self.btn_scan.config(state="disabled" if b else "normal")
+        self.btn_del.config(state="disabled" if b else "normal")
+        if b:
+            self.btn_stop.pack(side="right", padx=self.t.px(8), before=self.btn_scan)
+        else:
+            self.btn_stop.pack_forget()
+        if b:
+            self.pbar.pack(side="right", fill="x", expand=True, padx=(self.t.px(20), 0))
+            self.pbar.start(12)
+        else:
+            self.pbar.stop()
+            self.pbar.pack_forget()
+        self.app.set_nav_busy(self.key, b)
+
+    def start(self):
+        target = self.target.get().strip()
+        if not os.path.isdir(target):
+            messagebox.showerror("Pasta inválida", "Escolha um disco ou uma pasta existente.", parent=self)
+            return
+        self._busy(True)
+        self.empty.config(text="Analisando…")
+        self.run_bg(lambda c, p: analyze(target, c, p), self.populate, "Analisando…",
+                    on_finally=lambda: self._busy(False))
+
+    def populate(self, res):
+        root, cats, counts = res
+        self.root_node = root
+        self.tree.delete(*self.tree.get_children(""))
+        self.nodes = {}
+        self.empty.place_forget()
+        iid = self._insert("", root, root.size or 1, 0)
+        self.tree.item(iid, open=True)
+        self._fill(iid)
+        data = sorted(((n, cats[n], counts[n]) for n in CATEGORY_NAMES), key=lambda x: x[1], reverse=True)
+        self.chart.set(data)
+        self.lbl_total.config(text=f"{fmt_size(root.size)} em {root.files:,}".replace(",", ".") + " arquivos")
+
+    def _bar(self, size, parent_size):
+        frac = size / parent_size if parent_size else 0
+        n = int(round(frac * 16))
+        pct = f"{frac * 100:.1f}%".replace(".", ",")
+        return f"{pct:>6}   {'█' * n}"
+
+    def _insert(self, parent_iid, node, parent_size, idx):
+        name = node.name if parent_iid else node.path
+        iid = self.tree.insert(parent_iid, "end", text=f"  {name}", image=self.img_folder,
+                               values=(fmt_size(node.size), self._bar(node.size, parent_size),
+                                       f"{node.files:,}".replace(",", "."), fmt_date(node.mtime)),
+                               tags=("odd",) if idx % 2 else ())
+        self.nodes[iid] = node
+        if node.children or node.top_files:
+            self.tree.insert(iid, "end", text="…")
+        return iid
+
+    def _fill(self, iid):
+        node = self.nodes.get(iid)
+        if node is None or getattr(node, "path", None) is None:
+            return
+        kids = self.tree.get_children(iid)
+        if len(kids) == 1 and self.tree.item(kids[0], "text") == "…":
+            self.tree.delete(kids[0])
+        elif kids:
+            return
+        entries = [("d", ch.size, ch) for ch in node.children] + [("f", sz, (sz, nm, mt)) for sz, nm, mt in node.top_files]
+        entries.sort(key=lambda e: e[1], reverse=True)
+        for i, (kind, size, obj) in enumerate(entries[:400]):
+            if kind == "d":
+                self._insert(iid, obj, node.size, i)
+            else:
+                sz, nm, mt = obj
+                fid = self.tree.insert(iid, "end", text=f"  {nm}", image=self.img_file,
+                                       values=(fmt_size(sz), self._bar(sz, node.size), "", fmt_date(mt)),
+                                       tags=("file",) + (("odd",) if i % 2 else ()))
+                self.nodes[fid] = ("file", os.path.join(node.path, nm), sz, node)
+        if node.hidden_files > 0:
+            self.tree.insert(iid, "end", text=f"  + {node.hidden_files} arquivos menores", tags=("file",))
+
+    def on_open(self, _):
+        self._fill(self.tree.focus())
+
+    def _sel_paths(self):
+        out = []
+        for iid in self.tree.selection():
+            obj = self.nodes.get(iid)
+            if obj is None:
+                continue
+            if isinstance(obj, tuple):
+                out.append((iid, obj[1], obj[2], obj[3], 1))
+            elif obj is not self.root_node:
+                out.append((iid, obj.path, obj.size, obj.parent, obj.files))
+        return out
+
+    def open_sel(self):
+        for _, path, *_ in self._sel_paths()[:5]:
+            open_location(path)
+
+    def delete_sel(self):
+        sel = self._sel_paths()
+        if not sel:
+            messagebox.showinfo("Nada selecionado", "Selecione pastas ou arquivos na lista (clique na linha).",
+                                parent=self)
+            return
+        prot = [p for _, p, *_ in sel if is_protected(p)]
+        if prot:
+            messagebox.showwarning("Protegido", "Itens do sistema não podem ser apagados:\n" + "\n".join(prot[:5]),
+                                   parent=self)
+            return
+        to_trash = self.app.settings["to_trash"]
+        total = sum(s[2] for s in sel)
+        names = "\n".join(f"• {os.path.basename(p)}" for _, p, *_ in sel[:8])
+        modo = "Vão para a Lixeira." if to_trash else "Serão apagados PERMANENTEMENTE."
+        if not messagebox.askyesno("Confirmar", f"Apagar {len(sel)} item(ns) ({fmt_size(total)})?\n\n{names}\n\n{modo}",
+                                   icon="warning", parent=self):
+            return
+
+        def job(cancel, progress):
+            done, errors = [], []
+            for s in sel:
+                progress(f"Apagando {os.path.basename(s[1])}…")
+                try:
+                    delete_path(s[1], to_trash)
+                    log(f"{'LIXEIRA' if to_trash else 'APAGADO'} {s[1]} ({fmt_size(s[2])})")
+                    done.append(s)
+                except Exception as e:  # noqa: BLE001
+                    errors.append((s[1], str(e)))
+            return done, errors
+
+        def after(res):
+            done, errors = res
+            freed = 0
+            for iid, path, size, parent, files in done:
+                obj = self.nodes.pop(iid, None)
+                if parent is not None:
+                    if not isinstance(obj, tuple) and obj in parent.children:
+                        parent.children.remove(obj)
+                    elif isinstance(obj, tuple):
+                        parent.top_files = [f for f in parent.top_files if os.path.join(parent.path, f[1]) != path]
+                    remove_size(parent, size, files)
+                freed += size
+                if self.tree.exists(iid):
+                    self.tree.delete(iid)
+            self._refresh_values("")
+            if done:
+                self.app.toast(f"{len(done)} item(ns) apagado(s) · {fmt_size(freed)} liberados")
+            if errors:
+                messagebox.showwarning("Alguns itens foram pulados",
+                                       "\n".join(f"• {os.path.basename(p)}: {m}" for p, m in errors[:10]), parent=self)
+            self.app.data_changed()
+
+        self._busy(True)
+        self.run_bg(job, after, "Apagando…", on_finally=lambda: self._busy(False))
+
+    def _refresh_values(self, iid, parent_size=None):
+        for ch in self.tree.get_children(iid):
+            obj = self.nodes.get(ch)
+            if obj is None or isinstance(obj, tuple):
+                continue
+            ps = parent_size if parent_size is not None else (obj.size or 1)
+            self.tree.set(ch, "size", fmt_size(obj.size))
+            self.tree.set(ch, "bar", self._bar(obj.size, ps))
+            self.tree.set(ch, "items", f"{obj.files:,}".replace(",", "."))
+            if self.tree.item(ch, "open"):
+                self._refresh_values(ch, obj.size or 1)
 
 
-# =================================================================== janela principal
+# =================================================================== FERRAMENTAS
+class ToolsPage(BackgroundMixin, Page):
+    key, icon, title = "tools", "tools", "Ferramentas"
+    subtitle = "Ajustes do sistema que liberam espaço ou resolvem problemas. Algumas pedem permissão de administrador."
+
+    def __init__(self, master, app):
+        super().__init__(master, app)
+        t = self.t
+        self.cancel = threading.Event()
+        sf = ScrollFrame(self.body, t)
+        sf.pack(fill="both", expand=True)
+        grid = sf.inner
+        grid.columnconfigure((0, 1), weight=1, uniform="tools")
+        tools = available_tools()
+        if not tools:
+            ttk.Label(grid, text="Nenhuma ferramenta disponível neste sistema.", style="Muted.TLabel").grid(row=0, column=0)
+        for i, tool in enumerate(tools):
+            f = card(grid, t, 18)
+            f.grid(row=i // 2, column=i % 2, sticky="nsew", padx=(0 if i % 2 == 0 else t.px(8), t.px(8) if i % 2 == 0 else 0),
+                   pady=(0, t.px(16)))
+            top = ttk.Frame(f, style="Flat.TFrame")
+            top.pack(fill="x")
+            _soft_icon(top, t, tool.icon, 40).pack(side="left")
+            ttk.Label(top, text=tool.title, style="Card.H3.TLabel").pack(side="left", padx=t.px(12))
+            if tool.badge:
+                ttk.Label(top, text=f"  {tool.badge}  ", style="Badge.TLabel").pack(side="right")
+            ttk.Label(f, text=tool.desc, style="Card.Muted.TLabel", wraplength=t.px(400), justify="left").pack(
+                anchor="w", pady=(t.px(12), t.px(14)))
+            ttk.Button(f, text=tool.button, style="Primary.TButton" if tool.kind != "open" else "TButton",
+                       command=lambda tool=tool: self.run(tool)).pack(anchor="w")
+
+    def run(self, tool):
+        if tool.kind in ("open", "admin_console"):
+            msg = run_tool(tool)
+            if msg:
+                messagebox.showinfo(tool.title, msg, parent=self)
+            return
+        self.app.toast(f"Executando: {tool.title}…", kind="info")
+        self.run_bg(lambda c, p: run_tool(tool), lambda msg: messagebox.showinfo(tool.title, msg or "Concluído.",
+                                                                                  parent=self))
+
+
+# =================================================================== CONFIGURAÇÕES
+class SettingsPage(Page):
+    key, icon, title = "settings", "gear", "Configurações"
+    subtitle = "Personalize o LimpaPC. As escolhas ficam salvas para as próximas vezes."
+
+    def __init__(self, master, app):
+        super().__init__(master, app)
+        t, s = self.t, app.settings
+        sf = ScrollFrame(self.body, t)
+        sf.pack(fill="both", expand=True)
+        root = sf.inner
+
+        def section(title, desc=""):
+            f = card(root, t, 20, fill="x", pady=(0, t.px(14)))
+            ttk.Label(f, text=title, style="Card.H3.TLabel").pack(anchor="w")
+            if desc:
+                ttk.Label(f, text=desc, style="Card.Muted.TLabel", wraplength=t.px(760), justify="left").pack(
+                    anchor="w", pady=(t.px(2), t.px(10)))
+            return f
+
+        f = section("Aparência", "Escolha o tema da janela.")
+        self.theme_var = tk.StringVar(value=s["theme"])
+        row = ttk.Frame(f, style="Flat.TFrame")
+        row.pack(anchor="w")
+        for val, label in (("auto", "Automático (igual ao sistema)"), ("light", "Claro"), ("dark", "Escuro")):
+            ttk.Radiobutton(row, text=label, value=val, variable=self.theme_var, style="Card.TRadiobutton",
+                            command=self.change_theme).pack(side="left", padx=(0, t.px(22)))
+
+        f = section("Segurança")
+        self.trash_var = tk.BooleanVar(value=s["to_trash"])
+        ttk.Checkbutton(f, text="Enviar arquivos apagados para a Lixeira (recomendado — permite desfazer)",
+                        variable=self.trash_var, style="Card.TCheckbutton",
+                        command=lambda: s.set("to_trash", self.trash_var.get())).pack(anchor="w")
+        adm = ttk.Frame(f, style="Flat.TFrame")
+        adm.pack(fill="x", pady=(t.px(12), 0))
+        if is_admin():
+            ttk.Label(adm, text="  Executando como administrador  ", style="BadgeOk.TLabel").pack(side="left")
+        else:
+            ttk.Label(adm, text="Sem permissão de administrador: pastas do sistema e a recuperação profunda "
+                                "ficam limitadas.", style="Card.Muted.TLabel").pack(side="left")
+            if IS_WIN:
+                ttk.Button(adm, text="Reabrir como administrador", command=app.elevate).pack(side="right")
+
+        f = section("Pastas analisadas", "Usadas para procurar arquivos grandes, repetidos e antigos.")
+
+        def all_drives(items):
+            for d in fixed_drives():
+                if d not in items:
+                    items.append(d)
+
+        def default(items):
+            items[:] = [home()]
+
+        ListEditor(f, t, s["roots"], lambda items: (s.save(), app.roots_changed()),
+                   extra=(("Adicionar todos os discos", all_drives), ("Restaurar padrão", default))).pack(fill="x")
+
+        f = section("Exclusões", "Pastas que o LimpaPC nunca vai analisar nem sugerir apagar.")
+        ListEditor(f, t, s["exclusions"], lambda items: (s.save(), set_exclusions(items))).pack(fill="x")
+
+        f = section("Atualizações")
+        self.upd_var = tk.BooleanVar(value=s["check_updates"])
+        ttk.Checkbutton(f, text="Verificar novas versões ao abrir o programa", variable=self.upd_var,
+                        style="Card.TCheckbutton", command=lambda: s.set("check_updates", self.upd_var.get())).pack(anchor="w")
+        ttk.Button(f, text="Verificar agora", command=lambda: app.check_updates(manual=True)).pack(anchor="w", pady=(t.px(10), 0))
+
+        f = section("Dados e privacidade",
+                    "O LimpaPC funciona 100% no seu computador: não coleta nem envia nenhum dado. A internet só é "
+                    "usada para verificar se existe uma nova versão (e isso pode ser desligado acima). Todas as "
+                    "ações ficam registradas num histórico local.")
+        row = ttk.Frame(f, style="Flat.TFrame")
+        row.pack(anchor="w")
+        ttk.Button(row, text="Abrir histórico de ações",
+                   command=lambda: open_location(os.path.join(app_data_dir(), "historico.log"))).pack(side="left")
+        ttk.Button(row, text="Abrir pasta de dados", command=lambda: open_location(app_data_dir())).pack(
+            side="left", padx=t.px(8))
+
+    def change_theme(self):
+        self.app.settings.set("theme", self.theme_var.get())
+        self.app.rebuild("settings")
+
+
+# =================================================================== SOBRE
+class AboutPage(Page):
+    key, icon, title = "about", "info", "Sobre"
+    subtitle = ""
+
+    def __init__(self, master, app):
+        super().__init__(master, app)
+        t, c = self.t, self.t.c
+        f = card(self.body, t, 30, fill="x")
+        top = ttk.Frame(f, style="Flat.TFrame")
+        top.pack(fill="x")
+        cv = tk.Canvas(top, width=t.px(84), height=t.px(84), bg=c["surface"], highlightthickness=0)
+        draw_logo(cv, 2, 2, t.px(80))
+        cv.pack(side="left")
+        info = ttk.Frame(top, style="Flat.TFrame")
+        info.pack(side="left", padx=t.px(20))
+        name = ttk.Frame(info, style="Flat.TFrame")
+        name.pack(anchor="w")
+        ttk.Label(name, text=APP_NAME, style="Card.H1.TLabel").pack(side="left")
+        ttk.Label(name, text=f"  versão {__version__}  ", style="Badge.TLabel").pack(side="left", padx=t.px(12))
+        ttk.Label(info, text="Limpeza, otimização e recuperação de arquivos para o seu computador.",
+                  style="Card.Muted.TLabel").pack(anchor="w", pady=(t.px(4), 0))
+        ttk.Label(info, text="Gratuito e de código aberto · sem anúncios · sem coleta de dados",
+                  style="Card.Accent.TLabel").pack(anchor="w", pady=(t.px(6), 0))
+
+        feats = card(self.body, t, 24, fill="x", pady=(t.px(16), 0))
+        ttk.Label(feats, text="O que o LimpaPC faz", style="Card.H3.TLabel").grid(row=0, column=0, columnspan=2,
+                                                                                    sticky="w", pady=(0, t.px(12)))
+        items = [("sparkles", "Limpa lixo, cache e temporários"), ("pie", "Mostra o que ocupa o disco"),
+                 ("copy", "Encontra arquivos repetidos"), ("file", "Lista arquivos grandes e antigos"),
+                 ("grid", "Desinstala programas sem uso"), ("package", "Remove restos de programas"),
+                 ("chip", "Libera memória RAM"), ("power", "Controla a inicialização"),
+                 ("trash", "Restaura itens da Lixeira"), ("download", "Recupera arquivos apagados")]
+        for i, (ic, txt) in enumerate(items):
+            r = ttk.Frame(feats, style="Flat.TFrame")
+            r.grid(row=1 + i // 2, column=i % 2, sticky="w", pady=t.px(5), padx=(0, t.px(40)))
+            Icon(r, ic, t.px(18), c["accent"], c["surface"]).pack(side="left")
+            ttk.Label(r, text=txt, style="Card.TLabel").pack(side="left", padx=t.px(10))
+
+        row = ttk.Frame(self.body)
+        row.pack(anchor="w", pady=(t.px(16), 0))
+        ttk.Button(row, text="Site do projeto", style="Primary.TButton", command=lambda: open_uri(HOMEPAGE)).pack(side="left")
+        ttk.Button(row, text="Verificar atualizações", command=lambda: app.check_updates(manual=True)).pack(
+            side="left", padx=t.px(8))
+        ttk.Button(row, text="Licença (MIT)", command=lambda: open_uri(HOMEPAGE + "/blob/main/limpador/LICENSE")).pack(side="left")
+        ttk.Label(self.body, text=f"© {APP_NAME} — distribuído sob a licença MIT. Use por sua conta e risco: revise "
+                                  "sempre o que vai apagar.", style="Small.TLabel").pack(anchor="w", pady=(t.px(18), 0))
+
+
+# =================================================================== JANELA PRINCIPAL
+NAV = [
+    (None, [DashboardPage]),
+    ("LIMPEZA", [JunkPage, DiskMapPage, LargeFilesPage, DuplicatesPage, OldFilesPage]),
+    ("PROGRAMAS", [ProgramsPage, LeftoversPage, StartupPage]),
+    ("DESEMPENHO", [ProcessesPage, ToolsPage]),
+    ("RECUPERAÇÃO", [TrashPage, RecoverPage]),
+]
+BOTTOM = [SettingsPage, AboutPage]
+NAV_TITLES = {"junk": "Lixo e cache", "large": "Arquivos grandes", "dups": "Repetidos", "old": "Arquivos antigos",
+              "leftovers": "Restos de programas", "trash": "Lixeira", "recover": "Recuperar apagados",
+              "ram": "Memória RAM"}
+
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title(f"LimpaPC {__version__} — limpeza e otimização do computador")
-        self.geometry("1200x800")
-        self.minsize(950, 600)
-        self._style()
-        self.roots = [home()]
-        self.to_trash = tk.BooleanVar(value=True)
-
-        header = ttk.Frame(self, padding=(14, 10, 14, 0))
-        header.pack(fill="x")
-        ttk.Label(header, text="🧹 LimpaPC", style="Brand.TLabel").pack(side="left")
-        ttk.Label(header, text="Libere espaço em disco e memória RAM", style="Hint.TLabel").pack(side="left", padx=12)
-
-        self.nb = ttk.Notebook(self)
-        self.nb.pack(fill="both", expand=True, padx=8, pady=8)
-        self.tabs = {}
-        for cls in (OverviewTab, JunkTab, LargeFilesTab, DuplicatesTab, OldFilesTab, LeftoversTab,
-                    ProgramsTab, ProcessesTab, StartupTab):
-            tab = cls(self.nb, self)
-            self.nb.add(tab, text=cls.title)
-            self.tabs[cls] = tab
-        self.nb.bind("<<NotebookTabChanged>>", self._tab_changed)
-        self.after(100, self.tabs[OverviewTab].refresh)
+        self.withdraw()
+        self.title(f"{APP_NAME} — limpeza e otimização")
+        self.settings = Settings()
+        set_exclusions(self.settings["exclusions"])
+        self._icon_img = None
+        self.update_info = None
+        self.build("dashboard")
+        w, h = self.t.px(1240), self.t.px(800)
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        w, h = min(w, sw - 40), min(h, sh - 80)
+        self.geometry(f"{w}x{h}+{max(0, (sw - w) // 2)}+{max(0, (sh - h) // 3)}")
+        self.minsize(self.t.px(1000), self.t.px(640))
         self.protocol("WM_DELETE_WINDOW", self._close)
+        self.deiconify()
+        set_dark_titlebar(self, self.t.dark)
+        if self.settings["check_updates"]:
+            self.after(2500, self.check_updates)
 
-    def _style(self):
-        st = ttk.Style(self)
-        themes = st.theme_names()
-        st.theme_use("vista" if "vista" in themes else "clam" if "clam" in themes else themes[0])
-        base = tkfont.nametofont("TkDefaultFont")
-        if IS_WIN:
-            base.configure(family="Segoe UI", size=9)
-        self.bold = base.copy()
-        self.bold.configure(weight="bold")
-        big = base.copy()
-        big.configure(size=16, weight="bold")
-        title = base.copy()
-        title.configure(size=13, weight="bold")
-        self._fonts = (big, title)
-        st.configure("Brand.TLabel", font=big)
-        st.configure("Title.TLabel", font=title)
-        st.configure("Hint.TLabel", foreground="#4b5563")
-        st.configure("Accent.TButton", font=self.bold)
-        st.configure("Danger.TButton", foreground="#b91c1c", font=self.bold)
-        st.configure("Treeview", rowheight=max(22, base.metrics("linespace") + 8))
-        st.configure("Red.Horizontal.TProgressbar", background="#dc2626")
+    # ---- construção da interface
+    def build(self, page_key):
+        self.t = Theme(self, self.settings["theme"])
+        self.t.apply()
+        self._set_window_icon()
+        c, px = self.t.c, self.t.px
+        self.pages: dict[str, Page] = {}
+        self.page_classes = {cls.key: cls for _, group in NAV for cls in group}
+        self.page_classes.update({cls.key: cls for cls in BOTTOM})
+        self.current = None
 
-    def _tab_changed(self, _):
-        tab = self.nametowidget(self.nb.select())
-        if isinstance(tab, ResultsTab):
-            tab.on_show()
-        elif isinstance(tab, OverviewTab):
-            tab.refresh()
+        self.sidebar = tk.Frame(self, bg=c["sidebar"], width=px(236))
+        self.sidebar.pack(side="left", fill="y")
+        self.sidebar.pack_propagate(False)
+        brand = tk.Frame(self.sidebar, bg=c["sidebar"])
+        brand.pack(fill="x", padx=px(18), pady=(px(20), px(14)))
+        cv = tk.Canvas(brand, width=px(36), height=px(36), bg=c["sidebar"], highlightthickness=0)
+        draw_logo(cv, 0, 0, px(36))
+        cv.pack(side="left")
+        bt = tk.Frame(brand, bg=c["sidebar"])
+        bt.pack(side="left", padx=px(10))
+        tk.Label(bt, text=APP_NAME, bg=c["sidebar"], fg="#ffffff", font=self.t.f_brand).pack(anchor="w")
+        tk.Label(bt, text=f"versão {__version__}", bg=c["sidebar"], fg=c["sidebar_muted"],
+                 font=self.t.f_small).pack(anchor="w")
 
-    def show_tab(self, cls, scan=False):
-        tab = self.tabs[cls]
-        self.nb.select(tab)
-        if scan and not tab.busy:
-            tab.start_scan()
+        self.nav: dict[str, NavItem] = {}
+        for section, group in NAV:
+            if section:
+                tk.Label(self.sidebar, text=section, bg=c["sidebar"], fg=c["sidebar_muted"], font=self.t.f_section,
+                         anchor="w").pack(fill="x", padx=px(20), pady=(px(12), px(2)))
+            for cls in group:
+                item = NavItem(self.sidebar, self.t, cls.icon, NAV_TITLES.get(cls.key, cls.title),
+                               lambda k=cls.key: self.show(k))
+                item.pack(fill="x")
+                self.nav[cls.key] = item
+        bottom = tk.Frame(self.sidebar, bg=c["sidebar"])
+        bottom.pack(side="bottom", fill="x", pady=(0, px(12)))
+        self.update_pill = tk.Label(bottom, text="", bg=c["accent"], fg="#ffffff", font=self.t.f_bold,
+                                    cursor="hand2", padx=px(10), pady=px(6))
+        self.update_pill.bind("<Button-1>", lambda e: self._open_update())
+        for cls in BOTTOM:
+            item = NavItem(bottom, self.t, cls.icon, cls.title, lambda k=cls.key: self.show(k))
+            item.pack(fill="x")
+            self.nav[cls.key] = item
+        if self.update_info:
+            self._show_update_pill()
+
+        self.content = ttk.Frame(self)
+        self.content.pack(side="left", fill="both", expand=True)
+        self.show(page_key)
+
+    def _set_window_icon(self):
+        try:
+            from .icon_data import ICON_PNG
+            self._icon_img = tk.PhotoImage(data=ICON_PNG)
+            self.iconphoto(True, self._icon_img)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def rebuild(self, page_key):
+        if any(p.busy_now() for p in self.pages.values()):
+            messagebox.showinfo("Aguarde", "O novo tema será aplicado quando a análise em andamento terminar.",
+                                parent=self)
+            return
+        for w in list(self.winfo_children()):
+            w.destroy()
+        self.build(page_key)
+        set_dark_titlebar(self, self.t.dark)
+
+    def page(self, key) -> Page:
+        if key not in self.pages:
+            self.pages[key] = self.page_classes[key](self.content, self)
+        return self.pages[key]
+
+    def page_exists(self, key):
+        return key in self.pages
+
+    def show(self, key):
+        page = self.page(key)
+        if self.current is page:
+            return
+        if self.current is not None:
+            self.current.pack_forget()
+        page.pack(fill="both", expand=True)
+        self.current = page
+        for k, item in self.nav.items():
+            item.set_active(k == key)
+        page.on_show()
+
+    def set_nav_busy(self, key, busy):
+        if key in self.nav:
+            self.nav[key].set_badge("●" if busy else "")
+
+    def toast(self, text, kind="success"):
+        Toast(self, self.t, text, kind)
+
+    def data_changed(self):
+        if "dashboard" in self.pages and self.current is self.pages["dashboard"]:
+            self.pages["dashboard"].refresh()
 
     def roots_changed(self):
-        for tab in getattr(self, "tabs", {}).values():
-            if isinstance(tab, ResultsTab):
-                tab.refresh_roots_label()
-
-    def refresh_overview(self):
-        self.tabs[OverviewTab].refresh()
+        for p in self.pages.values():
+            if isinstance(p, ResultsPage):
+                p.refresh_roots_label()
 
     def elevate(self):
         if relaunch_as_admin():
-            self.destroy()
+            self._close()
+
+    # ---- atualizações
+    def check_updates(self, manual=False):
+        def job():
+            try:
+                info = check_for_update()
+            except Exception as e:  # noqa: BLE001
+                info = e
+            self.after(0, lambda: self._update_result(info, manual))
+        threading.Thread(target=job, daemon=True).start()
+
+    def _update_result(self, info, manual):
+        if isinstance(info, Exception):
+            if manual:
+                messagebox.showwarning("Atualizações", f"Não foi possível verificar agora.\n\n{info}", parent=self)
+            return
+        if not info:
+            if manual:
+                self.toast(f"Você já está na versão mais recente ({__version__}).")
+            return
+        self.update_info = info
+        self._show_update_pill()
+        if manual:
+            self._open_update()
+
+    def _show_update_pill(self):
+        self.update_pill.config(text=f"↓  Nova versão {self.update_info[0]}")
+        self.update_pill.pack(fill="x", padx=self.t.px(16), pady=(0, self.t.px(10)), before=self.nav["settings"])
+
+    def _open_update(self):
+        ver, page_url, setup = self.update_info
+        if messagebox.askyesno("Nova versão disponível",
+                               f"A versão {ver} do {APP_NAME} está disponível (você usa a {__version__}).\n\n"
+                               "Abrir a página de download?", parent=self):
+            open_uri(setup or page_url)
 
     def _close(self):
-        for tab in self.tabs.values():
-            if isinstance(tab, ResultsTab):
-                tab.cancel.set()
+        for p in self.pages.values():
+            if hasattr(p, "cancel"):
+                p.cancel.set()
         self.destroy()
 
 
@@ -1042,6 +1020,7 @@ def main():
         try:
             import ctypes
             ctypes.windll.shcore.SetProcessDpiAwareness(1)
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("LimpaPC.App")
         except Exception:  # noqa: BLE001
             pass
     app = App()

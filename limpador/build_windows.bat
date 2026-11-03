@@ -1,11 +1,13 @@
 @echo off
-REM Gera o LimpaPC.exe (portatil, nao precisa instalar) na pasta dist\
-REM Requer Python 3.10+ instalado (marque "Add python.exe to PATH" ao instalar).
+REM Gera o LimpaPC.exe (portatil) na pasta dist\ e, se o Inno Setup estiver instalado, o instalador.
+REM Requer Python 3.10+ (marque "Add python.exe to PATH" ao instalar).
 cd /d "%~dp0"
 python -m pip install --upgrade pip
-python -m pip install pyinstaller psutil send2trash
-python -m PyInstaller --noconfirm --onefile --windowed --name LimpaPC main.py
+python -m pip install pyinstaller psutil send2trash pillow
+python tools\make_icon.py
+python tools\make_version_file.py 2.0.0
+python -m PyInstaller --noconfirm --onefile --windowed --name LimpaPC --icon assets\icon.ico --version-file version_info.txt main.py
+if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" /DMyAppVersion=2.0.0 installer.iss
 echo.
-echo Pronto! O executavel esta em: %~dp0dist\LimpaPC.exe
-echo Para gerar o instalador, abra installer.iss no Inno Setup (https://jrsoftware.org/isdl.php) e clique em Compile.
+echo Pronto! Veja a pasta: %~dp0dist
 pause

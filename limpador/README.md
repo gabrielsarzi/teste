@@ -1,69 +1,84 @@
-# 🧹 LimpaPC
+<p align="center"><img src="assets/icon.png" width="96" alt="LimpaPC"></p>
+<h1 align="center">LimpaPC</h1>
+<p align="center"><b>Limpeza, otimização e recuperação de arquivos para o seu computador.</b><br>
+Gratuito · código aberto · sem anúncios · sem coleta de dados</p>
 
-Programa com interface gráfica para **analisar o computador e liberar espaço em disco e memória RAM**.
-Funciona no **Windows** (foco principal), **Linux** e **macOS**. Pode ser usado de três formas:
-portátil (`LimpaPC.exe`, sem instalar), com instalador (`LimpaPC-Setup.exe`) ou direto pelo Python.
+<p align="center">
+  <a href="https://github.com/gabrielsarzi/teste/releases/latest"><b>⬇ Baixar para Windows</b></a>
+</p>
 
-## O que ele faz
+---
 
-| Aba | Função |
+## Recursos
+
+| | |
 |---|---|
-| **Início** | Uso de cada disco e da RAM, tamanho da Lixeira (com botão **Esvaziar Lixeira**), escolha das pastas a analisar e atalhos de limpeza rápida. |
-| **Lixo e temporários** | Temporários do usuário e do Windows, cache do Windows Update, caches de navegadores (Chrome, Edge, Firefox, Brave, Opera, Vivaldi), miniaturas, relatórios de erro, crash dumps, caches de shaders (DirectX/NVIDIA/AMD), npm/pip, Teams, Discord, Spotify, Windows.old e a Lixeira. |
-| **Arquivos grandes** | Lista os maiores arquivos acima do tamanho mínimo escolhido. |
-| **Arquivos repetidos** | Encontra arquivos de conteúdo idêntico (tamanho → hash parcial → hash completo BLAKE2). Mantém automaticamente 1 cópia por grupo (a mais antiga, a mais recente ou a de caminho mais curto) e **nunca deixa apagar todas as cópias**. |
-| **Arquivos antigos** | Arquivos não abertos/modificados há mais de N dias. |
-| **Restos de programas** | Pastas em Program Files, ProgramData e AppData (e chaves em `HKCU\Software`) que não pertencem a nenhum programa instalado e não são usadas há algum tempo, além de entradas de desinstalação quebradas. Chaves do registro ganham **backup .reg automático** antes de serem apagadas. |
-| **Programas** | Programas instalados com tamanho, data de instalação e **último uso** (via Prefetch e UserAssist do Windows). Os pouco usados aparecem primeiro, e o botão **Desinstalar** abre o desinstalador oficial de cada um. |
-| **Memória RAM** | Processos abertos agrupados por programa e ordenados por consumo de RAM. Permite finalizar processos e **liberar memória ociosa** (Windows). Processos essenciais do sistema ficam protegidos. |
-| **Inicialização** | Programas que abrem junto com o sistema. Dá para desativá-los ou reativá-los, do mesmo jeito que o Gerenciador de Tarefas faz. |
+| 🏠 **Painel** | Análise completa em 1 clique, nota de saúde do PC (0 a 100), uso de disco, RAM e Lixeira, e o botão "Limpar recomendado". |
+| ✨ **Lixo e cache** | Temporários, caches de navegadores (Chrome, Edge, Firefox, Brave, Opera, Vivaldi), Windows Update, miniaturas, relatórios de erro, crash dumps, caches de shaders, npm/pip, Teams, Discord, Spotify e Windows.old. |
+| 🥧 **Mapa do disco** | O tamanho de cada pasta, para navegar e apagar (no estilo TreeSize), com um gráfico de espaço por tipo de arquivo. |
+| 📄 **Arquivos grandes e antigos** | Os maiores arquivos e os que não são usados há meses ou anos. |
+| 📑 **Arquivos repetidos** | Comparação byte a byte (hash BLAKE2). Mantém 1 cópia por grupo e nunca deixa apagar todas. |
+| 🧩 **Programas** | Tamanho, data de instalação e **último uso** de cada programa. Os sem uso aparecem primeiro e dá para desinstalar dali mesmo. |
+| 📦 **Restos de programas** | Pastas e chaves do registro deixadas por programas desinstalados, com backup automático (.reg). |
+| ⏻ **Inicialização** | Ativa ou desativa o que abre junto com o Windows, como o Gerenciador de Tarefas faz. |
+| 🧠 **Memória RAM** | O que está consumindo memória, com opção de finalizar programas e liberar memória ociosa. |
+| 🔧 **Ferramentas** | Desativar hibernação (libera GBs), limpeza profunda do Windows Update (DISM), Limpeza de Disco, Sensor de Armazenamento, DNS e mais. |
+| 🗑 **Lixeira** | Lista o que está na Lixeira com o local original e restaura com 1 clique. |
+| 🛟 **Recuperar apagados** | Encontra arquivos apagados de vez (Shift+Delete ou Lixeira esvaziada) lendo a tabela NTFS do disco e mostra a chance de recuperação de cada um. Para pendrives e cartões FAT32/exFAT há a **busca por assinatura**, que encontra fotos JPG/PNG, vídeos MP4/MOV, PDFs e ZIP/Office. |
 
-Em todas as listas você pode marcar um ou vários itens (clicando no ☐, com *Marcar tudo* ou selecionando
-linhas e apertando **Espaço**), ordenar por coluna, abrir o local do arquivo (duplo clique) e apagar.
+Também tem: modo claro e escuro, busca e exportação CSV em todas as listas, configurações salvas,
+pastas de exclusão, histórico de ações e aviso automático de nova versão.
 
-### Segurança
-- Por padrão, os arquivos apagados vão para a **Lixeira**, então dá para recuperar. A opção fica na aba Início.
-- Pastas críticas do sistema (`C:\Windows`, raízes de disco, `Program Files`, pasta do usuário, `/usr`, `/etc`, `~/.ssh`…) são **bloqueadas** e nunca são apagadas.
-- Sempre aparece uma confirmação antes de qualquer ação, mostrando quantos itens e quanto espaço serão liberados.
-- Todas as ações ficam registradas em `historico.log` (botão *Ver histórico de ações*).
-  - Windows: `%LOCALAPPDATA%\LimpaPC\`
-  - Linux: `~/.local/share/limpapc/`
+## Segurança
 
-> **Dica:** para limpar pastas do sistema (Temp do Windows, cache do Windows Update, itens de inicialização
-> de todos os usuários), use **Reabrir como administrador** na aba Início.
+- Arquivos apagados vão para a **Lixeira** por padrão.
+- Pastas críticas do sistema são **bloqueadas** (`C:\Windows`, raízes de disco, `Program Files`, pasta do usuário, `/usr`, `/etc`, `~/.ssh`…).
+- Sempre há confirmação antes de qualquer ação, mostrando quantos itens e quanto espaço.
+- Toda ação fica registrada em `%LOCALAPPDATA%\LimpaPC\historico.log`.
+- **Privacidade:** nada sai do seu computador. A internet só é usada para verificar se há versão nova, e isso pode ser desligado nas Configurações.
+
+### Sobre a recuperação de arquivos
+- Funciona melhor em **HDs, pendrives e cartões de memória**, e quanto antes, melhor. Evite gravar na unidade até recuperar.
+- Em **SSDs** o próprio disco costuma zerar os dados apagados (TRIM). Nesse caso a recuperação geralmente não é possível. O LimpaPC detecta o SSD e avisa.
+- Sempre salve os arquivos recuperados em **outra unidade**. O programa bloqueia salvar na mesma.
+- A leitura direta do disco exige executar **como administrador**.
 
 ## Como usar
 
-### Opção 1: baixar o .exe pronto (Windows)
-Cada push no GitHub roda o workflow **Build LimpaPC (Windows)** (*Actions* → execução mais recente →
-*Artifacts* → `LimpaPC-Windows`). O pacote traz:
-- `LimpaPC.exe`: versão portátil, é só dar dois cliques;
-- `LimpaPC-Setup.exe`: instalador com atalho no Menu Iniciar e na Área de Trabalho.
+**Windows:** baixe o `LimpaPC-Setup.exe` (instalador) ou o `LimpaPC.exe` (portátil) na página de
+[Releases](https://github.com/gabrielsarzi/teste/releases/latest). Se aparecer "O Windows protegeu o
+computador", clique em *Mais informações → Executar assim mesmo*.
 
-O workflow também pode ser disparado manualmente em *Actions → Build LimpaPC (Windows) → Run workflow*.
-
-### Opção 2: gerar o .exe no seu PC
-1. Instale o [Python 3.10+](https://www.python.org/downloads/) (marque **Add python.exe to PATH**).
-2. Dê dois cliques em `build_windows.bat`. O executável fica em `dist\LimpaPC.exe`.
-3. (Opcional) Abra `installer.iss` no [Inno Setup](https://jrsoftware.org/isdl.php) e clique em *Compile* para gerar o instalador.
-
-### Opção 3: rodar direto com Python
+**Com Python (Windows, Linux ou macOS):**
 ```bash
-pip install -r requirements.txt   # opcional (psutil e send2trash)
+pip install -r requirements.txt   # opcional
 python main.py
 ```
-No Windows também dá para usar o `LimpaPC.bat`. No Linux é preciso ter o tkinter (`sudo apt install python3-tk`).
+No Linux é preciso ter o tkinter instalado (`sudo apt install python3-tk`).
 
-## Estrutura
+## Desenvolvimento
+
 ```
 limpador/
-├── main.py              # ponto de entrada
+├── main.py                  # ponto de entrada
 ├── limpapc/
-│   ├── gui.py           # interface (tkinter)
-│   ├── scanners.py      # arquivos grandes, repetidos, antigos, lixo
-│   ├── system.py        # programas, restos, processos, inicialização, lixeira
-│   └── utils.py         # formatação, proteção de caminhos, apagar/Lixeira
-├── build_windows.bat    # gera o .exe com PyInstaller
-├── installer.iss        # instalador (Inno Setup)
-└── requirements.txt
+│   ├── gui.py               # janela, menu lateral, Painel, Mapa do disco, Ferramentas, Configurações, Sobre
+│   ├── pages.py             # páginas de listas (lixo, arquivos, programas, RAM, inicialização)
+│   ├── recovery_pages.py    # páginas de Lixeira e recuperação
+│   ├── theme.py / widgets.py# tema claro/escuro, ícones vetoriais e componentes visuais
+│   ├── scanners.py          # arquivos grandes, repetidos, antigos e lixo
+│   ├── analyzer.py          # mapa do disco
+│   ├── recovery.py          # Lixeira, leitor NTFS e busca por assinatura
+│   ├── system.py            # programas, restos, processos, inicialização e Lixeira
+│   ├── tools.py / update.py / settings.py / utils.py
+├── tools/                   # geração de ícone e metadados de versão
+├── installer.iss            # instalador (Inno Setup)
+└── build_windows.bat        # build local do .exe
 ```
+
+Cada push em `limpador/` dispara o GitHub Actions, que gera o `.exe` e o instalador e publica uma nova
+versão em Releases automaticamente.
+
+## Licença
+
+[MIT](LICENSE). Use por sua conta e risco e revise sempre o que vai apagar.
