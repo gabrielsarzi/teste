@@ -49,3 +49,26 @@ window.fmt = function (n) {
   while (n >= 1000 && i < u.length - 1) { n /= 1000; i++; }
   return (n >= 100 ? n.toFixed(0) : n.toFixed(1)) + u[i];
 };
+
+// ---------- Mina ----------
+// Cada andar: minério, multiplicador de valor e vida base dos zumbis do andar
+window.FLOORS = [
+  { ore: 'coal', v: 1 }, { ore: 'copper', v: 5 }, { ore: 'iron', v: 25 }, { ore: 'silver', v: 125 },
+  { ore: 'gold', v: 625 }, { ore: 'crystal', v: 3125 }, { ore: 'ruby', v: 15625 }, { ore: 'uranium', v: 78125 }
+];
+window.MINE = {
+  minerCost: (f, n) => Math.ceil(10 * Math.pow(5, f) * Math.pow(1.15, n)),
+  minerRate: 1,                                   // ouro/s por mineiro (x valor do andar)
+  floorCost: f => Math.ceil(400 * Math.pow(6, f - 1)), // custo para cavar o andar f (f >= 1)
+  zombieHp: f => 10 * Math.pow(3.5, f),
+  slots: [4, 5, 6, 7]                             // colunas das vagas de torre em cada andar
+};
+// Melhorias permanentes compradas com ouro
+window.UPGRADES = [
+  { id: 'pick',    base: 25,  g: 2.2, max: 50 },  // +1 ouro por toque (x valor do andar)
+  { id: 'tools',   base: 150, g: 3,   max: 30 },  // mineiros +25%
+  { id: 'silence', base: 300, g: 3.5, max: 8 },   // -8% de barulho
+  { id: 'range',   base: 500, g: 4,   max: 6 },   // torres +6% de alcance
+  { id: 'store',   base: 200, g: 4,   max: 10 }   // +1h de armazém offline (base 2h)
+];
+window.upgradeCost = (u, lvl) => Math.ceil(u.base * Math.pow(u.g, lvl));

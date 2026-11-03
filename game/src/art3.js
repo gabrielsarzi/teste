@@ -129,16 +129,75 @@ window.ART3 = (function () {
     });
   }
 
+
+  // ---------- Mina ----------
+  const ORES = ['#4a4652', '#c27c3a', '#b5654a', '#d9dde6', '#f2c84b', '#9fe870', '#e8506a', '#7fd3f5'];
+  function miner(f) {
+    const p = new Px(16, 20), a = f ? 1 : 0;
+    p.rect(6, 14, 2, 5, '#3b5a8a').rect(9, 14, 2, 5, '#3b5a8a').rect(6, 18, 2, 1, '#2a2233').rect(9, 18, 2, 1, '#2a2233');
+    p.rect(5, 8, 6, 7, '#4f78a8').rect(5, 8, 1, 7, '#3a5a82').rect(6, 9, 4, 2, '#f1c40f');
+    p.rect(5, 3, 6, 5, '#e8b48a').set(9, 5, '#2a2233');
+    p.rect(4, 1, 8, 3, '#f1c40f').rect(4, 3, 9, 1, '#c99a0c').set(11, 2, '#fff6c8');
+    if (a) { p.line(7, 10, 2, 3, '#8b5a2b'); p.line(0, 4, 4, 1, '#9da3a6'); p.set(5, 1, '#9da3a6'); }
+    else { p.line(8, 11, 13, 7, '#8b5a2b'); p.line(12, 4, 15, 8, '#9da3a6'); p.set(15, 9, '#9da3a6'); }
+    return p.outline();
+  }
+  function slot() { const p = new Px(16, 8); p.rect(1, 2, 14, 4, '#8b5a2b').rect(1, 2, 14, 1, '#b07a3c').rect(3, 6, 1, 2, '#5c3a1c').rect(12, 6, 1, 2, '#5c3a1c'); p.rect(7, 3, 2, 2, '#d9cfae'); return p.outline(); }
+  function cart() { const p = new Px(14, 12); p.rect(1, 2, 12, 7, '#6c6f80').rect(1, 2, 12, 1, '#9da0b2').rect(2, 0, 10, 2, '#f2c84b').ell(4, 10, 1.8, 1.8, '#2f2f3d').ell(10, 10, 1.8, 1.8, '#2f2f3d'); return p.outline(); }
+  // Fundo de um andar: 9 tiles x 2,5 tiles (144 x 40 px)
+  function floorBg(f) {
+    const W = 144, H = 40, R = rng(900 + f * 13); const [c, x] = cv(W, H);
+    const px = (X, Y, col) => { x.fillStyle = col; x.fillRect(X, Y, 1, 1); };
+    for (let y = 0; y < H; y++) for (let X = 0; X < W; X++) { const v = R(); let col;
+      if (y < 16) col = v < 0.15 ? '#3d3128' : v < 0.3 ? '#5a4636' : '#4a3b30';
+      else if (y < 32) col = v < 0.12 ? '#5e4a34' : v < 0.2 ? '#7a6044' : '#6b5038';
+      else col = v < 0.2 ? '#1f1a17' : '#2b2420';
+      px(X, y, col); }
+    // tábuas do chão
+    for (let X = 0; X < W; X += 8) for (let y = 16; y < 32; y++) if (y % 5 === 0) px(X + (y % 3), y, '#4a3826');
+    x.fillStyle = '#3b2c20'; x.fillRect(16, 31, W - 16, 1);
+    // minério no rodapé de pedra e no veio
+    const ore = ORES[f % ORES.length];
+    for (let i = 0; i < 30; i++) { const X = (R() * W) | 0, y = 33 + ((R() * 6) | 0); x.fillStyle = ore; x.fillRect(X, y, 2, 1); }
+    // veio (coluna 1): parede de rocha com minério
+    for (let y = 0; y < 32; y++) for (let X = 16; X < 30; X++) { const v = R(); px(X, y, v < 0.5 ? '#3a302a' : '#2f2722'); }
+    for (let i = 0; i < 22; i++) { const X = 17 + ((R() * 11) | 0), y = 2 + ((R() * 27) | 0); x.fillStyle = ore; x.fillRect(X, y, 2, 2); x.fillStyle = '#ffffff'; x.fillRect(X, y, 1, 1); }
+    // poço do elevador (coluna 0)
+    x.fillStyle = '#16121c'; x.fillRect(0, 0, 16, 40); x.fillStyle = '#5c3a1c'; x.fillRect(2, 0, 1, 40); x.fillRect(13, 0, 1, 40);
+    for (let y = 2; y < 40; y += 6) { x.fillStyle = '#3b2a1c'; x.fillRect(2, y, 12, 1); }
+    // túnel dos zumbis (coluna 8)
+    for (let y = 14; y < 32; y++) for (let X = 128; X < 144; X++) { const d = Math.hypot((X - 140) / 9, (y - 26) / 11); if (d < 1) px(X, y, d < 0.6 ? '#0d0a0c' : '#1b1418'); }
+    // vigas de madeira
+    x.fillStyle = '#8b5a2b'; [48, 96].forEach(X => { x.fillRect(X, 0, 2, 32); }); x.fillRect(30, 0, 98, 2);
+    return c;
+  }
+  function lockedBg() { const W = 144, H = 40, R = rng(77); const [c, x] = cv(W, H); for (let y = 0; y < H; y++) for (let X = 0; X < W; X++) { x.fillStyle = R() < 0.2 ? '#1a1512' : '#241d19'; x.fillRect(X, y, 1, 1); } x.fillStyle = '#16121c'; x.fillRect(0, 0, 16, H); return c; }
+  // Superfície: 9 x 3 tiles (144 x 48)
+  function surface() {
+    const W = 144, H = 48, R = rng(31); const [c, x] = cv(W, H);
+    for (let y = 0; y < H; y++) for (let X = 0; X < W; X++) { const v = R(); x.fillStyle = y < 36 ? (v < 0.12 ? '#979c5d' : v < 0.24 ? '#b6bb77' : '#a7ac69') : (v < 0.3 ? '#5e4a34' : '#6b5038'); x.fillRect(X, y, 1, 1); }
+    for (let i = 0; i < 40; i++) { const X = (R() * W) | 0, y = (R() * 34) | 0; x.fillStyle = '#7d8547'; x.fillRect(X, y, 1, 2); x.fillRect(X + 1, y + 1, 1, 1); }
+    ['#f4eec8', '#f2b84b', '#e88aa6'].forEach((col, i) => { for (let k = 0; k < 6; k++) { x.fillStyle = col; x.fillRect((R() * W) | 0, (R() * 34) | 0, 1, 1); } });
+    x.fillStyle = '#4a3826'; x.fillRect(0, 36, W, 1);
+    // castelete do elevador
+    x.fillStyle = '#8b5a2b'; x.fillRect(1, 6, 2, 30); x.fillRect(13, 6, 2, 30); x.fillRect(1, 6, 14, 2); x.fillRect(3, 14, 10, 1); x.fillRect(3, 24, 10, 1);
+    x.fillStyle = '#2f2f3d'; x.beginPath(); x.arc(8, 6, 3, 0, 7); x.fill(); x.fillStyle = '#16121c'; x.fillRect(2, 36, 12, 12);
+    // trilha de terra até o túnel
+    for (let X = 112; X < 144; X++) for (let y = 30; y < 36; y++) { x.fillStyle = R() < 0.5 ? '#c4a676' : '#b39563'; x.fillRect(X, y, 1, 1); }
+    return c;
+  }
+
   // ---------- Cache de texturas ----------
   const cache = {}, texCache = {};
   const MAKERS = {
     walker: a => walker(a >> 1, a & 1).canvas(), runner: a => runner(a).canvas(), boss: a => boss(a).canvas(),
     tower: t => tower(t).canvas(), bunker: () => bunker().canvas(), barrel: f => OB.barrel(f).canvas(),
-    obstacle: i => OB[OB_KINDS[i % OB_KINDS.length]](i).canvas(), shadow: () => shadowCanvas(), select: () => selectCanvas()
+    obstacle: i => OB[OB_KINDS[i % OB_KINDS.length]](i).canvas(), shadow: () => shadowCanvas(), select: () => selectCanvas(),
+    miner: f => miner(f).canvas(), slot: () => slot().canvas(), cart: () => cart().canvas(), floor: f => floorBg(f), locked: () => lockedBg(), surface: () => surface()
   };
   function canvas(name, arg) { const k = name + ':' + arg; if (!cache[k]) cache[k] = MAKERS[name](arg); return cache[k]; }
   function tex(name, arg) { const k = name + ':' + arg; if (!texCache[k]) { const t = new THREE.CanvasTexture(canvas(name, arg)); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; texCache[k] = t; } return texCache[k]; }
   function icon(name, arg, scale) { const s = canvas(name, arg); const [c, x] = cv(s.width * scale, s.height * scale); x.drawImage(s, 0, 0, c.width, c.height); return c.toDataURL(); }
   function groundTex(cols, rows, m, spawns, core) { const t = new THREE.CanvasTexture(ground(cols, rows, m, spawns, core)); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; return t; }
-  return { canvas, tex, icon, groundTex, trail, ZV_COUNT: ZV.length, OB_COUNT: OB_KINDS.length };
+  return { canvas, tex, icon, groundTex, trail, ZV_COUNT: ZV.length, OB_COUNT: OB_KINDS.length, ORES };
 })();

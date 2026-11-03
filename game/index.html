@@ -126,6 +126,23 @@ button:focus-visible{outline:3px solid var(--amber2);outline-offset:2px}
 .buy:disabled{background:#3a3a30;color:#8c8a76;box-shadow:0 3px 0 #1a1a14}
 .essHead{display:flex;align-items:center;justify-content:space-between}
 .essHead span{font-family:var(--f-pix);font-size:16px;color:var(--toxic);display:flex;align-items:center;gap:6px}
+.goldBig{display:flex;align-items:center;gap:8px}
+.goldBig div{display:flex;flex-direction:column;line-height:1.05}
+.goldBig b{font-family:var(--f-pix);font-size:22px;color:var(--amber);font-variant-numeric:tabular-nums}
+.goldBig small{font-family:var(--f-pix);font-size:12px;color:var(--toxic)}
+.ico.icoL{width:28px;height:28px;background-repeat:no-repeat;background-position:center;align-self:center}
+.essHead .gold{color:var(--amber)}
+#floorUi{position:absolute;inset:0;pointer-events:none;z-index:3}
+#floorUi button{pointer-events:auto;position:absolute;left:0;top:0}
+.hire{margin:-17px 0 0 -38px;width:76px;height:34px;border:0;border-radius:8px;background:var(--panel);box-shadow:0 0 0 2px var(--amber),0 3px 0 2px #1a1810;color:var(--ink);font-family:var(--f-pix);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;padding:0}
+.hire .hn{font-size:11px}.hire .hc{font-size:11px;color:var(--amber)}
+.hire.poor{box-shadow:0 0 0 2px var(--line),0 3px 0 2px #1a1810}.hire.poor .hc{color:var(--blood)}
+.dig{margin:-28px 0 0 -125px;width:250px;height:56px;border:0;border-radius:10px;background:var(--amber);color:#2b2210;box-shadow:inset 0 -5px 0 var(--rust),0 0 0 3px var(--panel);font-family:var(--f-pix);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.dig b{font-size:11px}.dig span{font-size:12px;font-weight:700}
+.dig.poor{background:#8c8466;color:var(--ink);box-shadow:inset 0 -5px 0 #6b6449,0 0 0 3px var(--panel)}
+#btnUp{left:auto;right:max(12px,env(safe-area-inset-right,0px));bottom:12px;width:86px;height:86px;background:var(--toxic);color:#10200a;box-shadow:inset 0 -6px 0 #5f9a3a,0 0 0 4px var(--panel),0 5px 0 4px var(--panel)}
+#btnUp b{font-size:11px}
+#btnTop{left:auto;right:calc(max(12px,env(safe-area-inset-right,0px)) + 98px)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -133,40 +150,31 @@ button:focus-visible{outline:3px solid var(--amber2);outline-offset:2px}
 <div id="app">
   <header id="hud">
     <div class="hrow">
-      <div id="hpBox">
-        <div class="hplab"><span data-t="bunker">Bunker</span><b id="hp">20/20</b></div>
-        <div id="hpSegs"></div>
-      </div>
-      <button class="hbtn txt" id="btnRetreat" type="button" data-t="retreat">Recuar</button>
-      <button class="hbtn" id="btnPause" type="button" aria-label="Pausa">II</button>
-    </div>
-    <div class="hrow">
-      <div class="chip" id="goldBox"><i class="ico" data-ico="coin"></i><b id="gold">0</b></div>
-      <div class="chip" id="essBox"><i class="ico" data-ico="ess"></i><b id="essRun">+0</b></div>
+      <div class="goldBig"><i class="ico icoL" data-ico="coin"></i><div><b id="gold">0</b><small id="rate">0/s</small></div></div>
       <span class="hsp"></span>
-      <div class="waveInfo"><b id="wave">Onda 0</b><small id="zleft"></small></div>
+      <div class="waveInfo"><b data-t="mine">Mina</b><small id="depth"></small></div>
+      <button class="hbtn" id="btnPause" type="button" aria-label="Pausa">II</button>
     </div>
   </header>
   <div id="stage">
     <canvas id="gl"></canvas><canvas id="fx"></canvas>
+    <div id="floorUi"></div>
     <div id="radial" hidden></div>
     <div id="toast" class="toast"></div>
-    <button class="round" id="btnWave" type="button"><b id="waveLbl">—</b><span id="waveSub"></span><small id="waveBonus"></small></button>
-    <button class="round sm" id="btnSpeed" type="button">x1</button>
+    <button class="round" id="btnUp" type="button"><b data-t="upgrades">Melhorias</b></button>
+    <button class="round sm" id="btnTop" type="button" aria-label="Topo">▲</button>
   </div>
 </div>
 
 <div class="screen" id="scrMenu">
   <div class="card">
-    <div class="tag" data-t="subtitle">Tower defense incremental</div>
+    <div class="tag" data-t="subtitle">Mina · zumbis</div>
     <h1 class="logo" id="logo">ÚLTIMO<span>BUNKER</span></h1>
     <div class="menuStats">
-      <div><i class="ico" data-ico="skull"></i><span id="menuBest"></span></div>
-      <div><i class="ico" data-ico="ess"></i><span id="menuEss">0</span><span data-t="essence" style="font-family:var(--f-body);font-size:13px;color:var(--muted)"></span></div>
-      <div id="menuOffline"></div>
+      <div><i class="ico" data-ico="coin"></i><span id="menuGold">0</span></div>
     </div>
-    <button class="big" id="btnPlay" type="button" data-t="play">Jogar</button>
-    <button class="alt" id="btnTalents" type="button" data-t="talents">Talentos</button>
+    <button class="big" id="btnPlay" type="button">Jogar</button>
+    <button class="alt" id="btnMenuUp" type="button" data-t="upgrades">Melhorias</button>
     <div class="opts">
       <button class="opt optLang" type="button"><span data-t="language"></span><span class="val">PT</span></button>
       <button class="opt optSfx" type="button"><span data-t="sfx"></span><span class="val"></span></button>
@@ -175,32 +183,11 @@ button:focus-visible{outline:3px solid var(--amber2);outline-offset:2px}
   </div>
 </div>
 
-<div class="screen" id="scrTalents" hidden>
+<div class="screen" id="scrUpgrades" hidden>
   <div class="card">
-    <div class="essHead"><h2 data-t="talents">Talentos</h2><span><i class="ico" data-ico="ess"></i><b id="talEss">0</b></span></div>
-    <div id="talTabs" role="tablist">
-      <button type="button" data-br="atk" data-t="br_atk"></button>
-      <button type="button" data-br="eco" data-t="br_eco"></button>
-      <button type="button" data-br="tec" data-t="br_tec"></button>
-    </div>
-    <div id="talList"></div>
-    <button class="alt" id="btnTalBack" type="button" data-t="back">Voltar</button>
-  </div>
-</div>
-
-<div class="screen" id="scrOver" hidden>
-  <div class="card">
-    <h2 id="overTitle"></h2>
-    <div class="kv">
-      <span data-t="reachedWave"></span><b id="overWave">0</b>
-      <span data-t="kills"></span><b id="overKills">0</b>
-      <span data-t="earned"></span><b id="overEss">0</b>
-    </div>
-    <button class="big" id="btnAgain" type="button" data-t="again"></button>
-    <div class="row">
-      <button class="alt" id="btnOverTalents" type="button" data-t="talents"></button>
-      <button class="alt" id="btnOverMenu" type="button" data-t="menu"></button>
-    </div>
+    <div class="essHead"><h2 data-t="upgrades">Melhorias</h2><span class="gold"><i class="ico" data-ico="coin"></i><b id="upGold">0</b></span></div>
+    <div id="upList"></div>
+    <button class="alt" id="btnUpBack" type="button" data-t="back">Voltar</button>
   </div>
 </div>
 
@@ -213,7 +200,7 @@ button:focus-visible{outline:3px solid var(--amber2);outline-offset:2px}
       <button class="opt optSfx" type="button"><span data-t="sfx"></span><span class="val"></span></button>
       <button class="opt optMusic" type="button"><span data-t="music"></span><span class="val"></span></button>
     </div>
-    <button class="alt" id="btnPauseEnd" type="button" data-t="endRun"></button>
+    <button class="alt" id="btnReset" type="button" data-t="resetGame"></button>
   </div>
 </div>
 
