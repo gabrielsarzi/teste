@@ -32,17 +32,27 @@
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -10, 10);
   const cam = { x: COLS / 2, y: -ROWS / 2, zoom: 1, scale: 40, w: 1, h: 1, shake: 0 };
   const geo = new THREE.PlaneGeometry(1, 1);
-  const matOf = (map, o) => new THREE.MeshBasicMaterial(Object.assign({ map: map || null, transparent: true, depthTest: false, depthWrite: false }, o || {}));
+  const matOf = (map, o) => new THREE.MeshBasicMaterial(Object.assign({ map: map || null, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide }, o || {}));
   function mesh(map, w, h, order, o) { const m = new THREE.Mesh(geo, matOf(map, o)); m.scale.set(w, h, 1); m.renderOrder = order; scene.add(m); return m; }
-  const L = { ground: 0, rubble: 2, base: 3, enemy: 4, head: 5, proj: 6, dark: 7, glow: 8, part: 9, bar: 10, ui: 11 };
+  const L = { ground: 0, trail: 1, shadow: 2, sel: 3, rubble: 100, base: 100, enemy: 100, head: 100, proj: 900, dark: 1000, glow: 1001, part: 1002, bar: 1003, ui: 1004 };
+  // Profundidade 3/4: quem está mais embaixo na tela é desenhado por cima
+  const depth = (m, feetY) => { m.renderOrder = 100 + Math.round(-feetY * 24); };
+  const PX = 1 / 16; // um pixel da arte em unidades do mundo
+  function sprite(tex, wpx, hpx, x, feetY) { const m = mesh(tex, wpx * PX, hpx * PX, 100); m.position.set(x, feetY + hpx * PX / 2, 0); depth(m, feetY); return m; }
+  function shadowAt(x, y, w) { const m = mesh(ART3.tex('shadow', 0), w, w * 0.5, L.shadow); m.position.set(x, y, 0); return m; }
 
-  const groundM = mesh(ART.ground(COLS, ROWS, MARGIN, SPAWNS, CORE), COLS + 2 * MARGIN, ROWS + 2 * MARGIN, L.ground, { transparent: false });
+  const groundM = mesh(ART3.groundTex(COLS, ROWS, MARGIN, SPAWNS, CORE), COLS + 2 * MARGIN, ROWS + 2 * MARGIN, L.ground, { transparent: false });
   groundM.position.set(COLS / 2, -ROWS / 2, 0);
-  const coreM = mesh(ART.tex('core'), 1.35, 1.35, L.base); coreM.position.set(wx(CORE.c), wy(CORE.r) + 0.12, 0);
-  const darkM = mesh(null, 60, 60, L.dark, { color: 0x05060f, opacity: 0 }); darkM.position.set(COLS / 2, -ROWS / 2, 0);
-  const selM = mesh(ART.tex('select'), 1, 1, L.ui); selM.visible = false;
-  const rangeM = new THREE.Mesh(new THREE.CircleGeometry(1, 48), matOf(null, { color: 0xf5d27a, opacity: 0.1 })); rangeM.renderOrder = L.ui; scene.add(rangeM); rangeM.visible = false;
-  const rangeRing = new THREE.Mesh(new THREE.RingGeometry(0.97, 1, 48), matOf(null, { color: 0xf5d27a, opacity: 0.55 })); rangeRing.renderOrder = L.ui; scene.add(rangeRing); rangeRing.visible = false;
+  shadowAt(wx(CORE.c), wy(CORE.r) - 0.4, 2.1);
+  const coreM = sprite(ART3.tex('bunker', 0), 32, 28, wx(CORE.c), wy(CORE.r) - 0.45);
+  // Trilha pisoteada: canvas do tamanho do mapa, redesenhado quando o caminho muda
+  const trailCv = document.createElement('canvas'); trailCv.width = COLS * 16; trailCv.height = ROWS * 16;
+  const trailTex = new THREE.CanvasTexture(trailCv); trailTex.magFilter = trailTex.minFilter = THREE.NearestFilter; trailTex.generateMipmaps = false;
+  const trailM = mesh(trailTex, COLS, ROWS, L.trail); trailM.position.set(COLS / 2, -ROWS / 2, 0);
+  const darkM = mesh(null, 60, 60, L.dark, { color: 0x0e102e, opacity: 0 }); darkM.position.set(COLS / 2, -ROWS / 2, 0);
+  const selM = mesh(ART3.tex('select', 0), 1, 1, L.sel); selM.visible = false;
+  const rangeM = new THREE.Mesh(new THREE.CircleGeometry(1, 48), matOf(null, { color: 0xfff0b4, opacity: 0.16 })); rangeM.renderOrder = L.ui; scene.add(rangeM); rangeM.visible = false;
+  const rangeRing = new THREE.Mesh(new THREE.RingGeometry(0.97, 1, 48), matOf(null, { color: 0xfff0b4, opacity: 0.85 })); rangeRing.renderOrder = L.ui; scene.add(rangeRing); rangeRing.visible = false;
 
   // Luzes (glow aditivo em cima da camada de escuridão)
   const GLOW = ART.glowTex();
@@ -96,13 +106,14 @@
   function floatText(x, y, s, color, big) { if (texts.length > 80) texts.shift(); texts.push({ x, y, s, color, t: 0, big: !!big, dx: (Math.random() - 0.5) * 0.3 }); }
 
   // ---------- Câmera ----------
+  const BOT = 64; // faixa embaixo para os botões de onda/velocidade
   function resize() {
     const r = stage.getBoundingClientRect(); cam.w = Math.max(1, r.width); cam.h = Math.max(1, r.height);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     renderer.setPixelRatio(dpr); renderer.setSize(cam.w, cam.h, false);
     fx.width = Math.round(cam.w * dpr); fx.height = Math.round(cam.h * dpr); fxc.setTransform(dpr, 0, 0, dpr, 0, 0);
     // Escala inteira por pixel da arte (16 px por tile) para manter os pixels nítidos
-    let s = Math.min(cam.w / (COLS + 0.3), cam.h / (ROWS + 0.3));
+    let s = Math.min(cam.w / (COLS + 0.3), (cam.h - BOT) / (ROWS + 0.3));
     const snapped = Math.floor(s * dpr / 16) * 16 / dpr;
     cam.scale = snapped >= s * 0.8 ? snapped : s;
     clampCam();
@@ -111,7 +122,8 @@
     cam.zoom = clamp(cam.zoom, 1, 3);
     const s = cam.scale * cam.zoom, hw = cam.w / 2 / s, hh = cam.h / 2 / s;
     cam.x = hw * 2 >= COLS + 1 ? COLS / 2 : clamp(cam.x, hw - 0.5, COLS + 0.5 - hw);
-    cam.y = hh * 2 >= ROWS + 1 ? -ROWS / 2 : clamp(cam.y, -ROWS - 0.5 + hh, 0.5 - hh);
+    const bot = BOT / s;
+    cam.y = (hh * 2 - bot) >= ROWS + 1 ? -ROWS / 2 - bot / 2 : clamp(cam.y, -ROWS - 0.5 + hh - bot, 0.5 - hh);
   }
   function updateCamera() {
     const s = cam.scale * cam.zoom, hw = cam.w / 2 / s, hh = cam.h / 2 / s;
@@ -139,13 +151,26 @@
     return d;
   }
   const spawnsOk = d => SPAWNS.every(s => d[idx(s.c, s.r)] >= 0);
-  const isReserved = (c, r) => (c === CORE.c && r === CORE.r) || SPAWNS.some(s => s.c === c && s.r === r);
+  // Desenha a trilha pisoteada seguindo o caminho atual de cada entrada ativa
+  function updateTrail() {
+    if (!G) { ART3.trail(trailCv, COLS, ROWS, []); trailTex.needsUpdate = true; return; }
+    const paths = [];
+    SPAWNS.forEach(sp => {
+      if (G.wave + 1 < sp.from) return;
+      const path = [[sp.ex, -sp.ey]]; let c = sp.c, r = sp.r, guard = 0;
+      path.push([c + 0.5, r + 0.5]);
+      while (G.dist[idx(c, r)] > 0 && guard++ < 200) { const n = nextCell(c, r); if (!n) break; c = n.c; r = n.r; path.push([c + 0.5, r + 0.5]); }
+      paths.push(path);
+    });
+    ART3.trail(trailCv, COLS, ROWS, paths); trailTex.needsUpdate = true;
+  }
+  const isReserved = (c, r) => (r === CORE.r && Math.abs(c - CORE.c) <= 1) || SPAWNS.some(s => s.c === c && s.r === r);
   const nearReserved = (c, r) => [CORE, ...SPAWNS].some(s => Math.abs(s.c - c) + Math.abs(s.r - r) <= 1);
 
   function clearRun() {
     if (!G) return;
     G.towers.forEach(removeTowerMeshes); G.enemies.filter(e => e.alive).forEach(releaseEnemy); G.projs.forEach(releaseProj);
-    Object.values(G.rubM).forEach(o => { scene.remove(o.m); if (o.g) { o.g.on = false; o.g.m.visible = false; } });
+    Object.values(G.rubM).forEach(o => { scene.remove(o.m); scene.remove(o.s); if (o.g) { o.g.on = false; o.g.m.visible = false; } });
     glowPool.forEach(g => { if (g !== coreGlow) { g.on = false; g.m.visible = false; } });
     partPool.forEach(p => { p.on = false; p.m.visible = false; });
     texts.length = 0;
@@ -162,7 +187,7 @@
     for (let r = 1; r < ROWS - 1; r++) for (let c = 0; c < COLS; c++) if (!nearReserved(c, r) && Math.random() < 0.16) { G.grid[idx(c, r)] = RUBBLE; cand.push(idx(c, r)); }
     let d = bfs(G.grid);
     while (!spawnsOk(d) && cand.length) { const k = cand.splice((Math.random() * cand.length) | 0, 1)[0]; G.grid[k] = EMPTY; d = bfs(G.grid); }
-    G.dist = d;
+    G.dist = d; updateTrail();
     const rub = []; for (let i = 0; i < G.grid.length; i++) if (G.grid[i] === RUBBLE) rub.push(i);
     const barrels = new Set(); for (let n = 0; n < 4 && rub.length; n++) barrels.add(rub.splice((Math.random() * rub.length) | 0, 1)[0]);
     for (let i = 0; i < G.grid.length; i++) if (G.grid[i] === RUBBLE) addRubbleMesh(i, barrels.has(i));
@@ -174,10 +199,12 @@
 
   function addRubbleMesh(i, barrel) {
     const c = i % COLS, r = (i / COLS) | 0;
-    const m = mesh(barrel ? ART.tex('barrel', 0) : ART.tex('rubble', i * 7 + 3), 1, 1, L.rubble);
-    m.position.set(wx(c), wy(r), 0);
-    const o = { m, barrel };
-    if (barrel) { o.g = glow(wx(c), wy(r) + 0.15, 3.2, 0xff8a30, Infinity, 0.8); o.g.flicker = 1; }
+    const feet = wy(r) - 0.4, kind = (i * 7 + r) % ART3.OB_COUNT;
+    const cvs = barrel ? ART3.canvas('barrel', 0) : ART3.canvas('obstacle', kind);
+    const s = shadowAt(wx(c), feet + 0.05, barrel ? 0.8 : 0.95);
+    const m = sprite(barrel ? ART3.tex('barrel', 0) : ART3.tex('obstacle', kind), cvs.width, cvs.height, wx(c), feet);
+    const o = { m, s, barrel };
+    if (barrel) { o.g = glow(wx(c), wy(r) + 0.3, 3.2, 0xff8a30, Infinity, 0.8); o.g.flicker = 1; }
     G.rubM[i] = o;
   }
 
@@ -208,17 +235,17 @@
     const d = canPlace(c, r);
     if (d === 'blocked' || d === 'occupied') { toast(T(d)); SFX.play('error'); return false; }
     if (d === 'no') return false;
-    G.gold -= cost; G.grid[idx(c, r)] = TOWER; G.dist = d;
+    G.gold -= cost; G.grid[idx(c, r)] = TOWER; G.dist = d; updateTrail();
     const t = { type, c, r, lvl: 1, branch: null, cd: 0.3, ang: Math.PI / 2, prio: 0, spent: cost, recoil: 0 };
-    t.base = mesh(ART.tex('base'), 1, 1, L.base); t.base.position.set(wx(c), wy(r), 0);
-    t.head = mesh(ART.tex(type), 1, 1, L.head); t.head.position.set(wx(c), wy(r), 0);
-    t.pips = []; for (let i = 0; i < MAX_LVL; i++) { const p = mesh(null, 0.09, 0.09, L.head, { color: 0xf5d27a }); p.position.set(wx(c) - 0.24 + i * 0.12, wy(r) - 0.43, 0); t.pips.push(p); }
-    t.g = glow(wx(c), wy(r), 1.8, TOWERS[type].light, Infinity, 0.35);
+    t.base = shadowAt(wx(c), wy(r) - 0.38, 1);
+    t.head = sprite(ART3.tex('tower', type), 16, 22, wx(c), wy(r) - 0.42);
+    t.pips = []; for (let i = 0; i < MAX_LVL; i++) { const p = mesh(null, 0.1, 0.07, L.bar, { color: 0xffe066 }); p.position.set(wx(c) - 0.24 + i * 0.12, wy(r) - 0.47, 0); t.pips.push(p); }
+    t.g = glow(wx(c), wy(r) + 0.3, 1.8, TOWERS[type].light, Infinity, 0.35);
     G.towers.push(t); updatePips(t);
     particle(wx(c), wy(r), 0xc9b48a, 10, 2, 0.4, 0.09);
     SFX.play('build'); updateHud(); return true;
   }
-  function updatePips(t) { t.pips.forEach((p, i) => { p.visible = i < t.lvl; p.material.color.setHex(t.branch === 'a' ? 0xf5a541 : t.branch === 'b' ? 0x5cc4ae : 0xece6d3); }); }
+  function updatePips(t) { t.pips.forEach((p, i) => { p.visible = i < t.lvl; p.material.color.setHex(t.branch === 'a' ? 0xf2b84b : t.branch === 'b' ? 0x6fe3d0 : 0xfff6c8); }); }
   function removeTowerMeshes(t) { scene.remove(t.base); scene.remove(t.head); t.pips.forEach(p => scene.remove(p)); if (t.g) { t.g.on = false; t.g.m.visible = false; } }
   function upgrade(t, branch) {
     if (t.lvl >= MAX_LVL) return;
@@ -230,7 +257,7 @@
     SFX.play('up'); updateHud();
   }
   function sell(t) {
-    G.gold += sellValue(t); G.grid[idx(t.c, t.r)] = EMPTY; G.dist = bfs(G.grid);
+    G.gold += sellValue(t); G.grid[idx(t.c, t.r)] = EMPTY; G.dist = bfs(G.grid); updateTrail();
     removeTowerMeshes(t); G.towers.splice(G.towers.indexOf(t), 1);
     particle(wx(t.c), wy(t.r), 0x8f7e5c, 12, 2, 0.4, 0.1); SFX.play('coin'); updateHud();
   }
@@ -238,8 +265,8 @@
   function clearRubble(c, r) {
     const cost = rubbleCost();
     if (G.gold < cost) { toast(T('noGold')); SFX.play('error'); return; }
-    const i = idx(c, r); G.gold -= cost; G.cleared++; G.grid[i] = EMPTY; G.dist = bfs(G.grid);
-    const o = G.rubM[i]; scene.remove(o.m); if (o.g) { o.g.on = false; o.g.m.visible = false; } delete G.rubM[i];
+    const i = idx(c, r); G.gold -= cost; G.cleared++; G.grid[i] = EMPTY; G.dist = bfs(G.grid); updateTrail();
+    const o = G.rubM[i]; scene.remove(o.m); scene.remove(o.s); if (o.g) { o.g.on = false; o.g.m.visible = false; } delete G.rubM[i];
     particle(wx(c), wy(r), 0x9da3a6, 16, 2.5, 0.5, 0.1); SFX.play('boom'); shake(0.08); updateHud();
   }
 
@@ -251,7 +278,7 @@
     let e = enemyPool.pop();
     if (!e) {
       e = {};
-      e.m = mesh(null, 1, 1, L.enemy);
+      e.m = mesh(null, 1, 1, L.enemy); e.sh = shadowAt(0, 0, 0.7);
       e.bg = mesh(null, 0.7, 0.08, L.bar, { color: 0x16120f }); e.fill = mesh(null, 0.66, 0.05, L.bar, { color: 0x9be04a });
     }
     Object.assign(e, { kind, x: s.ex, y: s.ey, tc: s.c, tr: s.r, hp, maxHp: hp, spd: d.spd * (1 + Math.min(w, 60) * 0.004),
@@ -259,12 +286,17 @@
       vx: 0, vy: 0, prog: 999, alive: true, size: d.size, core: d.core,
       gold: Math.max(1, Math.floor((3 + w * 0.45) * d.gold * (1 + 0.08 * tl('bounty')))) });
     if (si === 1) e.dir = e.rot = 0; else if (si === 2) e.dir = e.rot = Math.PI;
-    e.m.visible = e.bg.visible = e.fill.visible = true;
-    e.m.scale.set(d.size, d.size, 1); e.m.material.map = ART.tex(kind, 0); e.m.material.needsUpdate = true;
+    e.v = (Math.random() * ART3.ZV_COUNT) | 0; e.face = si === 2 ? -1 : 1;
+    const dims = kind === 'boss' ? [28, 28] : kind === 'runner' ? [16, 18] : [16, 20];
+    e.pw = dims[0] * PX; e.ph = dims[1] * PX; e.by = e.ph * 0.45;
+    e.m.visible = e.bg.visible = e.fill.visible = e.sh.visible = true;
+    e.sh.scale.set(kind === 'boss' ? 1.5 : 0.7, kind === 'boss' ? 0.75 : 0.35, 1);
+    e.m.scale.set(e.pw, e.ph, 1); e.m.material.map = enemyTex(e, 0); e.m.material.needsUpdate = true;
     G.enemies.push(e);
     if (kind === 'boss') { e.g = glow(e.x, e.y, 2.6, 0x9be04a, Infinity, 0.5); }
   }
-  function releaseEnemy(e) { e.alive = false; e.m.visible = e.bg.visible = e.fill.visible = false; if (e.g) { e.g.on = false; e.g.m.visible = false; e.g = null; } enemyPool.push(e); }
+  const enemyTex = (e, f) => e.kind === 'walker' ? ART3.tex('walker', e.v * 2 + f) : ART3.tex(e.kind, f);
+  function releaseEnemy(e) { e.alive = false; e.m.visible = e.bg.visible = e.fill.visible = e.sh.visible = false; if (e.g) { e.g.on = false; e.g.m.visible = false; e.g = null; } enemyPool.push(e); }
 
   function nextCell(c, r) {
     let best = null, bd = 1e9;
@@ -296,14 +328,14 @@
   }
   function damage(e, amt, quiet, crit) {
     if (!e.alive) return;
-    e.hp -= amt; if (!quiet) { e.hitT = 0.08; floatText(e.x, e.y + 0.35, Math.max(1, Math.round(amt)), crit ? '#f5d27a' : '#ece6d3', crit); }
+    e.hp -= amt; if (!quiet) { e.hitT = 0.08; floatText(e.x, e.y + e.ph + 0.1, Math.max(1, Math.round(amt)), crit ? '#f5d27a' : '#ece6d3', crit); }
     if (e.hp <= 0) kill(e);
   }
   function kill(e) {
     G.gold += e.gold; G.kills++;
-    particle(e.x, e.y, 0x9be04a, e.kind === 'boss' ? 30 : 8, 2.2, 0.45, 0.1);
-    particle(e.x, e.y, 0x6b2a35, e.kind === 'boss' ? 20 : 4, 1.6, 0.5, 0.12);
-    floatText(e.x + 0.2, e.y, '+' + e.gold, '#e0a640');
+    particle(e.x, e.y + e.by, 0x8fbf6a, e.kind === 'boss' ? 30 : 8, 2.2, 0.45, 0.1);
+    particle(e.x, e.y + e.by, 0x8f2f3c, e.kind === 'boss' ? 20 : 4, 1.6, 0.5, 0.12);
+    floatText(e.x + 0.2, e.y + e.by, '+' + e.gold, '#f2b84b');
     if (e.kind === 'boss') { shake(0.35); SFX.play('boom'); glow(e.x, e.y, 4, 0x9be04a, 0.6, 1.2); }
     SFX.play(e.kind === 'boss' ? 'coin' : 'die');
     releaseEnemy(e);
@@ -336,7 +368,7 @@
     }
     const e = p.tgt;
     if (!e || !e.alive) { if (p.lx === undefined) { p.alive = false; return; } }
-    const tx = e && e.alive ? e.x : p.lx, ty = e && e.alive ? e.y : p.ly;
+    const tx = e && e.alive ? e.x : p.lx, ty = e && e.alive ? e.y + e.by : p.ly;
     p.lx = tx; p.ly = ty;
     const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy), mv = p.spd * dt;
     p.m.rotation.z = Math.atan2(dy, dx) - Math.PI / 2;
@@ -378,7 +410,7 @@
     const crit = Math.random() < 0.03 * tl('crit'); const dmg = s.dmg * (crit ? 2 : 1);
     if (t.type !== 'tesla') t.ang = Math.atan2(e.y - y, e.x - x);
     t.recoil = 1;
-    const mx = x + Math.cos(t.ang) * 0.4, my = y + Math.sin(t.ang) * 0.4;
+    const mx = x + Math.cos(t.ang) * 0.4, my = y + 0.5 + Math.sin(t.ang) * 0.2;
     if (t.type === 'gunner') {
       addProj({ kind: 'bullet', x: mx, y: my, tgt: e, spd: 12, dmg, crit }); glow(mx, my, 0.9, 0xffc060, 0.06, 1); SFX.play('shoot');
     } else if (t.type === 'mortar') {
@@ -390,15 +422,15 @@
         G.enemies.forEach(en => { if (en.alive && Math.hypot(en.x - x, en.y - y) <= s.range) { damage(en, dmg, false, crit); if (en.alive) { en.slow = Math.max(en.slow, s.slow); en.slowT = Math.max(en.slowT, s.slowT); } } });
       } else { addProj({ kind: 'shard', x: mx, y: my, tgt: e, spd: 8, dmg, crit, slow: s.slow, slowT: s.slowT, freeze: s.freeze }); SFX.play('ice'); }
     } else if (t.type === 'tesla') {
-      SFX.play('zap'); const hit = [e]; let cur = e, px = x, py = y + 0.25, d = dmg;
+      SFX.play('zap'); const hit = [e]; let cur = e, px = x, py = y + 0.95, d = dmg;
       for (let i = 0; i <= s.chain && cur; i++) {
-        bolt(px, py, cur.x, cur.y, 0xb890ff); glow(cur.x, cur.y, 1.2, 0xb890ff, 0.12, 1);
-        const nx = cur.x, ny = cur.y; damage(cur, d, false, crit); d *= 0.85; px = nx; py = ny;
+        bolt(px, py, cur.x, cur.y + cur.by, 0xb890ff); glow(cur.x, cur.y + cur.by, 1.2, 0xb890ff, 0.12, 1);
+        const nx = cur.x, ny = cur.y; damage(cur, d, false, crit); d *= 0.85; px = nx; py = ny + cur.by;
         let nb = null, nd = 1.8;
         G.enemies.forEach(en => { if (en.alive && !hit.includes(en)) { const q = Math.hypot(en.x - nx, en.y - ny); if (q < nd) { nd = q; nb = en; } } });
         cur = nb; if (nb) hit.push(nb);
       }
-      glow(x, y + 0.25, 1.6, 0xb890ff, 0.1, 1);
+      glow(x, y + 0.95, 1.6, 0xb890ff, 0.1, 1);
     }
   }
 
@@ -418,6 +450,7 @@
     else { toast(T('waveStart', w), 1.6); SFX.play('wave'); }
     if (w === 6) setTimeout(() => toast(T('sides'), 2.5), 1800);
     G.spawnT = 0.2; G.nextT = 0;
+    if (w + 1 === 6) updateTrail();
     updateHud(true);
   }
   const earlyBonus = () => Math.ceil(G.nextT * (1 + G.wave * 0.25));
@@ -473,22 +506,23 @@
     for (const o of ringPool) { if (!o.on) continue; o.life -= simDt; const k = 1 - o.life / o.max; const r = o.r * (0.3 + 0.7 * k); o.m.scale.set(r, r, 1); o.m.material.opacity = Math.max(0, 1 - k); if (o.life <= 0) { o.on = false; o.m.visible = false; } }
     if (G) {
       const fr = Math.floor(performance.now() / 160) % 2;
-      for (const o of Object.values(G.rubM)) if (o.barrel) o.m.material.map = ART.tex('barrel', fr);
+      for (const o of Object.values(G.rubM)) if (o.barrel) o.m.material.map = ART3.tex('barrel', fr);
       for (const e of G.enemies) {
         if (!e.alive) continue;
-        let da = e.dir - Math.PI / 2 - e.rot; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
-        e.rot += da * Math.min(1, dt * 12);
-        e.m.position.set(e.x, e.y, 0); e.m.rotation.z = e.rot;
-        const f = Math.floor(e.anim) % 2; e.m.material.map = ART.tex(e.kind, f);
+        if (e.vx > 0.05) e.face = 1; else if (e.vx < -0.05) e.face = -1;
+        const feet = e.y - 0.15;
+        e.m.position.set(e.x, feet + e.ph / 2, 0); e.m.scale.x = e.pw * e.face; depth(e.m, feet);
+        e.sh.position.set(e.x, feet + 0.02, 0);
+        const f = Math.floor(e.anim) % 2; e.m.material.map = enemyTex(e, f);
         const col = e.m.material.color;
         if (e.hitT > 0) col.setRGB(1, 0.45, 0.45); else if (e.frz > 0) col.setRGB(0.7, 0.95, 1.4); else if (e.slowT > 0) col.setRGB(0.7, 0.85, 1.2); else if (e.burnT > 0) col.setRGB(1.2, 0.8, 0.5); else col.setRGB(1, 1, 1);
         const showBar = e.hp < e.maxHp; e.bg.visible = e.fill.visible = showBar;
-        if (showBar) { const k = Math.max(0, e.hp / e.maxHp), by = e.y + e.size * 0.5 + 0.05; e.bg.position.set(e.x, by, 0); e.fill.scale.x = 0.66 * k; e.fill.position.set(e.x - 0.33 * (1 - k), by, 0); e.fill.material.color.setHex(k > 0.5 ? 0x9be04a : k > 0.25 ? 0xe0a640 : 0xb04a5a); }
-        if (e.g) e.g.m.position.set(e.x, e.y, 0);
+        if (showBar) { const k = Math.max(0, e.hp / e.maxHp), by = feet + e.ph + 0.06; e.bg.position.set(e.x, by, 0); e.fill.scale.x = 0.66 * k; e.fill.position.set(e.x - 0.33 * (1 - k), by, 0); e.fill.material.color.setHex(k > 0.5 ? 0x9be04a : k > 0.25 ? 0xe0a640 : 0xb04a5a); }
+        if (e.g) e.g.m.position.set(e.x, e.y + e.by, 0);
       }
       for (const t of G.towers) {
-        const back = t.recoil * 0.07; t.head.position.set(wx(t.c) - Math.cos(t.ang) * back, wy(t.r) - Math.sin(t.ang) * back, 0);
-        t.head.rotation.z = t.type === 'tesla' ? 0 : t.ang - Math.PI / 2;
+        const face = t.type === 'tesla' ? 1 : (Math.cos(t.ang) < -0.05 ? -1 : 1), back = t.recoil * 0.06 * face;
+        t.head.position.x = wx(t.c) - back; t.head.scale.x = face;
       }
       for (const p of G.projs) { if (!p.alive) continue; p.m.position.set(p.x, p.y, 0); if (p.g) p.g.m.position.set(p.x, p.y, 0); }
     }
@@ -623,7 +657,7 @@
     radial.innerHTML = '';
     const p = toScreen(wx(c), wy(r));
     const R = btns.length <= 1 ? 0 : btns.length === 2 ? 52 : 62;
-    const cxp = clamp(p.x, 76, cam.w - 76), cyp = clamp(p.y, 96, cam.h - 72);
+    const cxp = clamp(p.x, 76, cam.w - 76), cyp = clamp(p.y, 96, cam.h - 120);
     radial.style.left = cxp + 'px'; radial.style.top = cyp + 'px';
     btns.forEach((b, k) => {
       const a = btns.length === 1 ? -Math.PI / 2 : -Math.PI / 2 + (k - (btns.length - 1) / 2) * (btns.length <= 3 ? 1.15 : 0.95) + (cyp < 140 ? Math.PI : 0);
@@ -641,21 +675,26 @@
 
   // ---------- HUD e telas ----------
   const ICONS = {};
-  TOWER_ORDER.forEach(t => ICONS[t] = ART.towerIcon(t, 3));
-  ICONS.rubble = ART.icon('rubble', 3); ICONS.coin = ART.icon('coin', 3); ICONS.heart = ART.icon('heart', 3); ICONS.ess = ART.icon('ess', 3); ICONS.skull = ART.icon('skull', 3);
+  TOWER_ORDER.forEach(t => ICONS[t] = ART3.icon('tower', t, 3));
+  ICONS.rubble = ART3.icon('obstacle', 0, 3); ICONS.coin = ART.icon('coin', 3); ICONS.heart = ART.icon('heart', 3); ICONS.ess = ART.icon('ess', 3); ICONS.skull = ART.icon('skull', 3);
   document.querySelectorAll('[data-ico]').forEach(el => el.style.backgroundImage = `url(${ICONS[el.dataset.ico]})`);
 
   let lastHud = '';
   function updateHud(force) {
     if (!G) return;
-    const waveLabel = G.queue.length ? T('waveRunning', G.wave) : `${T('callWave', G.wave + 1)} · ${T('waveIn', Math.max(0, Math.ceil(G.nextT)))}`;
-    const bonus = G.queue.length ? '' : T('bonus', earlyBonus());
-    const key = [Math.floor(G.gold), G.wave, G.hp, essenceFor(), waveLabel, bonus, speed].join('|');
+    const running = G.queue.length > 0;
+    const zleft = G.queue.length + G.enemies.filter(e => e.alive).length;
+    const l1 = T('waveN', running ? G.wave : G.wave + 1), l2 = running ? T('incoming') : T('waveIn', Math.max(0, Math.ceil(G.nextT))), bonus = running ? '' : T('bonus', earlyBonus());
+    const key = [Math.floor(G.gold), G.wave, G.hp, G.maxHp, essenceFor(), l1, l2, bonus, speed, zleft].join('|');
     if (!force && key === lastHud) return; lastHud = key;
-    $('gold').textContent = fmt(G.gold); $('wave').textContent = G.wave; $('hp').textContent = G.hp; $('essRun').textContent = '+' + fmt(essenceFor());
-    $('waveLbl').textContent = waveLabel; $('waveBonus').textContent = bonus; $('btnWave').disabled = !!G.queue.length;
+    $('gold').textContent = fmt(G.gold); $('wave').textContent = T('waveN', G.wave); $('hp').textContent = G.hp + '/' + G.maxHp; $('essRun').textContent = '+' + fmt(essenceFor());
+    $('zleft').textContent = G.wave === 0 ? T('getReady') : T('zLeft', zleft);
+    $('waveLbl').textContent = l1; $('waveSub').textContent = l2; $('waveBonus').textContent = bonus; $('btnWave').disabled = running;
     $('btnSpeed').textContent = 'x' + speed;
-    $('hpBox').classList.toggle('low', G.hp <= G.maxHp * 0.3);
+    const low = G.hp <= G.maxHp * 0.3; $('hpBox').classList.toggle('low', low);
+    const segs = $('hpSegs'); const n = Math.min(G.maxHp, 30);
+    if (segs.childElementCount !== n) { segs.innerHTML = ''; for (let i = 0; i < n; i++) segs.appendChild(document.createElement('i')); segs.style.gridTemplateColumns = `repeat(${n}, minmax(0, 1fr))`; }
+    const on = Math.ceil(G.hp / G.maxHp * n); [...segs.children].forEach((el, i) => el.className = i < on ? (low ? 'bad' : 'ok') : '');
   }
   let toastTimer = 0;
   function toast(msg, secs, big) { const t = $('toast'); t.textContent = msg; t.className = 'toast show' + (big ? ' big' : ''); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = 'toast', (secs || 1.6) * 1000); }

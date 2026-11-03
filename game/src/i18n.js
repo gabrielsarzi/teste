@@ -1,11 +1,11 @@
 // Textos do jogo em português e inglês.
 window.STR = {
   pt: {
-    title: 'Último Bunker', subtitle: 'Tower defense incremental',
+    title: 'Último Bunker', subtitle: 'Tower defense · zumbis',
     play: 'Jogar', talents: 'Talentos', settings: 'Ajustes', language: 'Idioma',
     sfx: 'Efeitos', music: 'Música', on: 'Lig.', off: 'Desl.',
     best: 'Melhor onda: {0}', essence: 'Essência',
-    callWave: 'Chamar onda {0}', bonus: '+{0} ouro', waveIn: 'em {0}s', waveRunning: 'Onda {0} chegando…',
+    callWave: 'Chamar onda {0}', waveN: 'Onda {0}', incoming: 'chegando', zLeft: '{0} zumbis', getReady: 'prepare-se', bunker: 'Bunker', bonus: '+{0} ouro', waveIn: 'em {0}s', waveRunning: 'Onda {0} chegando…',
     retreat: 'Recuar', paused: 'Pausado', resume: 'Continuar', endRun: 'Encerrar run',
     overDead: 'O bunker caiu', overRetreat: 'Você recuou',
     reachedWave: 'Onda alcançada', kills: 'Abates', earned: 'Essência ganha',
@@ -19,7 +19,7 @@ window.STR = {
     upgrade: 'Melhorar', max: 'Máx', sell: 'Vender', clear: 'Limpar',
     prio0: 'Primeiro', prio1: 'Mais forte', prio2: 'Mais perto', target: 'Alvo',
     noGold: 'Ouro insuficiente', blocked: 'Isso bloquearia o caminho', occupied: 'Tem inimigo aí',
-    boss: 'CHEFE!', waveStart: 'Onda {0}', sides: 'Novas entradas nas laterais!',
+    boss: 'CHEFE: ABOMINAÇÃO!', waveStart: 'Onda {0}', sides: 'Novas entradas nas laterais!',
     level: 'Nv {0}', stats: 'Dano {0} · Alcance {1}',
     br_atk: 'Ataque', br_eco: 'Economia', br_tec: 'Tecnologia',
     t_dmg: 'Munição pesada', t_dmg_d: '+10% de dano por nível',
@@ -37,15 +37,15 @@ window.STR = {
     t_autowave: 'Rádio', t_autowave_d: 'Chama a próxima onda sozinho quando o campo estiver limpo',
     t_speed4: 'Adrenalina', t_speed4_d: 'Libera a velocidade x4',
     requires: 'Requer {0}', maxed: 'Máximo', back: 'Voltar',
-    hint: 'Toque num espaço vazio para construir. Suas torres formam o labirinto: os inimigos sempre procuram um caminho livre até o bunker.',
-    rubble: 'Destroços', barrel: 'Barril em chamas', perHour: '{0}/h offline (máx. {1}h)'
+    hint: 'Toque num espaço vazio para construir. A trilha de terra mostra por onde os zumbis vão passar.',
+    rubble: 'Obstáculo', barrel: 'Barril em chamas', perHour: '{0}/h offline (máx. {1}h)'
   },
   en: {
-    title: 'Last Bunker', subtitle: 'Incremental tower defense',
+    title: 'Last Bunker', subtitle: 'Tower defense · zombies',
     play: 'Play', talents: 'Talents', settings: 'Settings', language: 'Language',
     sfx: 'Sound', music: 'Music', on: 'On', off: 'Off',
     best: 'Best wave: {0}', essence: 'Essence',
-    callWave: 'Call wave {0}', bonus: '+{0} gold', waveIn: 'in {0}s', waveRunning: 'Wave {0} incoming…',
+    callWave: 'Call wave {0}', waveN: 'Wave {0}', incoming: 'incoming', zLeft: '{0} zombies', getReady: 'get ready', bunker: 'Bunker', bonus: '+{0} gold', waveIn: 'in {0}s', waveRunning: 'Wave {0} incoming…',
     retreat: 'Retreat', paused: 'Paused', resume: 'Resume', endRun: 'End run',
     overDead: 'The bunker fell', overRetreat: 'You retreated',
     reachedWave: 'Wave reached', kills: 'Kills', earned: 'Essence earned',
@@ -59,7 +59,7 @@ window.STR = {
     upgrade: 'Upgrade', max: 'Max', sell: 'Sell', clear: 'Clear',
     prio0: 'First', prio1: 'Strongest', prio2: 'Closest', target: 'Target',
     noGold: 'Not enough gold', blocked: 'That would block the path', occupied: 'An enemy is there',
-    boss: 'BOSS!', waveStart: 'Wave {0}', sides: 'New entrances on the sides!',
+    boss: 'BOSS: ABOMINATION!', waveStart: 'Wave {0}', sides: 'New entrances on the sides!',
     level: 'Lv {0}', stats: 'Damage {0} · Range {1}',
     br_atk: 'Attack', br_eco: 'Economy', br_tec: 'Tech',
     t_dmg: 'Heavy rounds', t_dmg_d: '+10% damage per level',
@@ -77,8 +77,8 @@ window.STR = {
     t_autowave: 'Radio', t_autowave_d: 'Calls the next wave by itself when the field is clear',
     t_speed4: 'Adrenaline', t_speed4_d: 'Unlocks x4 speed',
     requires: 'Requires {0}', maxed: 'Maxed', back: 'Back',
-    hint: 'Tap an empty tile to build. Your towers shape the maze: enemies always look for an open path to the bunker.',
-    rubble: 'Rubble', barrel: 'Burning barrel', perHour: '{0}/h offline (max {1}h)'
+    hint: 'Tap an empty tile to build. The dirt trail shows where the zombies will walk.',
+    rubble: 'Obstacle', barrel: 'Burning barrel', perHour: '{0}/h offline (max {1}h)'
   }
 };
 window.LANG = 'pt';
