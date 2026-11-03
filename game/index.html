@@ -145,6 +145,33 @@ button:focus-visible{outline:3px solid var(--amber2);outline-offset:2px}
 #btnUp{left:auto;right:max(12px,env(safe-area-inset-right,0px));bottom:12px;width:86px;height:86px;background:var(--toxic);color:#10200a;box-shadow:inset 0 -6px 0 #5f9a3a,0 0 0 4px var(--panel),0 5px 0 4px var(--panel)}
 #btnUp b{font-size:11px}
 #btnTop{left:auto;right:calc(max(12px,env(safe-area-inset-right,0px)) + 98px)}
+.lvl{margin:-14px 0 0 -30px;min-width:60px;height:28px;padding:0 8px;border:0;border-radius:8px;background:var(--panel);box-shadow:0 0 0 2px var(--line),0 3px 0 2px #1a1810;color:var(--ink);font-family:var(--f-pix);font-size:11px;font-weight:700;white-space:nowrap}
+.lvl.can{box-shadow:0 0 0 2px var(--amber),0 3px 0 2px #1a1810;color:var(--amber)}
+.lvl.can::after{content:" ▲"}
+.lvl.lift{margin-left:-10px}
+.bubble{position:absolute;left:0;top:0;margin:-14px 0 0 -36px;pointer-events:none;background:var(--ink);color:#2b2210;font-family:var(--f-pix);font-size:11px;font-weight:700;padding:5px 9px;border-radius:10px;white-space:nowrap;animation:bob 1s ease-in-out infinite}
+@keyframes bob{50%{translate:0 -4px}}
+#sheet{position:absolute;left:8px;right:8px;bottom:8px;z-index:8;background:var(--panel);border-radius:12px;box-shadow:0 0 0 3px var(--amber),0 6px 0 3px #1a1810;padding:12px;display:flex;flex-direction:column;gap:10px}
+.shHead{display:flex;align-items:center;gap:8px}
+.shHead b{font-family:var(--f-pix);font-size:15px;color:var(--amber);flex:1}
+.shHead span{font-family:var(--f-pix);font-size:12px;color:var(--muted)}
+.shHead .x{width:34px;height:34px;border:0;border-radius:8px;background:var(--panel2);color:var(--ink);font-size:14px}
+.shRows{display:grid;gap:4px}
+.shRows div{display:flex;justify-content:space-between;font-size:13px}
+.shRows b{font-family:var(--f-pix);font-size:12px;font-variant-numeric:tabular-nums}
+.shRows i{font-style:normal;color:var(--toxic)}
+#sheet .note{margin:0;font-size:12px;color:var(--muted)}
+.shBuy{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.shBuy button,.shMgr button{border:0;border-radius:8px;background:var(--amber);color:#2b2210;font-family:var(--f-pix);font-size:14px;font-weight:700;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;box-shadow:inset 0 -4px 0 var(--rust)}
+.shBuy small,.shMgr small{font-size:11px}
+.shBuy button.poor,.shMgr button.poor{background:#8c8466;color:var(--ink);box-shadow:inset 0 -4px 0 #6b6449}
+.shMgr{display:flex;align-items:center;gap:10px;background:var(--panel2);border-radius:8px;padding:8px}
+.shMgr div{flex:1;display:flex;flex-direction:column;gap:2px}
+.shMgr div b{font-family:var(--f-pix);font-size:13px}
+.shMgr div small{font-size:12px;color:var(--muted);font-family:var(--f-body)}
+.shMgr button{min-width:84px}
+.shMgr button:disabled{background:var(--toxic);box-shadow:inset 0 -4px 0 #5f9a3a}
+.alt.wide{width:100%;font-size:11px;padding:8px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -162,6 +189,7 @@ button:focus-visible{outline:3px solid var(--amber2);outline-offset:2px}
     <canvas id="gl"></canvas><canvas id="fx"></canvas>
     <div id="floorUi"></div>
     <div id="radial" hidden></div>
+    <div id="sheet" hidden></div>
     <div id="toast" class="toast"></div>
     <button class="round" id="btnUp" type="button"><b data-t="upgrades">Melhorias</b></button>
     <button class="round sm" id="btnTop" type="button" aria-label="Topo">▲</button>

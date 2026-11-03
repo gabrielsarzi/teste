@@ -51,26 +51,37 @@ window.fmt = function (n) {
 };
 
 // ---------- Mina ----------
-// Cada andar: minério, valor de cada pedaço e dureza (picaretadas para soltar um pedaço)
+// Cada andar: minério, valor de cada pedaço e dureza (golpes para soltar um pedaço)
 window.FLOORS = [
   { ore: 'coal', v: 1, h: 1 }, { ore: 'copper', v: 8, h: 3 }, { ore: 'iron', v: 50, h: 5 }, { ore: 'silver', v: 350, h: 8 },
   { ore: 'gold', v: 2500, h: 12 }, { ore: 'crystal', v: 18000, h: 17 }, { ore: 'ruby', v: 130000, h: 23 }, { ore: 'uranium', v: 900000, h: 30 }
 ];
 window.MINE = {
-  minerCost: (f, n) => Math.ceil(10 * Math.pow(6, f) * Math.pow(1.15, n)),
-  minerPower: 1,                                       // picaretadas por segundo de cada mineiro
-  floorCost: f => Math.ceil(300 * Math.pow(7, f - 1)), // custo para cavar o andar f (f >= 1)
-  zombieHp: L => 10 * Math.pow(4, L),                  // L = andar mais fundo aberto (0 = só o primeiro)
-  towerPower: f => Math.pow(3.2, f),                   // torre construída mais fundo é mais forte
-  towerUnlock: { gunner: 1, cryo: 2, mortar: 3, tesla: 4 }, // andares abertos para liberar
-  slots: [4, 5, 6, 7]                                  // colunas das vagas (andares pares; ímpares são espelhados)
+  // Andar: nível sobe a velocidade; mineiros = 1 + 1 a cada 10 níveis (máx. 5)
+  maxWorkers: 5,
+  workers: lvl => Math.min(5, 1 + Math.floor((lvl - 1) / 10)),
+  workerSpeed: lvl => Math.pow(1.09, lvl - 1),                // golpes por segundo de cada mineiro
+  floorUpCost: (f, lvl) => Math.ceil(12 * Math.pow(7, f) * Math.pow(1.12, lvl - 1)),
+  foremanCost: f => Math.ceil(80 * Math.pow(7, f)),           // capataz: o andar trabalha sozinho
+  cycle: 4,                                                   // segundos de trabalho por toque sem capataz
+  // Elevador
+  liftCap: lvl => Math.ceil(25 * Math.pow(1.27, lvl - 1)),
+  liftSpeed: lvl => Math.min(9, 1.4 + 0.15 * (lvl - 1)),     // andares... em tiles por segundo
+  liftUpCost: lvl => Math.ceil(30 * Math.pow(1.19, lvl - 1)),
+  operatorCost: 150,
+  loadTime: 0.5,
+  floorCost: f => Math.ceil(400 * Math.pow(8, f - 1)),
+  zombieHp: L => 10 * Math.pow(4, L),
+  towerPower: f => Math.pow(3.2, f),
+  towerUnlock: { gunner: 1, cryo: 2, mortar: 3, tesla: 4 },
+  slots: [2, 3, 4, 5]
 };
-// Melhorias permanentes compradas com ouro
+// Melhorias globais compradas com ouro
 window.UPGRADES = [
-  { id: 'pick',    base: 25,  g: 2.2, max: 50 },  // +1 ouro por toque (x valor do andar)
-  { id: 'tools',   base: 150, g: 3,   max: 30 },  // mineiros +25%
+  { id: 'pick',    base: 25,  g: 2.2, max: 50 },  // +1 golpe por toque
+  { id: 'ammo',    base: 200, g: 2.6, max: 40 },  // torres +15% de dano
   { id: 'silence', base: 300, g: 3.5, max: 8 },   // -8% de barulho
   { id: 'range',   base: 500, g: 4,   max: 6 },   // torres +6% de alcance
-  { id: 'store',   base: 200, g: 4,   max: 10 }   // +1h de armazém offline (base 2h)
+  { id: 'store',   base: 200, g: 4,   max: 10 }   // +1h de ganho offline (base 2h)
 ];
 window.upgradeCost = (u, lvl) => Math.ceil(u.base * Math.pow(u.g, lvl));

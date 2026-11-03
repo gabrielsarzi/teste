@@ -1,6 +1,7 @@
 // Textos do jogo em português e inglês.
 window.STR = {
   pt: {
+    lift: 'Elevador', capacity: 'Capacidade', speed: 'Velocidade', operator: 'Operador', foreman: 'Capataz', hire2: 'Contratar', hired: 'Contratado', workersL: 'Mineiros', prodL: 'Produção', nextW: '+1 mineiro no nível {0}', tapWork: 'Toque!', tapLift: 'Toque para descer', u_ammo: 'Munição', u_ammo_d: 'Torres causam +15% de dano', activeL: 'Andar ativo', deactivate: 'Abandonar andar', activate: 'Reativar andar', stashL: 'No baú', autoNote: 'Trabalha sozinho, até offline', manualNote: 'Sem gerente: toque para trabalhar', buyMax: 'Máx', foremanD: 'O andar trabalha sem parar, inclusive offline', operatorD: 'O elevador desce sozinho, inclusive offline',
     mine: 'Mina', perSec: '{0}/s', hire: 'Mineiro', floorN: 'Andar {0}', dig: 'Cavar andar {0}', upgrades: 'Melhorias',
     coal: 'Carvão', copper: 'Cobre', iron: 'Ferro', silver: 'Prata', gold: 'Ouro', crystal: 'Cristal', ruby: 'Rubi', uranium: 'Urânio',
     invaded: 'INVADIDO', needBoss: 'Derrote a Abominação', abandoned: 'abandonado', abandon: 'Abandonar?', abandonedMsg: 'Andar {0} abandonado: os zumbis vão passar direto', towerLocked: 'Andar {0}', hard: '{0} golpes', minerFled: 'Um mineiro fugiu do andar {0}!', bossFloor: 'A Abominação entrou na mina!', bossDown: 'Abominação derrotada! +{0}',
@@ -10,7 +11,7 @@ window.STR = {
     u_silence: 'Abafadores', u_silence_d: '-8% de barulho: menos zumbis atraídos',
     u_range: 'Lanternas', u_range_d: '+6% de alcance das torres',
     u_store: 'Armazém', u_store_d: '+1h de produção guardada enquanto você está fora (base 2h)',
-    mineHint: 'Toque no veio para cavar e contrate mineiros. O barulho atrai zumbis: eles entram por cima e descem a mina. Coloque torres nas vagas.',
+    mineHint: 'Toque no andar para os mineiros trabalharem e no elevador para buscar o ouro. Toque no número do andar para melhorar. O barulho atrai zumbis pela escada: coloque torres nas vagas.',
     offlineMine: 'A mina rendeu {0} de ouro em {1}.', offlineHurt: ' Andares sem defesa renderam menos.', resetGame: 'Apagar progresso', confirmReset: 'Apagar todo o progresso da mina?',
     noise: 'barulho', tapZombie: 'Toque nos zumbis para bater neles',
     title: 'Último Bunker', subtitle: 'Mina · zumbis · idle',
@@ -53,6 +54,7 @@ window.STR = {
     rubble: 'Obstáculo', barrel: 'Barril em chamas', perHour: '{0}/h offline (máx. {1}h)'
   },
   en: {
+    lift: 'Elevator', capacity: 'Capacity', speed: 'Speed', operator: 'Operator', foreman: 'Foreman', hire2: 'Hire', hired: 'Hired', workersL: 'Miners', prodL: 'Output', nextW: '+1 miner at level {0}', tapWork: 'Tap!', tapLift: 'Tap to send', u_ammo: 'Ammo', u_ammo_d: 'Towers deal +15% damage', activeL: 'Floor active', deactivate: 'Abandon floor', activate: 'Reactivate floor', stashL: 'In the chest', autoNote: 'Works on its own, even offline', manualNote: 'No manager: tap to work', buyMax: 'Max', foremanD: 'The floor works nonstop, even offline', operatorD: 'The elevator runs on its own, even offline',
     mine: 'Mine', perSec: '{0}/s', hire: 'Miner', floorN: 'Floor {0}', dig: 'Dig floor {0}', upgrades: 'Upgrades',
     coal: 'Coal', copper: 'Copper', iron: 'Iron', silver: 'Silver', gold: 'Gold', crystal: 'Crystal', ruby: 'Ruby', uranium: 'Uranium',
     invaded: 'OVERRUN', needBoss: 'Defeat the Abomination', abandoned: 'abandoned', abandon: 'Abandon?', abandonedMsg: 'Floor {0} abandoned: zombies will walk past it', towerLocked: 'Floor {0}', hard: '{0} hits', minerFled: 'A miner fled floor {0}!', bossFloor: 'The Abomination entered the mine!', bossDown: 'Abomination defeated! +{0}',
@@ -62,7 +64,7 @@ window.STR = {
     u_silence: 'Mufflers', u_silence_d: '-8% noise: fewer zombies attracted',
     u_range: 'Lanterns', u_range_d: '+6% tower range',
     u_store: 'Storehouse', u_store_d: '+1h of output stored while you are away (base 2h)',
-    mineHint: 'Tap the vein and hire miners. Noise draws zombies: they enter from the top and work their way down. Put towers in the slots.',
+    mineHint: 'Tap a floor to make the miners work and the elevator to fetch the gold. Tap a floor number to upgrade it. Noise draws zombies down the stairs: put towers in the slots.',
     offlineMine: 'The mine made {0} gold in {1}.', offlineHurt: ' Undefended floors made less.', resetGame: 'Erase progress', confirmReset: 'Erase all mine progress?',
     noise: 'noise', tapZombie: 'Tap zombies to hit them',
     title: 'Last Bunker', subtitle: 'Mine · zombies · idle',

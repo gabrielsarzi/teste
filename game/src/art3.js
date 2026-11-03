@@ -144,7 +144,7 @@ window.ART3 = (function () {
   }
   function slot() { const p = new Px(16, 8); p.rect(1, 2, 14, 4, '#8b5a2b').rect(1, 2, 14, 1, '#b07a3c').rect(3, 6, 1, 2, '#5c3a1c').rect(12, 6, 1, 2, '#5c3a1c'); p.rect(7, 3, 2, 2, '#d9cfae'); return p.outline(); }
   function cart() { const p = new Px(14, 12); p.rect(1, 2, 12, 7, '#6c6f80').rect(1, 2, 12, 1, '#9da0b2').rect(2, 0, 10, 2, '#f2c84b').ell(4, 10, 1.8, 1.8, '#2f2f3d').ell(10, 10, 1.8, 1.8, '#2f2f3d'); return p.outline(); }
-  // Fundo de um andar: 9 tiles x 2,5 tiles (144 x 40 px)
+  // Fundo de um andar (144 x 40 px): poço do elevador (col 0), corredor, veio (col 7) e escada dos zumbis (col 8)
   function floorBg(f) {
     const W = 144, H = 40, R = rng(900 + f * 13); const [c, x] = cv(W, H);
     const px = (X, Y, col) => { x.fillStyle = col; x.fillRect(X, Y, 1, 1); };
@@ -153,24 +153,25 @@ window.ART3 = (function () {
       else if (y < 32) col = v < 0.12 ? '#5e4a34' : v < 0.2 ? '#7a6044' : '#6b5038';
       else col = v < 0.2 ? '#1f1a17' : '#2b2420';
       px(X, y, col); }
-    // tábuas do chão
-    for (let X = 0; X < W; X += 8) for (let y = 16; y < 32; y++) if (y % 5 === 0) px(X + (y % 3), y, '#4a3826');
-    x.fillStyle = '#3b2c20'; x.fillRect(16, 31, W - 16, 1);
-    // minério no rodapé de pedra e no veio
+    for (let X = 16; X < 112; X += 8) for (let y = 16; y < 32; y++) if (y % 5 === 0) px(X + (y % 3), y, '#4a3826');
+    x.fillStyle = '#3b2c20'; x.fillRect(16, 31, 96, 1);
     const ore = ORES[f % ORES.length];
     for (let i = 0; i < 30; i++) { const X = (R() * W) | 0, y = 33 + ((R() * 6) | 0); x.fillStyle = ore; x.fillRect(X, y, 2, 1); }
-    // veio (coluna 1): parede de rocha com minério
-    for (let y = 0; y < 32; y++) for (let X = 16; X < 30; X++) { const v = R(); px(X, y, v < 0.5 ? '#3a302a' : '#2f2722'); }
-    for (let i = 0; i < 22; i++) { const X = 17 + ((R() * 11) | 0), y = 2 + ((R() * 27) | 0); x.fillStyle = ore; x.fillRect(X, y, 2, 2); x.fillStyle = '#ffffff'; x.fillRect(X, y, 1, 1); }
-    // poço do elevador (coluna 0)
+    // veio (col 7)
+    for (let y = 0; y < 32; y++) for (let X = 112; X < 128; X++) { const v = R(); px(X, y, v < 0.5 ? '#3a302a' : '#2f2722'); }
+    for (let i = 0; i < 24; i++) { const X = 113 + ((R() * 13) | 0), y = 2 + ((R() * 27) | 0); x.fillStyle = ore; x.fillRect(X, y, 2, 2); x.fillStyle = '#ffffff'; x.fillRect(X, y, 1, 1); }
+    // poço do elevador (col 0)
     x.fillStyle = '#16121c'; x.fillRect(0, 0, 16, 40); x.fillStyle = '#5c3a1c'; x.fillRect(2, 0, 1, 40); x.fillRect(13, 0, 1, 40);
     for (let y = 2; y < 40; y += 6) { x.fillStyle = '#3b2a1c'; x.fillRect(2, y, 12, 1); }
-    // túnel dos zumbis (coluna 8)
-    for (let y = 14; y < 32; y++) for (let X = 128; X < 144; X++) { const d = Math.hypot((X - 140) / 9, (y - 26) / 11); if (d < 1) px(X, y, d < 0.6 ? '#0d0a0c' : '#1b1418'); }
-    // vigas de madeira
-    x.fillStyle = '#8b5a2b'; [48, 96].forEach(X => { x.fillRect(X, 0, 2, 32); }); x.fillRect(30, 0, 98, 2);
+    // escada dos zumbis (col 8)
+    x.fillStyle = '#120e12'; x.fillRect(128, 0, 16, 40);
+    for (let k = 0; k < 8; k++) { x.fillStyle = '#5c3a1c'; x.fillRect(129 + (k % 2) * 6, k * 5 + 2, 8, 2); x.fillStyle = '#3b2a1c'; x.fillRect(129 + (k % 2) * 6, k * 5 + 4, 8, 1); }
+    x.fillStyle = '#8b5a2b'; x.fillRect(127, 0, 1, 32);
+    // vigas
+    x.fillStyle = '#8b5a2b'; [40, 88].forEach(X => { x.fillRect(X, 0, 2, 32); }); x.fillRect(16, 0, 96, 2);
     return c;
   }
+  function stash(f) { const p = new Px(16, 14), ore = ORES[f % ORES.length]; p.rect(1, 6, 14, 7, '#8b5a2b').rect(1, 6, 14, 1, '#b07a3c').rect(1, 9, 14, 1, '#5c3a1c'); p.ell(8, 6, 6, 3.4, ore).set(6, 4, '#ffffff').set(10, 5, '#ffffff'); p.ell(8, 6.5, 6, 1, '#5c3a1c'); return p.outline(); }
   function lockedBg() { const W = 144, H = 40, R = rng(77); const [c, x] = cv(W, H); for (let y = 0; y < H; y++) for (let X = 0; X < W; X++) { x.fillStyle = R() < 0.2 ? '#1a1512' : '#241d19'; x.fillRect(X, y, 1, 1); } x.fillStyle = '#16121c'; x.fillRect(0, 0, 16, H); return c; }
   // Superfície: 9 x 3 tiles (144 x 48)
   function surface() {
@@ -193,7 +194,7 @@ window.ART3 = (function () {
     walker: a => walker(a >> 1, a & 1).canvas(), runner: a => runner(a).canvas(), boss: a => boss(a).canvas(),
     tower: t => tower(t).canvas(), bunker: () => bunker().canvas(), barrel: f => OB.barrel(f).canvas(),
     obstacle: i => OB[OB_KINDS[i % OB_KINDS.length]](i).canvas(), shadow: () => shadowCanvas(), select: () => selectCanvas(),
-    miner: f => miner(f).canvas(), slot: () => slot().canvas(), cart: () => cart().canvas(), floor: f => floorBg(f), locked: () => lockedBg(), surface: () => surface()
+    miner: f => miner(f).canvas(), stash: f => stash(f).canvas(), slot: () => slot().canvas(), cart: () => cart().canvas(), floor: f => floorBg(f), locked: () => lockedBg(), surface: () => surface()
   };
   function canvas(name, arg) { const k = name + ':' + arg; if (!cache[k]) cache[k] = MAKERS[name](arg); return cache[k]; }
   function tex(name, arg) { const k = name + ':' + arg; if (!texCache[k]) { const t = new THREE.CanvasTexture(canvas(name, arg)); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; texCache[k] = t; } return texCache[k]; }
