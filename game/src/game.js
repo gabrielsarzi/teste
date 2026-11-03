@@ -1,4 +1,4 @@
-// Último Bunker — Mina sob ataque: incremental de mina com defesa por andar (three.js).
+// Último Bunker — Mina sob ataque: os zumbis entram pelo topo e descem a mina em zigue-zague.
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
@@ -6,10 +6,14 @@
   const COLS = 9, SURF = 3, FH = 2.5, PX = 1 / 16;
   const floorTop = f => -(SURF + f * FH);
   const ledgeY = f => floorTop(f) - 0.5, walkFeet = f => floorTop(f) - 1.95, towerFeet = f => floorTop(f) - 0.92;
-  const MINER_X = 3.7, SPAWN_X = 8.7;
+  // Andares ímpares são espelhados: o caminho dos zumbis vira um zigue-zague
+  const mir = f => f % 2 === 1;
+  const X = (f, x) => mir(f) ? COLS - x : x;
+  const MINER_X = 3.7, ENTRY_X = 8.8, EXIT_X = 0.3;
+  const slotCol = (f, i) => mir(f) ? COLS - 1 - MINE.slots[i] : MINE.slots[i];
 
   // ---------- Save ----------
-  const SAVE_KEY = 'ultimo-bunker-mina-v1';
+  const SAVE_KEY = 'ultimo-bunker-mina-v2';
   const fresh = () => ({ gold: 0, floors: [{ miners: 0, towers: {}, boss: true }], up: {}, lang: null, sfx: true, music: true, last: Date.now(), total: 0 });
   let S = fresh();
   try { const o = JSON.parse(localStorage.getItem(SAVE_KEY)); if (o && o.floors) S = Object.assign(fresh(), o); } catch (e) { }
@@ -20,10 +24,14 @@
   SFX.set('sfx', S.sfx); SFX.set('music', S.music);
 
   // ---------- Economia ----------
-  const minerOut = () => MINE.minerRate * Math.pow(1.25, ul('tools'));
-  const floorRate = f => S.floors[f].miners * minerOut() * FLOORS[f].v;
-  const tapGold = f => (1 + ul('pick')) * FLOORS[f].v;
-  const noiseOf = f => (S.floors[f].miners + RT[f].tapNoise) * Math.pow(0.92, ul('silence'));
+  const level = () => S.floors.length - 1;                       // força dos zumbis cresce com a profundidade aberta
+  const minerPower = () => MINE.minerPower * Math.pow(1.25, ul('tools'));
+  const floorRate = f => S.floors[f].miners * minerPower() / FLOORS[f].h * FLOORS[f].v;
+  const tapPower = () => 1 + ul('pick');
+  const totalMiners = () => S.floors.reduce((a, fl) => a + fl.miners, 0);
+  const zombieBaseHp = () => MINE.zombieHp(level()) * (1 + 0.03 * totalMiners());
+  function totalNoise() { let n = 0; S.floors.forEach((fl, f) => { n += fl.miners + (RT[f] ? RT[f].tapNoise : 0); }); return n * Math.pow(0.92, ul('silence')); }
+  const spawnInterval = n => Math.max(0.5, 10 / (0.4 + 0.3 * Math.pow(n, 0.85)));
   function totalRate() { let r = 0; S.floors.forEach((fl, f) => { if (!RT[f] || !RT[f].invaded) r += floorRate(f); }); return r; }
 
   // ---------- Three.js ----------
@@ -41,7 +49,7 @@
   function sprite(tex, wpx, hpx, x, feetY) { const m = mesh(tex, wpx * PX, hpx * PX, L.obj); m.position.set(x, feetY + hpx * PX / 2, 0); depth(m, feetY); return m; }
   function shadowAt(x, y, w) { const m = mesh(ART3.tex('shadow', 0), w, w * 0.5, L.shadow); m.position.set(x, y, 0); return m; }
 
-  // Efeitos: luz, partículas, raios, anéis, textos
+  // Efeitos
   const GLOW = ART.glowTex(), glowPool = [];
   function glow(x, y, size, color, life, intensity) {
     let g = glowPool.find(o => !o.on);
@@ -102,77 +110,80 @@
   const skyM = mesh(null, 40, 20, -1, { color: 0x7a8448, transparent: false }); skyM.position.set(COLS / 2, 10, 0);
   shadowAt(5.0, -2.05, 2.1);
   sprite(ART3.tex('bunker', 0), 32, 28, 5.0, -2.1);
-  const cartM = sprite(ART3.tex('cart', 0), 14, 12, 0.5, -2.2); cartM.renderOrder = 120;
-  const RT = []; // estado de execução por andar (meshes, zumbis, barulho)
-  let zombies = [], projs = [], lockedM = null;
+  const RT = [];
+  let zombies = [], projs = [], lockedM = [], spawnT = 4;
 
   function buildFloor(f) {
-    const rt = { tapNoise: 0, spawnT: 3 + Math.random() * 3, invaded: false, fleeT: 0, minerM: [], slotM: {}, towerM: {}, lamp: [] };
+    const rt = { tapNoise: 0, ore: 0, invaded: false, fleeT: 0, minerM: [], slotM: {}, towerM: {} };
     rt.bg = mesh(ART3.tex('floor', f), COLS, FH, L.bg); rt.bg.position.set(COLS / 2, floorTop(f) - FH / 2, 0);
-    rt.lamp = [3, 6].map(c => { const g = glow(c + 0.5, ledgeY(f) + 0.2, 2.2, 0xffd77a, Infinity, 0.45); g.flicker = 1; return g; });
-    MINE.slots.forEach(c => { const m = sprite(ART3.tex('slot', 0), 16, 8, c + 0.5, towerFeet(f) - 0.06); m.renderOrder = 90; rt.slotM[c] = m; });
+    if (mir(f)) rt.bg.scale.x = -COLS;
+    [3, 6].forEach(c => { const g = glow(X(f, c + 0.5), ledgeY(f) + 0.2, 2.2, 0xffd77a, Infinity, 0.45); g.flicker = 1; });
+    MINE.slots.forEach((_, i) => { const m = sprite(ART3.tex('slot', 0), 16, 8, slotCol(f, i) + 0.5, towerFeet(f) - 0.06); m.renderOrder = 90; rt.slotM[i] = m; });
     RT[f] = rt;
     refreshMiners(f);
-    Object.keys(S.floors[f].towers).forEach(c => placeTowerMesh(f, +c));
+    Object.keys(S.floors[f].towers).forEach(i => placeTowerMesh(f, +i));
   }
   function refreshMiners(f) {
     const rt = RT[f], n = Math.min(S.floors[f].miners, 4);
-    while (rt.minerM.length < n) { const k = rt.minerM.length; const x = 2.3 + (k % 2) * 0.75 + (k >= 2 ? 0.35 : 0), feet = walkFeet(f) + (k >= 2 ? 0.25 : 0); const m = sprite(ART3.tex('miner', 0), 16, 20, x, feet); m.scale.x = -m.scale.x; m.userData = { ph: Math.random(), feet }; rt.minerM.push(m); }
+    while (rt.minerM.length < n) {
+      const k = rt.minerM.length, x = X(f, 2.3 + (k % 2) * 0.75 + (k >= 2 ? 0.35 : 0)), feet = walkFeet(f) + (k >= 2 ? 0.25 : 0);
+      const m = sprite(ART3.tex('miner', 0), 16, 20, x, feet); m.scale.x = mir(f) ? m.scale.x : -m.scale.x; m.userData = { ph: Math.random(), feet }; rt.minerM.push(m);
+    }
     while (rt.minerM.length > n) scene.remove(rt.minerM.pop());
   }
   function refreshLocked() {
-    (lockedM || []).forEach(m => scene.remove(m)); lockedM = [];
-    for (let f = S.floors.length; f < S.floors.length + 6; f++) { const m = mesh(ART3.tex('locked', 0), COLS, FH, L.bg); m.position.set(COLS / 2, floorTop(f) - FH / 2, 0); lockedM.push(m); }
+    lockedM.forEach(m => scene.remove(m)); lockedM = [];
+    for (let f = S.floors.length; f < S.floors.length + 6; f++) { const m = mesh(ART3.tex('locked', 0), COLS, FH, L.bg); m.position.set(COLS / 2, floorTop(f) - FH / 2, 0); if (mir(f)) m.scale.x = -COLS; lockedM.push(m); }
   }
 
   // ---------- Torres ----------
-  function towerStats(t) {
+  function towerStats(t, f) {
     const d = TOWERS[t.type], Lv = t.lvl;
-    const s = { dmg: d.dmg * Math.pow(1.35, Lv - 1), rate: d.rate * (1 + 0.04 * (Lv - 1)), range: d.range + 0.1 * Math.min(Lv - 1, 10),
+    const s = { dmg: d.dmg * Math.pow(1.35, Lv - 1) * MINE.towerPower(f), rate: d.rate * (1 + 0.04 * (Lv - 1)), range: d.range + 0.6 + 0.1 * Math.min(Lv - 1, 10),
       splash: d.splash || 0, slow: d.slow || 0, slowT: d.slowT || 0, chain: d.chain || 0, burn: 0, freeze: 0, pulse: false };
     if (t.branch) d[t.branch](s);
     s.range *= 1 + 0.06 * ul('range');
     return s;
   }
-  const upCost = t => Math.round(TOWERS[t.type].cost * Math.pow(1.6, t.lvl));
   const towerCost = (type, f) => Math.round(TOWERS[type].cost * Math.pow(4, f));
-  function placeTowerMesh(f, c) {
-    const t = S.floors[f].towers[c], rt = RT[f];
-    if (rt.towerM[c]) { scene.remove(rt.towerM[c].m); scene.remove(rt.towerM[c].sh); rt.towerM[c].g.on = false; rt.towerM[c].g.m.visible = false; }
-    if (!t) { delete rt.towerM[c]; rt.slotM[c].visible = true; return; }
-    rt.slotM[c].visible = false;
-    rt.towerM[c] = { sh: shadowAt(c + 0.5, towerFeet(f) + 0.02, 0.9), m: sprite(ART3.tex('tower', t.type), 16, 22, c + 0.5, towerFeet(f)), g: glow(c + 0.5, towerFeet(f) + 0.8, 1.6, TOWERS[t.type].light, Infinity, 0.35), cd: 0.3, ang: 0, recoil: 0 };
+  const upCost = (t, f) => Math.round(TOWERS[t.type].cost * Math.pow(1.6, t.lvl) * Math.pow(4, f));
+  const towerOpen = type => S.floors.length >= MINE.towerUnlock[type];
+  function placeTowerMesh(f, i) {
+    const t = S.floors[f].towers[i], rt = RT[f], c = slotCol(f, i);
+    if (rt.towerM[i]) { scene.remove(rt.towerM[i].m); scene.remove(rt.towerM[i].sh); rt.towerM[i].g.on = false; rt.towerM[i].g.m.visible = false; }
+    if (!t) { delete rt.towerM[i]; rt.slotM[i].visible = true; return; }
+    rt.slotM[i].visible = false;
+    rt.towerM[i] = { sh: shadowAt(c + 0.5, towerFeet(f) + 0.02, 0.9), m: sprite(ART3.tex('tower', t.type), 16, 22, c + 0.5, towerFeet(f)), g: glow(c + 0.5, towerFeet(f) + 0.8, 1.6, TOWERS[t.type].light, Infinity, 0.35), cd: 0.3, ang: 0, recoil: 0 };
   }
-  function buyTower(f, c, type) {
+  function buyTower(f, i, type) {
     const cost = towerCost(type, f);
     if (S.gold < cost) { toast(T('noGold')); SFX.play('error'); return false; }
-    S.gold -= cost; S.floors[f].towers[c] = { type, lvl: 1, branch: null, prio: 0, spent: cost };
-    placeTowerMesh(f, c); particle(c + 0.5, towerFeet(f) + 0.3, '#c8b07a', 10, 2, 0.4, 0.09); SFX.play('build'); save(); return true;
+    S.gold -= cost; S.floors[f].towers[i] = { type, lvl: 1, branch: null, prio: 0, spent: cost };
+    placeTowerMesh(f, i); particle(slotCol(f, i) + 0.5, towerFeet(f) + 0.3, '#c8b07a', 10, 2, 0.4, 0.09); SFX.play('build'); save(); return true;
   }
-  function upgradeTower(f, c, branch) {
-    const t = S.floors[f].towers[c], cost = upCost(t) * Math.pow(4, f);
+  function upgradeTower(f, i, branch) {
+    const t = S.floors[f].towers[i], cost = upCost(t, f);
     if (S.gold < cost) { toast(T('noGold')); SFX.play('error'); return; }
     S.gold -= cost; t.spent += cost; t.lvl++; if (branch) t.branch = branch;
-    particle(c + 0.5, towerFeet(f) + 0.6, '#ffd77a', 14, 2.5, 0.5, 0.08); glow(c + 0.5, towerFeet(f) + 0.6, 2.2, 0xffd77a, 0.4, 1); SFX.play('up'); save();
+    const x = slotCol(f, i) + 0.5; particle(x, towerFeet(f) + 0.6, '#ffd77a', 14, 2.5, 0.5, 0.08); glow(x, towerFeet(f) + 0.6, 2.2, 0xffd77a, 0.4, 1); SFX.play('up'); save();
   }
-  function sellTower(f, c) { const t = S.floors[f].towers[c]; S.gold += Math.floor(t.spent * 0.5); delete S.floors[f].towers[c]; placeTowerMesh(f, c); SFX.play('coin'); save(); }
+  function sellTower(f, i) { const t = S.floors[f].towers[i]; S.gold += Math.floor(t.spent * 0.5); delete S.floors[f].towers[i]; placeTowerMesh(f, i); SFX.play('coin'); save(); }
 
   // ---------- Zumbis ----------
   const enemyPool = [];
-  function spawnZombie(f, kind) {
-    const base = MINE.zombieHp(f) * (1 + 0.06 * S.floors[f].miners);
+  function spawnZombie(kind, bossFor) {
+    const base = zombieBaseHp(), L0 = level();
     const hp = kind === 'boss' ? base * 30 : kind === 'runner' ? base * 0.6 : base;
     let e = enemyPool.pop();
     if (!e) { e = { m: mesh(null, 1, 1, L.obj), sh: shadowAt(0, 0, 0.7), bg: mesh(null, 0.7, 0.08, L.bar, { color: 0x16120f }), fill: mesh(null, 0.66, 0.05, L.bar, { color: 0x9fe870 }) }; }
     const dims = kind === 'boss' ? [28, 28] : kind === 'runner' ? [16, 18] : [16, 20];
-    Object.assign(e, { kind, f, x: SPAWN_X + Math.random() * 0.3, hp, maxHp: hp, alive: true, attacking: false, hitT: 0, slow: 0, slowT: 0, frz: 0, burn: 0, burnT: 0, anim: Math.random(),
-      spd: (kind === 'runner' ? 1.15 : kind === 'boss' ? 0.32 : 0.6) * (1 + f * 0.04), v: (Math.random() * ART3.ZV_COUNT) | 0,
-      pw: dims[0] * PX, ph: dims[1] * PX, laneY: (Math.random() - 0.5) * 0.25 });
-    e.by = e.ph * 0.45; e.m.visible = e.sh.visible = true; e.bg.visible = e.fill.visible = false;
+    Object.assign(e, { kind, f: 0, x: X(0, ENTRY_X) + Math.random() * 0.2, hp, maxHp: hp, alive: true, attacking: false, hitT: 0, slow: 0, slowT: 0, frz: 0, burn: 0, burnT: 0, anim: Math.random(),
+      spd: (kind === 'runner' ? 1.2 : kind === 'boss' ? 0.55 : 0.65) * (1 + L0 * 0.05), v: (Math.random() * ART3.ZV_COUNT) | 0, drop: 0, face: -1, bossFor,
+      pw: dims[0] * PX, ph: dims[1] * PX, lane: (Math.random() - 0.5) * 0.25 });
+    e.by = e.ph * 0.45; e.y = walkFeet(0) + e.lane; e.m.visible = e.sh.visible = true; e.bg.visible = e.fill.visible = false;
     e.m.scale.set(-e.pw, e.ph, 1); e.sh.scale.set(kind === 'boss' ? 1.4 : 0.7, kind === 'boss' ? 0.7 : 0.35, 1);
-    e.y = walkFeet(f) + e.laneY;
     zombies.push(e);
-    if (kind === 'boss') { e.g = glow(e.x, e.y + 0.8, 2.6, 0x9fe870, Infinity, 0.5); }
+    if (kind === 'boss') e.g = glow(e.x, e.y + 0.8, 2.6, 0x9fe870, Infinity, 0.5);
     return e;
   }
   const zTex = (e, fr) => e.kind === 'walker' ? ART3.tex('walker', e.v * 2 + fr) : ART3.tex(e.kind, fr);
@@ -186,19 +197,30 @@
     particle(e.x, e.y + e.by, '#8fbf6a', e.kind === 'boss' ? 30 : 8, 2.2, 0.45, 0.1); particle(e.x, e.y + e.by, '#8f2f3c', e.kind === 'boss' ? 20 : 4, 1.6, 0.5, 0.12);
     SFX.play('die');
     if (e.kind === 'boss') {
-      const bonus = Math.ceil(Math.max(floorRate(e.f) * 120, MINE.floorCost(e.f) * 0.5));
-      S.gold += bonus; S.floors[e.f].boss = true; floatText(e.x, e.y + 1.4, '+' + fmt(bonus), '#f2b84b', true);
+      const nf = e.bossFor, bonus = Math.ceil(Math.max(totalRate() * 120, MINE.floorCost(Math.max(1, nf)) * 0.5));
+      S.gold += bonus; if (S.floors[nf]) S.floors[nf].boss = true; floatText(e.x, e.y + 1.4, '+' + fmt(bonus), '#f2b84b', true);
       toast(T('bossDown', fmt(bonus)), 3); shake(0.35); SFX.play('coin'); glow(e.x, e.y + 0.8, 4, 0x9fe870, 0.6, 1.2); save();
     }
     releaseZombie(e);
   }
+  // Para em andar com mineiros; andar abandonado é atravessado e o zumbi desce
   function stepZombie(e, dt) {
     if (e.burnT > 0) { e.burnT -= dt; damage(e, e.burn * dt, false, true); if (!e.alive) return; }
     if (e.hitT > 0) e.hitT -= dt; if (e.slowT > 0) e.slowT -= dt;
     if (e.frz > 0) { e.frz -= dt; return; }
-    const stopX = MINER_X + (e.kind === 'boss' ? 0.4 : 0);
-    if (e.x > stopX) { e.x = Math.max(stopX, e.x - e.spd * (e.slowT > 0 ? 1 - e.slow : 1) * dt); e.anim += dt * e.spd * 3.5; e.attacking = false; }
-    else { e.attacking = true; e.anim += dt * 2; }
+    if (e.drop > 0) {
+      e.drop -= dt; const k = 1 - Math.max(0, e.drop) / 0.6;
+      e.y = walkFeet(e.f) + (walkFeet(e.f + 1) - walkFeet(e.f)) * k * k;
+      if (e.drop <= 0) { e.f++; e.y = walkFeet(e.f) + e.lane; e.x = X(e.f, ENTRY_X); }
+      return;
+    }
+    const fl = S.floors[e.f], last = e.f === S.floors.length - 1;
+    const stop = fl.miners > 0 || last, tx = stop ? X(e.f, MINER_X + (e.kind === 'boss' ? 0.4 : 0)) : X(e.f, EXIT_X);
+    const dx = tx - e.x, sp = e.spd * (e.slowT > 0 ? 1 - e.slow : 1) * dt;
+    if (Math.abs(dx) > 0.02) { e.x += Math.sign(dx) * Math.min(Math.abs(dx), sp); e.face = Math.sign(dx); e.anim += dt * e.spd * 3.5; e.attacking = false; }
+    else if (stop) { e.attacking = fl.miners > 0; e.anim += dt * 2; }
+    else { e.drop = 0.6; e.attacking = false; }
+    e.prog = e.f * 20 + Math.abs(e.x - X(e.f, ENTRY_X));
   }
 
   // ---------- Disparos ----------
@@ -228,28 +250,31 @@
   }
   function explode(p) {
     SFX.play('boom'); particle(p.x, p.y, '#ff8c2a', 12, 2.6, 0.45, 0.11); glow(p.x, p.y, p.splash * 3, 0xff9040, 0.35, 1.2); ring(p.x, p.y, p.splash, 0xff9040, 0.3);
-    zombies.forEach(e => { if (!e.alive || e.f !== p.f) return; const d = Math.abs(e.x - p.x); if (d <= p.splash) { damage(e, p.dmg * (d < p.splash * 0.4 ? 1 : 0.6), p.crit); if (p.burn && e.alive) { e.burn = p.dmg * p.burn; e.burnT = 3; } } });
+    zombies.forEach(e => { if (!e.alive || e.drop > 0) return; const d = Math.hypot(e.x - p.x, (e.y + e.by) - p.y); if (d <= p.splash) { damage(e, p.dmg * (d < p.splash * 0.4 ? 1 : 0.6), p.crit); if (p.burn && e.alive) { e.burn = p.dmg * p.burn; e.burnT = 3; } } });
   }
-  function stepTower(f, c, dt) {
-    const t = S.floors[f].towers[c], tm = RT[f].towerM[c]; if (!t || !tm) return;
+  function stepTower(f, i, dt) {
+    const t = S.floors[f].towers[i], tm = RT[f].towerM[i]; if (!t || !tm) return;
     tm.cd -= dt; tm.recoil = Math.max(0, tm.recoil - dt * 6); if (tm.cd > 0) return;
-    const s = towerStats(t), x = c + 0.5, y = towerFeet(f) + 0.7;
+    const s = towerStats(t, f), x = slotCol(f, i) + 0.5, y = towerFeet(f) + 0.7;
     let best = null, bv = Infinity;
-    for (const e of zombies) { if (!e.alive || e.f !== f) continue; const d = Math.hypot(e.x - x, e.y + e.by - y); if (d > s.range) continue; const v = t.prio === 0 ? e.x : t.prio === 1 ? -e.hp : d; if (v < bv) { bv = v; best = e; } }
+    for (const e of zombies) {
+      if (!e.alive) continue; const d = Math.hypot(e.x - x, e.y + e.by - y); if (d > s.range) continue;
+      const v = t.prio === 0 ? -e.prog : t.prio === 1 ? -e.hp : d; if (v < bv) { bv = v; best = e; }
+    }
     if (!best) { tm.cd = 0.1; return; }
     tm.cd = 1 / s.rate; tm.recoil = 1; tm.ang = Math.atan2(best.y - y, best.x - x);
     const crit = Math.random() < 0.05, dmg = s.dmg * (crit ? 2 : 1);
     if (t.type === 'gunner') { addProj({ kind: 'bullet', x, y, tgt: best, spd: 12, dmg, crit }); SFX.play('shoot'); glow(x, y, 0.8, 0xffc060, 0.06, 1); }
-    else if (t.type === 'mortar') { addProj({ kind: 'shell', f, x, y, sx: x, sy: y, tx: best.x - best.spd * 0.7, ty: best.y + 0.2, t: 0, T: 0.7, dmg, crit, splash: s.splash, burn: s.burn }); SFX.play('shoot'); }
+    else if (t.type === 'mortar') { addProj({ kind: 'shell', x, y, sx: x, sy: y, tx: best.x + best.face * best.spd * 0.7, ty: best.y + best.by, t: 0, T: 0.7, dmg, crit, splash: s.splash, burn: s.burn }); SFX.play('shoot'); }
     else if (t.type === 'cryo') {
-      if (s.pulse) { ring(x, y, s.range, 0x70c8ff, 0.4); SFX.play('ice'); zombies.forEach(e => { if (e.alive && e.f === f && Math.hypot(e.x - x, e.y + e.by - y) <= s.range) { damage(e, dmg, crit); if (e.alive) { e.slow = Math.max(e.slow, s.slow); e.slowT = Math.max(e.slowT, s.slowT); } } }); }
+      if (s.pulse) { ring(x, y, s.range, 0x70c8ff, 0.4); SFX.play('ice'); zombies.forEach(e => { if (e.alive && Math.hypot(e.x - x, e.y + e.by - y) <= s.range) { damage(e, dmg, crit); if (e.alive) { e.slow = Math.max(e.slow, s.slow); e.slowT = Math.max(e.slowT, s.slowT); } } }); }
       else { addProj({ kind: 'shard', x, y, tgt: best, spd: 8, dmg, crit, slow: s.slow, slowT: s.slowT, freeze: s.freeze }); SFX.play('ice'); }
     } else if (t.type === 'tesla') {
       SFX.play('zap'); const hit = [best]; let cur = best, px = x, py = y + 0.3, d = dmg;
-      for (let i = 0; i <= s.chain && cur; i++) {
+      for (let k = 0; k <= s.chain && cur; k++) {
         bolt(px, py, cur.x, cur.y + cur.by, 0xb890ff); glow(cur.x, cur.y + cur.by, 1.1, 0xb890ff, 0.12, 1);
         const nx = cur.x, ny = cur.y + cur.by; damage(cur, d, crit); d *= 0.85; px = nx; py = ny;
-        let nb = null, nd = 1.8; zombies.forEach(e => { if (e.alive && e.f === f && !hit.includes(e)) { const q = Math.abs(e.x - nx); if (q < nd) { nd = q; nb = e; } } }); cur = nb; if (nb) hit.push(nb);
+        let nb = null, nd = 1.8; zombies.forEach(e => { if (e.alive && !hit.includes(e)) { const q = Math.hypot(e.x - nx, e.y + e.by - ny); if (q < nd) { nd = q; nb = e; } } }); cur = nb; if (nb) hit.push(nb);
       }
     }
   }
@@ -260,20 +285,16 @@
     S.floors.forEach((fl, f) => {
       const rt = RT[f]; if (!rt) return;
       rt.tapNoise *= Math.pow(0.85, dt);
-      rt.invaded = zombies.some(e => e.alive && e.f === f && e.attacking);
+      rt.invaded = fl.miners > 0 && zombies.some(e => e.alive && e.f === f && e.attacking);
       if (!rt.invaded) gain += floorRate(f) * dt;
-      // o barulho atrai zumbis pelo túnel
-      const n = noiseOf(f);
-      if (n > 0.2) {
-        rt.spawnT -= dt;
-        if (rt.spawnT <= 0) { spawnZombie(f, Math.random() < 0.25 + f * 0.03 ? 'runner' : 'walker'); rt.spawnT = Math.max(0.7, 10 / (0.4 + 0.3 * n)) * (0.7 + Math.random() * 0.6); }
-      }
-      // invasão: mineiros fogem
-      if (rt.invaded && fl.miners > 0) { rt.fleeT += dt; if (rt.fleeT > 7) { rt.fleeT = 0; fl.miners--; refreshMiners(f); toast(T('minerFled', f + 1), 2); SFX.play('hurt'); shake(0.12); } }
+      if (rt.invaded) { rt.fleeT += dt; if (rt.fleeT > 7) { rt.fleeT = 0; fl.miners--; refreshMiners(f); toast(T('minerFled', f + 1), 2); SFX.play('hurt'); shake(0.12); } }
       else rt.fleeT = 0;
-      for (const c of MINE.slots) stepTower(f, c, dt);
+      for (let i = 0; i < MINE.slots.length; i++) stepTower(f, i, dt);
     });
     S.gold += gain; S.total += gain;
+    // o barulho de toda a mina atrai zumbis pela entrada do primeiro andar
+    const n = totalNoise();
+    if (n > 0.2) { spawnT -= dt; if (spawnT <= 0) { spawnZombie(Math.random() < 0.25 + level() * 0.03 ? 'runner' : 'walker'); spawnT = spawnInterval(n) * (0.7 + Math.random() * 0.6); } }
     for (const p of projs) if (p.alive) stepProj(p, dt);
     for (const e of zombies) if (e.alive) stepZombie(e, dt);
     zombies = zombies.filter(e => e.alive);
@@ -289,21 +310,17 @@
     for (const p of partPool) { if (!p.on) continue; p.life -= dt; if (p.life <= 0) { p.on = false; p.m.visible = false; continue; } p.vy -= 6 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.92; const k = p.life / p.max; p.m.position.set(p.x, p.y, 0); p.m.scale.set(p.s, p.s, 1); p.m.material.opacity = Math.min(1, k * 1.5); }
     for (const b of boltPool) { if (!b.on) continue; b.life -= dt; b.m.material.opacity = Math.max(0, b.life / 0.12); if (b.life <= 0) { b.on = false; b.m.visible = false; } }
     for (const o of ringPool) { if (!o.on) continue; o.life -= dt; const k = 1 - o.life / o.max, r = o.r * (0.3 + 0.7 * k); o.m.scale.set(r, r, 1); o.m.material.opacity = Math.max(0, 1 - k); if (o.life <= 0) { o.on = false; o.m.visible = false; } }
-    // elevador sobe e desce
-    const depthY = floorTop(S.floors.length - 1) - 1.9, k = (Math.sin(now * 0.6) + 1) / 2;
-    cartM.position.y = -2.2 + (depthY + 2.2) * k + 0.4;
-    // mineiros batendo a picareta
     S.floors.forEach((fl, f) => { const rt = RT[f]; if (!rt) return; rt.minerM.forEach(m => { const fr = rt.invaded ? 0 : Math.floor(now * 3 + m.userData.ph * 2) % 2; m.material.map = ART3.tex('miner', fr); m.position.y = m.userData.feet + 20 * PX / 2 + (rt.invaded ? Math.sin(now * 20) * 0.03 : 0); }); });
     for (const e of zombies) {
       if (!e.alive) continue;
-      e.m.position.set(e.x, e.y + e.ph / 2, 0); depth(e.m, e.y); e.sh.position.set(e.x, e.y + 0.02, 0);
+      e.m.position.set(e.x, e.y + e.ph / 2, 0); e.m.scale.x = e.pw * e.face; depth(e.m, e.y); e.sh.position.set(e.x, e.y + 0.02, 0); e.sh.visible = e.drop <= 0;
       e.m.material.map = zTex(e, Math.floor(e.anim) % 2);
       const col = e.m.material.color; if (e.hitT > 0) col.setRGB(1, 0.45, 0.45); else if (e.frz > 0 || e.slowT > 0) col.setRGB(0.7, 0.88, 1.25); else if (e.burnT > 0) col.setRGB(1.2, 0.8, 0.5); else col.setRGB(1, 1, 1);
       const show = e.hp < e.maxHp; e.bg.visible = e.fill.visible = show;
       if (show) { const kk = Math.max(0, e.hp / e.maxHp), by = e.y + e.ph + 0.06; e.bg.position.set(e.x, by, 0); e.fill.scale.x = 0.66 * kk; e.fill.position.set(e.x - 0.33 * (1 - kk), by, 0); e.fill.material.color.setHex(kk > 0.5 ? 0x9fe870 : kk > 0.25 ? 0xf2b84b : 0xe8735a); }
       if (e.g) e.g.m.position.set(e.x, e.y + 0.8, 0);
     }
-    S.floors.forEach((fl, f) => { const rt = RT[f]; if (!rt) return; for (const c in rt.towerM) { const tm = rt.towerM[c], face = fl.towers[c].type === 'tesla' ? 1 : (Math.cos(tm.ang) < -0.05 ? -1 : 1); tm.m.scale.x = face; tm.m.position.x = +c + 0.5 - tm.recoil * 0.06 * face; } });
+    S.floors.forEach((fl, f) => { const rt = RT[f]; if (!rt) return; for (const i in rt.towerM) { const tm = rt.towerM[i], face = fl.towers[i].type === 'tesla' ? 1 : (Math.cos(tm.ang) < -0.05 ? -1 : 1); tm.m.scale.x = face; tm.m.position.x = slotCol(f, +i) + 0.5 - tm.recoil * 0.06 * face; } });
     for (const p of projs) { if (!p.alive) continue; p.m.position.set(p.x, p.y, 0); if (p.g) p.g.m.position.set(p.x, p.y, 0); }
     renderer.render(scene, camera);
     drawFx(dt);
@@ -312,16 +329,23 @@
   function drawFx(dt) {
     fxc.clearRect(0, 0, cam.w, cam.h); fxc.textBaseline = 'middle';
     const s = cam.scale;
-    // rótulos dos andares
-    fxc.textAlign = 'left';
     S.floors.forEach((fl, f) => {
-      const p = toScreen(3.75, floorTop(f) - 0.2); if (p.y < -20 || p.y > cam.h + 20) return;
-      const rt = RT[f]; fxc.font = '700 ' + Math.round(s * 0.24) + 'px Silkscreen, monospace';
+      const lx = mir(f) ? 0.95 : 3.75, p = toScreen(lx, floorTop(f) - 0.2); if (p.y < -30 || p.y > cam.h + 30) return;
+      const rt = RT[f]; fxc.textAlign = 'left'; fxc.font = '700 ' + Math.round(s * 0.24) + 'px Silkscreen, monospace';
       const label = `${f + 1} · ${T(FLOORS[f].ore).toUpperCase()}`;
       fxc.fillStyle = '#16121c'; fxc.fillText(label, p.x + 1, p.y + 1); fxc.fillStyle = '#fbf4e0'; fxc.fillText(label, p.x, p.y);
       const w = fxc.measureText(label).width;
-      if (rt && rt.invaded) { fxc.fillStyle = '#e8735a'; fxc.fillText(' ' + T('invaded'), p.x + w, p.y); }
-      else if (fl.miners) { fxc.fillStyle = '#f2b84b'; fxc.fillText(' ' + T('perSec', fmt(floorRate(f))), p.x + w, p.y); }
+      let tag, col;
+      if (rt && rt.invaded) { tag = T('invaded'); col = '#e8735a'; }
+      else if (!fl.miners) { tag = T('abandoned'); col = '#d9cfae'; }
+      else { tag = T('perSec', fmt(floorRate(f))); col = '#f2b84b'; }
+      fxc.fillStyle = col; fxc.fillText(' ' + tag, p.x + w, p.y);
+      // barra de dureza do minério sobre o veio
+      if (FLOORS[f].h > 1 && rt) {
+        const q = toScreen(X(f, 1.5), walkFeet(f) + 1.25), bw = s * 0.7, k = rt.ore / FLOORS[f].h;
+        fxc.fillStyle = '#16121c'; fxc.fillRect(q.x - bw / 2 - 1, q.y - 3, bw + 2, 6);
+        fxc.fillStyle = ART3.ORES[f % ART3.ORES.length]; fxc.fillRect(q.x - bw / 2, q.y - 2, bw * k, 4);
+      }
     });
     fxc.textAlign = 'center';
     for (let i = texts.length - 1; i >= 0; i--) {
@@ -334,7 +358,7 @@
     fxc.globalAlpha = 1;
   }
 
-  // ---------- Interface dentro do mundo (contratar, cavar) ----------
+  // ---------- Interface dentro do mundo ----------
   const floorUi = $('floorUi');
   function buildFloorUi() {
     floorUi.innerHTML = '';
@@ -343,6 +367,14 @@
       b.innerHTML = `<span class="hn"></span><span class="hc"></span>`;
       b.addEventListener('click', ev => { ev.stopPropagation(); SFX.unlock(); hireMiner(f); });
       floorUi.appendChild(b);
+      // abandonar o andar: dois toques para confirmar
+      const q = document.createElement('button'); q.type = 'button'; q.className = 'quit'; q.dataset.f = f; q.textContent = '✕'; q.setAttribute('aria-label', T('abandon'));
+      q.addEventListener('click', ev => {
+        ev.stopPropagation(); SFX.unlock();
+        if (!q.classList.contains('arm')) { q.classList.add('arm'); q.textContent = T('abandon'); setTimeout(() => { q.classList.remove('arm'); q.textContent = '✕'; }, 2500); return; }
+        S.floors[f].miners = 0; refreshMiners(f); q.classList.remove('arm'); q.textContent = '✕'; toast(T('abandonedMsg', f + 1), 2); SFX.play('hurt'); save(); updateHud(true);
+      });
+      floorUi.appendChild(q);
     });
     if (S.floors.length < FLOORS.length) {
       const d = document.createElement('button'); d.type = 'button'; d.className = 'dig'; d.id = 'digBtn';
@@ -353,7 +385,7 @@
   }
   function placeFloorUi() {
     floorUi.querySelectorAll('.hire').forEach(b => {
-      const f = +b.dataset.f, p = toScreen(2.65, ledgeY(f) - 0.05), cost = MINE.minerCost(f, S.floors[f].miners);
+      const f = +b.dataset.f, p = toScreen(X(f, 2.65), ledgeY(f) - 0.05), cost = MINE.minerCost(f, S.floors[f].miners);
       b.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px)`;
       b.hidden = p.y < -40 || p.y > cam.h + 40;
       const nm = b.querySelector('.hn'), hc = b.querySelector('.hc');
@@ -361,11 +393,16 @@
       if (nm.textContent !== t1) nm.textContent = t1; if (hc.textContent !== t2) hc.textContent = t2;
       b.classList.toggle('poor', S.gold < cost);
     });
+    floorUi.querySelectorAll('.quit').forEach(q => {
+      const f = +q.dataset.f, p = toScreen(X(f, 2.65) + (mir(f) ? -1.25 : 1.25), ledgeY(f) - 0.05);
+      q.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px)`;
+      q.hidden = !S.floors[f].miners || p.y < -40 || p.y > cam.h + 40;
+    });
     const d = $('digBtn');
     if (d) {
-      const f = S.floors.length, p = toScreen(COLS / 2 + 0.3, floorTop(f) - FH / 2), cost = MINE.floorCost(f), ok = S.floors[f - 1].boss;
+      const f = S.floors.length, p = toScreen(COLS / 2, floorTop(f) - FH / 2), cost = MINE.floorCost(f), ok = S.floors[f - 1].boss;
       d.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px)`; d.hidden = p.y < -60 || p.y > cam.h + 60;
-      const t1 = T('dig', f + 1) + ' · ' + T(FLOORS[f].ore), t2 = ok ? fmt(cost) : T('needBoss');
+      const t1 = T('dig', f + 1) + ' · ' + T(FLOORS[f].ore) + ' · ' + T('hard', FLOORS[f].h), t2 = ok ? fmt(cost) : T('needBoss');
       if (d.querySelector('b').textContent !== t1) d.querySelector('b').textContent = t1;
       if (d.querySelector('span').textContent !== t2) d.querySelector('span').textContent = t2;
       d.classList.toggle('poor', S.gold < cost || !ok); d.disabled = !ok;
@@ -375,7 +412,7 @@
     const cost = MINE.minerCost(f, S.floors[f].miners);
     if (S.gold < cost) { toast(T('noGold')); SFX.play('error'); return; }
     S.gold -= cost; S.floors[f].miners++; refreshMiners(f); SFX.play('build');
-    particle(2.6, walkFeet(f) + 0.6, '#f1c40f', 8, 1.8, 0.4, 0.08); save(); updateHud(true);
+    particle(X(f, 2.6), walkFeet(f) + 0.6, '#f1c40f', 8, 1.8, 0.4, 0.08); save(); updateHud(true);
   }
   function digFloor() {
     const f = S.floors.length; if (f >= FLOORS.length || !S.floors[f - 1].boss) return;
@@ -385,9 +422,9 @@
     buildFloor(f); refreshLocked(); buildFloorUi(); SFX.play('boom'); shake(0.3);
     particle(COLS / 2, floorTop(f) - 1, ART3.ORES[f % ART3.ORES.length], 30, 3, 0.7, 0.12);
     toast(T('newFloor', f + 1, T(FLOORS[f].ore)), 2.5);
-    // a Abominação acorda com a escavação
-    setTimeout(() => { spawnZombie(f, 'boss'); toast(T('bossFloor', f + 1), 3, true); SFX.play('boss'); shake(0.3); }, 4000);
-    cam.y = floorTop(f) - 0.5; clampCam(); save();
+    // a escavação acorda a Abominação, que entra pelo topo e desce
+    setTimeout(() => { spawnZombie('boss', f); toast(T('bossFloor'), 3, true); SFX.play('boss'); shake(0.3); }, 3000);
+    save();
   }
 
   // ---------- Entrada ----------
@@ -412,19 +449,18 @@
     if (paused) return;
     const w = toWorld(sx, sy);
     const wasOpen = !radial.hidden, prev = sel; closeRadial();
-    // bater em zumbi
     let hitZ = null, hd = 0.7;
     zombies.forEach(e => { if (!e.alive) return; const d = Math.hypot(e.x - w.x, (e.y + e.by) - w.y); if (d < hd) { hd = d; hitZ = e; } });
-    if (hitZ) { const dmg = MINE.zombieHp(hitZ.f) * 0.25 * (1 + 0.25 * ul('pick')); damage(hitZ, dmg, false); particle(hitZ.x, hitZ.y + hitZ.by, '#8f2f3c', 4, 1.6, 0.3, 0.08); SFX.play('shoot'); shake(0.04); return; }
+    if (hitZ) { const dmg = MINE.zombieHp(level()) * 0.2 * (1 + 0.25 * ul('pick')); damage(hitZ, dmg, false); particle(hitZ.x, hitZ.y + hitZ.by, '#8f2f3c', 4, 1.6, 0.3, 0.08); SFX.play('shoot'); shake(0.04); return; }
     const f = floorAt(w.y); if (f < 0) return;
-    // vagas de torre
-    const c = Math.floor(w.x);
-    if (MINE.slots.includes(c) && w.y > floorTop(f) - 1.05) { if (!(wasOpen && prev && prev.f === f && prev.c === c)) { sel = { f, c }; openRadial(); } return; }
-    // veio / zona dos mineiros: cavar
-    if (w.x >= 1 && w.x <= 4) {
-      const g = tapGold(f); S.gold += g; S.total += g; RT[f].tapNoise = Math.min(RT[f].tapNoise + 0.35, 6);
-      floatText(w.x, w.y + 0.3, '+' + fmt(g), '#f2b84b'); particle(1.5, w.y, ART3.ORES[f % ART3.ORES.length], 5, 2.2, 0.35, 0.09);
-      SFX.play('click'); updateHud(true);
+    const c = Math.floor(w.x), si = MINE.slots.findIndex((_, i) => slotCol(f, i) === c);
+    if (si >= 0 && w.y > floorTop(f) - 1.05) { if (!(wasOpen && prev && prev.f === f && prev.i === si)) { sel = { f, i: si }; openRadial(); } return; }
+    const lx = mir(f) ? COLS - w.x : w.x;
+    if (lx >= 1 && lx <= 4) {
+      const rt = RT[f], h = FLOORS[f].h; rt.ore += tapPower(); rt.tapNoise = Math.min(rt.tapNoise + 0.35, 6);
+      particle(X(f, 1.5), w.y, ART3.ORES[f % ART3.ORES.length], 4, 2.2, 0.35, 0.09); SFX.play('click');
+      if (rt.ore >= h) { const n = Math.floor(rt.ore / h); rt.ore -= n * h; const g = n * FLOORS[f].v; S.gold += g; S.total += g; floatText(w.x, w.y + 0.3, '+' + fmt(g), '#f2b84b'); particle(X(f, 1.5), w.y, '#f2b84b', 6, 2.5, 0.4, 0.1); SFX.play('coin'); }
+      updateHud(true);
     }
   }
 
@@ -438,17 +474,20 @@
     return b;
   }
   function openRadial() {
-    if (!sel) return; const { f, c } = sel, t = S.floors[f].towers[c];
+    if (!sel) return; const { f, i } = sel, t = S.floors[f].towers[i], c = slotCol(f, i);
     const refresh = () => { const s2 = sel; radial.innerHTML = ''; sel = s2; openRadial(); };
     const btns = []; let title = '', sub = '';
-    if (!t) TOWER_ORDER.forEach(type => btns.push(rbtn(`<img src="${ICONS[type]}" alt=""><span class="nm">${T(type)}</span>`, towerCost(type, f), () => { if (buyTower(f, c, type)) closeRadial(); else refresh(); })));
+    if (!t) TOWER_ORDER.forEach(type => {
+      if (towerOpen(type)) btns.push(rbtn(`<img src="${ICONS[type]}" alt=""><span class="nm">${T(type)}</span>`, towerCost(type, f), () => { if (buyTower(f, i, type)) closeRadial(); else refresh(); }));
+      else btns.push(rbtn(`<img src="${ICONS[type]}" alt="" style="opacity:.35"><span class="nm">${T('towerLocked', MINE.towerUnlock[type])}</span>`, null, () => { toast(T('towerLocked', MINE.towerUnlock[type])); }, 'off'));
+    });
     else {
-      const s = towerStats(t), cost = upCost(t) * Math.pow(4, f);
+      const s = towerStats(t, f), cost = upCost(t, f);
       title = (t.branch ? T(t.type + '_' + t.branch) : T(t.type)) + ' · ' + T('level', t.lvl); sub = T('stats', fmt(s.dmg), s.range.toFixed(1));
-      if (t.lvl === 2 && !t.branch) ['a', 'b'].forEach(br => btns.push(rbtn(`<span class="nm">${T(t.type + '_' + br)}</span>`, cost, () => { upgradeTower(f, c, br); refresh(); }, 'br-' + br)));
-      else btns.push(rbtn(`<span class="up">▲</span><span class="nm">${T('upgrade')}</span>`, cost, () => { upgradeTower(f, c); refresh(); }));
+      if (t.lvl === 2 && !t.branch) ['a', 'b'].forEach(br => btns.push(rbtn(`<span class="nm">${T(t.type + '_' + br)}</span>`, cost, () => { upgradeTower(f, i, br); refresh(); }, 'br-' + br)));
+      else btns.push(rbtn(`<span class="up">▲</span><span class="nm">${T('upgrade')}</span>`, cost, () => { upgradeTower(f, i); refresh(); }));
       btns.push(rbtn(`<span class="nm">${T('target')}</span><span class="nm b">${T('prio' + t.prio)}</span>`, null, () => { t.prio = (t.prio + 1) % 3; save(); refresh(); }));
-      btns.push(rbtn(`<span class="nm">${T('sell')}</span><span class="cost gain">+${fmt(Math.floor(t.spent * 0.5))}</span>`, null, () => { sellTower(f, c); closeRadial(); }, 'sell'));
+      btns.push(rbtn(`<span class="nm">${T('sell')}</span><span class="cost gain">+${fmt(Math.floor(t.spent * 0.5))}</span>`, null, () => { sellTower(f, i); closeRadial(); }, 'sell'));
     }
     radial.innerHTML = '';
     const p = toScreen(c + 0.5, towerFeet(f) + 0.5), R = btns.length === 2 ? 52 : 64;
@@ -500,12 +539,12 @@
       list.appendChild(el);
     });
   }
-  // Ganho offline: cada andar rende proporcional à força da defesa contra o barulho
+  // Offline: cada andar com mineiros rende conforme as torres que o alcançam (do próprio andar e dos vizinhos)
   function defenseFactor(f) {
     const fl = S.floors[f]; if (!fl.miners) return 1;
-    let dps = 0; Object.values(fl.towers).forEach(t => { const s = towerStats(t); dps += s.dmg * s.rate * (t.type === 'tesla' ? 1 + s.chain * 0.5 : t.type === 'mortar' ? 2 : 1); });
-    const n = fl.miners * Math.pow(0.92, ul('silence')), interval = Math.max(0.7, 10 / (0.4 + 0.3 * n));
-    const need = MINE.zombieHp(f) * (1 + 0.06 * fl.miners) / interval * 1.3;
+    let dps = 0;
+    [f - 1, f, f + 1].forEach(g => { if (!S.floors[g]) return; Object.values(S.floors[g].towers).forEach(t => { const s = towerStats(t, g); if (g !== f && s.range < FH) return; dps += s.dmg * s.rate * (t.type === 'tesla' ? 1 + s.chain * 0.5 : t.type === 'mortar' ? 2 : 1) * (g === f ? 1 : 0.5); }); });
+    const need = zombieBaseHp() / spawnInterval(totalNoise()) * 1.3;
     return clamp(dps / need, 0.1, 1);
   }
   let started = false;
@@ -513,7 +552,7 @@
     const away = (Date.now() - (S.last || Date.now())) / 3600000;
     if (S.total <= 0 || away < 1 / 60) return;
     const hrs = Math.min(away, 2 + ul('store')); let gain = 0, hurt = false;
-    S.floors.forEach((fl, f) => { const k = defenseFactor(f); if (k < 0.99 && fl.miners) hurt = true; gain += floorRate(f) * k * hrs * 3600; });
+    S.floors.forEach((fl, f) => { if (!fl.miners) return; const k = defenseFactor(f); if (k < 0.99) hurt = true; gain += floorRate(f) * k * hrs * 3600; });
     gain = Math.floor(gain); S.last = Date.now(); if (gain < 1) return;
     const h = Math.floor(hrs), m = Math.round((hrs - h) * 60);
     $('offBody').textContent = T('offlineMine', fmt(gain), (h ? h + 'h ' : '') + m + 'min') + (hurt ? T('offlineHurt') : '');
@@ -523,7 +562,7 @@
 
   // Botões
   const on = (id, fn) => $(id).addEventListener('click', () => { SFX.unlock(); fn(); });
-  on('btnPlay', () => { SFX.play('click'); started = true; showScreen(null); if (S.total === 0) toast(T('mineHint'), 7); });
+  on('btnPlay', () => { SFX.play('click'); started = true; showScreen(null); if (S.total === 0) toast(T('mineHint'), 8); });
   on('btnUp', () => { SFX.play('click'); closeRadial(); renderUpgrades(); showScreen('scrUpgrades'); });
   on('btnUpBack', () => { SFX.play('click'); showScreen(started ? null : 'scrMenu'); applyLang(); });
   on('btnPause', () => { SFX.play('click'); closeRadial(); showScreen('scrPause'); });
@@ -553,8 +592,7 @@
 
   // Início
   S.floors.forEach((fl, f) => buildFloor(f)); refreshLocked(); buildFloorUi();
-  // um andar com chefe ainda vivo traz a Abominação de volta
-  S.floors.forEach((fl, f) => { if (!fl.boss) setTimeout(() => spawnZombie(f, 'boss'), 3000); });
+  S.floors.forEach((fl, f) => { if (!fl.boss) setTimeout(() => spawnZombie('boss', f), 3000); });
   resize(); cam.y = 0; clampCam(); applyLang(); showScreen('scrMenu'); checkOffline();
   requestAnimationFrame(frame); setTimeout(resize, 300);
   window.__bunker = { get S() { return S; }, get zombies() { return zombies; }, hireMiner, digFloor, buyTower, upgradeTower, update, toScreen, floorTop, ledgeY, walkFeet, setGold: g => { S.gold = g; } };

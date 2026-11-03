@@ -29,14 +29,17 @@ python3 tools/build_single.py dist/ultimo-bunker.html
 | `src/art.js` | Pixel art procedural 16×16 (paleta fixa de 25 cores) |
 | `src/game.js` | Simulação, render, entrada (toque/pinça) e interface |
 
-## Como funciona (v0.3 — Mina sob ataque)
+## Como funciona (v0.4 — Mina sob ataque)
 
-- A tela é um corte vertical de uma mina. Toque no veio para cavar ouro; contrate mineiros para cavar sozinhos.
-- O barulho de cada andar (mineiros + toques) atrai zumbis pelo túnel. Coloque torres nas 4 vagas do andar.
-- Zumbi que chega nos mineiros invade o andar: a produção para e, depois de um tempo, um mineiro foge.
-- Cavar um andar novo custa ouro, rende um minério mais valioso e acorda a Abominação. Vença-a para liberar o próximo.
-- Melhorias permanentes: picareta, ferramentas, abafadores (menos barulho), lanternas (alcance) e armazém (horas offline).
-- Fora do jogo a mina continua rendendo; andares mal defendidos rendem menos. Tudo fica salvo no aparelho.
+- Corte vertical de uma mina. Toque no veio para cavar; contrate mineiros para cavar sozinhos.
+- Minério mais fundo é mais duro (1, 3, 5, 8… golpes por pedaço) e vale muito mais. Picareta e ferramentas valem para todos os andares.
+- O barulho de toda a mina atrai zumbis. Eles entram pelo andar 1 e descem em zigue-zague.
+  Param e atacam o primeiro andar com mineiros; andar abandonado (sem mineiros, botão ✕) é atravessado.
+- Quanto mais fundo você abre, mais fortes os zumbis — em algum momento vale abandonar os andares de cima.
+- Torres alcançam o próprio andar e os vizinhos; torre construída mais fundo é mais forte.
+  Tipos novos liberam com a profundidade (criogênico no 2, morteiro no 3, tesla no 4).
+- Cada andar novo acorda a Abominação, que entra pelo topo e desce. Derrote-a para liberar o próximo.
+- Offline: a mina continua rendendo; andares mal defendidos rendem menos. Save no aparelho.
 
 ## Decisões do briefing (v0.1)
 

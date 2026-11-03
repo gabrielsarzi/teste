@@ -51,17 +51,19 @@ window.fmt = function (n) {
 };
 
 // ---------- Mina ----------
-// Cada andar: minério, multiplicador de valor e vida base dos zumbis do andar
+// Cada andar: minério, valor de cada pedaço e dureza (picaretadas para soltar um pedaço)
 window.FLOORS = [
-  { ore: 'coal', v: 1 }, { ore: 'copper', v: 5 }, { ore: 'iron', v: 25 }, { ore: 'silver', v: 125 },
-  { ore: 'gold', v: 625 }, { ore: 'crystal', v: 3125 }, { ore: 'ruby', v: 15625 }, { ore: 'uranium', v: 78125 }
+  { ore: 'coal', v: 1, h: 1 }, { ore: 'copper', v: 8, h: 3 }, { ore: 'iron', v: 50, h: 5 }, { ore: 'silver', v: 350, h: 8 },
+  { ore: 'gold', v: 2500, h: 12 }, { ore: 'crystal', v: 18000, h: 17 }, { ore: 'ruby', v: 130000, h: 23 }, { ore: 'uranium', v: 900000, h: 30 }
 ];
 window.MINE = {
-  minerCost: (f, n) => Math.ceil(10 * Math.pow(5, f) * Math.pow(1.15, n)),
-  minerRate: 1,                                   // ouro/s por mineiro (x valor do andar)
-  floorCost: f => Math.ceil(400 * Math.pow(6, f - 1)), // custo para cavar o andar f (f >= 1)
-  zombieHp: f => 10 * Math.pow(3.5, f),
-  slots: [4, 5, 6, 7]                             // colunas das vagas de torre em cada andar
+  minerCost: (f, n) => Math.ceil(10 * Math.pow(6, f) * Math.pow(1.15, n)),
+  minerPower: 1,                                       // picaretadas por segundo de cada mineiro
+  floorCost: f => Math.ceil(300 * Math.pow(7, f - 1)), // custo para cavar o andar f (f >= 1)
+  zombieHp: L => 10 * Math.pow(4, L),                  // L = andar mais fundo aberto (0 = só o primeiro)
+  towerPower: f => Math.pow(3.2, f),                   // torre construída mais fundo é mais forte
+  towerUnlock: { gunner: 1, cryo: 2, mortar: 3, tesla: 4 }, // andares abertos para liberar
+  slots: [4, 5, 6, 7]                                  // colunas das vagas (andares pares; ímpares são espelhados)
 };
 // Melhorias permanentes compradas com ouro
 window.UPGRADES = [
