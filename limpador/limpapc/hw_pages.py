@@ -13,6 +13,7 @@ from .pages import BackgroundMixin, CHECK, Page, ResultsPage, UNCHECK
 from .theme import draw_icon
 from .utils import IS_WIN, Item, fmt_size, log, open_location
 from .widgets import Icon, ScrollFrame, card
+from .winutil import run
 
 
 def _soft_icon(master, t, name, size=40, bg_key="surface"):
@@ -49,7 +50,7 @@ class DriversPage(ResultsPage):
     title = "Drivers"
     subtitle = ("Dispositivos do computador e seus drivers: veja o que está com problema ou desatualizado, "
                 "procure versões novas no Windows Update e faça um backup antes de mexer.")
-    columns = [("Dispositivo", 260, "w"), ("Situação", 290, "w"), ("Versão", 115, "w"), ("Data", 90, "center"),
+    columns = [("Dispositivo", 250, "w"), ("Situação", 345, "w"), ("Versão", 122, "w"), ("Data", 88, "center"),
                ("Fabricante", 150, "w"), ("Categoria", 120, "w")]
     scan_label = "Listar drivers"
     action_label = "Instalar atualizações"
@@ -134,7 +135,7 @@ class DriversPage(ResultsPage):
         for it in drivers:
             if hw and it.data.get("hwid") and it.data["hwid"].lower() in hw:
                 it.data["has_update"] = True
-                it.values = _with_status(it.values, "Atualização disponível no Windows Update")
+                it.values = _with_status(it.values, "Atualização disponível (veja acima)")
         super().populate(self.updates + drivers)
 
     def _visible(self):
@@ -292,10 +293,7 @@ class DriversPage(ResultsPage):
         if done and self._reboot:
             if messagebox.askyesno("Reiniciar", "Para concluir a instalação dos drivers é preciso reiniciar o "
                                    "computador.\n\nReiniciar agora? (salve seus trabalhos antes)", parent=self):
-                try:
-                    os.system("shutdown /r /t 5")
-                except Exception:  # noqa: BLE001
-                    pass
+                run(["shutdown", "/r", "/t", "5"], timeout=30)
                 return
         if done:
             self.start_scan()

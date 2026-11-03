@@ -200,7 +200,7 @@ def driver_status(d: dict, today: datetime.date | None = None) -> tuple[str, str
     today = today or datetime.date.today()
     code = to_int(d.get("e"))
     if d.get("nodrv"):
-        return "Sem driver carregado (normal para pontes e controladores)", "muted", 2
+        return "Sem driver (normal em pontes do chipset)", "muted", 2
     if code and code not in IGNORED_ERRORS:
         if code == 22:
             return "Desativado", "muted", 2
