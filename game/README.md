@@ -35,7 +35,7 @@ python3 tools/build_single.py dist/ultimo-bunker.html
 - **Elevador** recolhe os baús e leva ao **depósito** na superfície; o **caminhão** leva do depósito ao bunker, onde vira ouro.
   Os três têm nível (capacidade/velocidade) e gerente (Capataz, Operador, Motorista) que automatiza e rende offline.
 - Zumbis descem pela escada e entram nos andares ativos. **Mordem os mineiros, que viram zumbis** e ficam no andar.
-  Mate-os tocando ou com torres; reponha os mineiros perdidos no painel do andar. Andar abandonado é pulado.
+  Só as torres matam zumbis (o jogo começa com um Atirador grátis no andar 1); mineiro mordido morre junto e é reposto no painel do andar. Andar abandonado é pulado.
 - Cada andar aberto aumenta a horda em 15% e deixa os zumbis mais fortes.
 - Torres alcançam andares vizinhos e a escada; torre mais funda é mais forte; tipos novos liberam a cada andar.
 - Cada andar novo acorda a Abominação. Derrote-a para cavar o próximo.

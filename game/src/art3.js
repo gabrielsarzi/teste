@@ -148,57 +148,106 @@ window.ART3 = (function () {
   function pile() { const p = new Px(20, 14); p.rect(1, 8, 18, 5, '#6b5038').rect(1, 8, 18, 1, '#8b6a48'); p.ell(10, 8, 7, 4, '#f2c84b').set(8, 6, '#ffffff').set(12, 7, '#ffffff').set(10, 5, '#fff6c8'); return p.outline(); }
   function slot() { const p = new Px(16, 8); p.rect(1, 2, 14, 4, '#8b5a2b').rect(1, 2, 14, 1, '#b07a3c').rect(3, 6, 1, 2, '#5c3a1c').rect(12, 6, 1, 2, '#5c3a1c'); p.rect(7, 3, 2, 2, '#d9cfae'); return p.outline(); }
   function cart() { const p = new Px(14, 12); p.rect(1, 2, 12, 7, '#6c6f80').rect(1, 2, 12, 1, '#9da0b2').rect(2, 0, 10, 2, '#f2c84b').ell(4, 10, 1.8, 1.8, '#2f2f3d').ell(10, 10, 1.8, 1.8, '#2f2f3d'); return p.outline(); }
-  // Fundo de um andar (144 x 40 px): poço do elevador (col 0), corredor, veio (col 7) e escada dos zumbis (col 8)
+  // Paleta da rocha por profundidade: marrom perto da superfície, cinza-azulado e roxo no fundo
+  const ROCK = [['#5a4636', '#4a3b30', '#3a2e26', '#6b5440'], ['#55463c', '#463a33', '#362d29', '#66574a'], ['#4d4848', '#3e3a3b', '#302c2e', '#5d5858'],
+    ['#46424f', '#38353f', '#2b2833', '#565162'], ['#463d52', '#393144', '#2b2536', '#574c66'], ['#3f3a55', '#322e46', '#262338', '#4f4a68']];
+  const rockOf = f => ROCK[Math.min(f, ROCK.length - 1)];
+  // pedras irregulares com luz de cima
+  function stones(x, R, x0, y0, w, h, pal, n) {
+    for (let i = 0; i < n; i++) {
+      const cx = x0 + R() * w, cy = y0 + R() * h, rx = 2 + R() * 4, ry = 1.5 + R() * 2.5;
+      for (let yy = Math.floor(cy - ry); yy <= cy + ry; yy++) for (let xx = Math.floor(cx - rx); xx <= cx + rx; xx++) {
+        if (xx < x0 || yy < y0 || xx >= x0 + w || yy >= y0 + h) continue;
+        const d = ((xx + 0.5 - cx) / rx) ** 2 + ((yy + 0.5 - cy) / ry) ** 2; if (d > 1) continue;
+        x.fillStyle = yy < cy - ry * 0.4 ? pal[3] : yy > cy + ry * 0.5 ? pal[2] : pal[0]; x.fillRect(xx, yy, 1, 1);
+      }
+    }
+  }
   function floorBg(f) {
-    const W = 144, H = 40, R = rng(900 + f * 13); const [c, x] = cv(W, H);
+    const W = 144, H = 40, R = rng(900 + f * 13), pal = rockOf(f); const [c, x] = cv(W, H);
     const px = (X, Y, col) => { x.fillStyle = col; x.fillRect(X, Y, 1, 1); };
-    for (let y = 0; y < H; y++) for (let X = 0; X < W; X++) { const v = R(); let col;
-      if (y < 16) col = v < 0.15 ? '#3d3128' : v < 0.3 ? '#5a4636' : '#4a3b30';
-      else if (y < 32) col = v < 0.12 ? '#5e4a34' : v < 0.2 ? '#7a6044' : '#6b5038';
-      else col = v < 0.2 ? '#1f1a17' : '#2b2420';
-      px(X, y, col); }
-    for (let X = 16; X < 112; X += 8) for (let y = 16; y < 32; y++) if (y % 5 === 0) px(X + (y % 3), y, '#4a3826');
-    x.fillStyle = '#3b2c20'; x.fillRect(16, 31, 96, 1);
+    // parede do fundo
+    for (let y = 0; y < 31; y++) for (let X = 0; X < W; X++) px(X, y, R() < 0.5 ? pal[1] : pal[2]);
+    stones(x, R, 16, 2, 96, 28, pal, 70);
+    for (let i = 0; i < 6; i++) { let X = 16 + R() * 96, y = R() * 28; for (let k = 0; k < 8; k++) { px(X | 0, y | 0, pal[2]); X += R() * 2 - 1; y += 1; } }
+    // escurece a parte de cima (penumbra do teto)
+    for (let y = 0; y < 8; y++) { x.fillStyle = `rgba(10,8,14,${0.35 - y * 0.04})`; x.fillRect(16, y, 96, 1); }
+    // chão de terra batida, trilhos e dormentes
+    for (let y = 29; y < 34; y++) for (let X = 16; X < 128; X++) px(X, y, y === 29 ? '#7a6044' : R() < 0.3 ? '#4a3826' : '#5e4a34');
+    for (let X = 18; X < 112; X += 5) { x.fillStyle = '#4a3220'; x.fillRect(X, 31, 3, 2); }
+    x.fillStyle = '#8d8a99'; x.fillRect(16, 30, 96, 1); x.fillStyle = '#5c5a66'; x.fillRect(16, 31, 96, 1);
+    // estratos de rocha entre andares
+    for (let y = 34; y < H; y++) for (let X = 0; X < W; X++) px(X, y, (y + ((X / 7) | 0)) % 4 === 0 ? pal[2] : R() < 0.15 ? pal[0] : pal[1]);
     const ore = ORES[f % ORES.length];
-    for (let i = 0; i < 30; i++) { const X = (R() * W) | 0, y = 33 + ((R() * 6) | 0); x.fillStyle = ore; x.fillRect(X, y, 2, 1); }
-    // veio (col 7)
-    for (let y = 0; y < 32; y++) for (let X = 112; X < 128; X++) { const v = R(); px(X, y, v < 0.5 ? '#3a302a' : '#2f2722'); }
-    for (let i = 0; i < 24; i++) { const X = 113 + ((R() * 13) | 0), y = 2 + ((R() * 27) | 0); x.fillStyle = ore; x.fillRect(X, y, 2, 2); x.fillStyle = '#ffffff'; x.fillRect(X, y, 1, 1); }
-    // poço do elevador (col 0)
-    x.fillStyle = '#16121c'; x.fillRect(0, 0, 16, 40); x.fillStyle = '#5c3a1c'; x.fillRect(2, 0, 1, 40); x.fillRect(13, 0, 1, 40);
-    for (let y = 2; y < 40; y += 6) { x.fillStyle = '#3b2a1c'; x.fillRect(2, y, 12, 1); }
-    // escada dos zumbis (col 8)
-    x.fillStyle = '#120e12'; x.fillRect(128, 0, 16, 40);
-    for (let k = 0; k < 8; k++) { x.fillStyle = '#5c3a1c'; x.fillRect(129 + (k % 2) * 6, k * 5 + 2, 8, 2); x.fillStyle = '#3b2a1c'; x.fillRect(129 + (k % 2) * 6, k * 5 + 4, 8, 1); }
-    x.fillStyle = '#8b5a2b'; x.fillRect(127, 0, 1, 32);
-    // vigas
-    x.fillStyle = '#8b5a2b'; [40, 88].forEach(X => { x.fillRect(X, 0, 2, 32); }); x.fillRect(16, 0, 96, 2);
+    for (let i = 0; i < 18; i++) { const X = (R() * W) | 0, y = 35 + ((R() * 4) | 0); px(X, y, ore); px(X + 1, y, ore); }
+    // vigas de madeira (pilares e travessa)
+    const beam = (X, y, w, h) => { x.fillStyle = '#6b4424'; x.fillRect(X, y, w, h); x.fillStyle = '#8b5a2b'; x.fillRect(X, y, Math.max(1, w - 1), Math.max(1, h - 1)); x.fillStyle = '#a8723a'; x.fillRect(X, y, 1, h); };
+    beam(16, 0, 96, 3); [36, 76].forEach(X => beam(X, 3, 3, 26)); x.fillStyle = '#5c3a1c'; [36, 76].forEach(X => { x.fillRect(X - 1, 3, 5, 1); });
+    // lampiões pendurados (cols 3,5 e 6,5)
+    [56, 104].forEach(X => { x.fillStyle = '#2a2233'; x.fillRect(X, 3, 1, 4); x.fillStyle = '#3b3a52'; x.fillRect(X - 2, 7, 5, 1); x.fillRect(X - 2, 12, 5, 1); x.fillStyle = '#ffd23f'; x.fillRect(X - 1, 8, 3, 4); x.fillStyle = '#fff6c8'; x.fillRect(X, 9, 1, 2); });
+    // caixotes e barril perto da escada
+    x.fillStyle = '#8b5a2b'; x.fillRect(96, 22, 8, 7); x.fillStyle = '#b07a3c'; x.fillRect(96, 22, 8, 1); x.fillStyle = '#5c3a1c'; x.fillRect(96, 25, 8, 1); x.fillRect(99, 22, 1, 7);
+    x.fillStyle = '#6c4a2c'; x.fillRect(105, 21, 6, 8); x.fillStyle = '#3b3a52'; x.fillRect(105, 23, 6, 1); x.fillRect(105, 27, 6, 1);
+    // veio de minério (col 7)
+    for (let y = 0; y < 31; y++) for (let X = 112; X < 128; X++) px(X, y, R() < 0.5 ? pal[2] : '#1f1a22');
+    stones(x, R, 112, 0, 16, 31, pal, 10);
+    for (let i = 0; i < 16; i++) { const X = 113 + ((R() * 12) | 0), y = 2 + ((R() * 26) | 0); x.fillStyle = ore; x.fillRect(X, y, 3, 2); x.fillRect(X + 1, y - 1, 1, 1); x.fillStyle = '#ffffff'; x.fillRect(X, y, 1, 1); }
+    // poço do elevador (col 0): trilhos-guia de metal
+    x.fillStyle = '#120e16'; x.fillRect(0, 0, 16, 40); x.fillStyle = '#5c5a66'; x.fillRect(2, 0, 1, 40); x.fillRect(13, 0, 1, 40); x.fillStyle = '#8d8a99'; x.fillRect(3, 0, 1, 40); x.fillRect(12, 0, 1, 40);
+    for (let y = 4; y < 40; y += 10) { x.fillStyle = '#3b2a1c'; x.fillRect(1, y, 14, 2); }
+    // escada de pedra dos zumbis (col 8)
+    x.fillStyle = '#0e0b10'; x.fillRect(128, 0, 16, 40);
+    for (let k = 0; k < 10; k++) { const y = k * 4, X = 128 + (k % 5) * 3; x.fillStyle = pal[3]; x.fillRect(X, y + 3, 6, 1); x.fillStyle = pal[0]; x.fillRect(X, y + 4, 6, 1); }
+    x.fillStyle = '#6b4424'; x.fillRect(127, 0, 1, 34);
+    return c;
+  }
+  function sideRock() { const W = 32, H = 64, R = rng(55); const [c, x] = cv(W, H); const pal = ROCK[1]; for (let y = 0; y < H; y++) for (let X = 0; X < W; X++) { x.fillStyle = R() < 0.5 ? pal[1] : pal[2]; x.fillRect(X, y, 1, 1); } stones(x, R, 0, 0, W, H, pal, 30); return c; }
+  // céu do entardecer com cidade em ruínas (144 x 96 px = 6 tiles)
+  function sky() {
+    const W = 144, H = 96, R = rng(8); const [c, x] = cv(W, H);
+    const bands = ['#2b2440', '#3b2c4e', '#58365a', '#7e4458', '#a85a52', '#cf7a4c', '#e8a050', '#f2c060'];
+    for (let y = 0; y < H; y++) { const k = Math.min(bands.length - 1, Math.floor(y / H * bands.length * 1.05)); x.fillStyle = bands[k]; x.fillRect(0, y, W, 1); if (y % 12 === 11 && k < bands.length - 1) for (let X = (y * 3) % 2; X < W; X += 2) { x.fillStyle = bands[k + 1]; x.fillRect(X, y, 1, 1); } }
+    x.fillStyle = '#fff0b4'; x.beginPath(); x.arc(104, 62, 9, 0, 7); x.fill(); x.fillStyle = '#ffd77a'; x.beginPath(); x.arc(104, 62, 7, 0, 7); x.fill();
+    for (let i = 0; i < 18; i++) { x.fillStyle = 'rgba(255,240,200,0.7)'; x.fillRect((R() * W) | 0, (R() * 30) | 0, 1, 1); }
+    // nuvens
+    [[20, 30], [70, 22], [120, 40]].forEach(([cx, cy]) => { x.fillStyle = 'rgba(255,190,150,0.35)'; for (let k = 0; k < 4; k++) x.fillRect(cx - 12 + k * 5, cy - (k % 2), 14, 2); });
+    // silhueta distante (prédios quebrados)
+    let X = 0; while (X < W) { const w = 6 + ((R() * 10) | 0), h = 10 + ((R() * 22) | 0); x.fillStyle = '#4a3446'; x.fillRect(X, H - h, w, h); for (let k = 0; k < 3; k++) { x.fillStyle = '#5e4256'; x.fillRect(X + 1 + ((R() * (w - 2)) | 0), H - h + 2 + ((R() * (h - 4)) | 0), 1, 1); } if (R() < 0.5) { x.clearRect(X + w - 2, H - h, 2, 3); x.fillStyle = bands[6]; x.fillRect(X + w - 2, H - h, 2, 3); } X += w + ((R() * 3) | 0); }
+    // silhueta próxima (mais escura)
+    X = 0; while (X < W) { const w = 8 + ((R() * 14) | 0), h = 6 + ((R() * 12) | 0); x.fillStyle = '#2e2236'; x.fillRect(X, H - h, w, h); X += w + 2 + ((R() * 6) | 0); }
     return c;
   }
   function stash(f) { const p = new Px(16, 14), ore = ORES[f % ORES.length]; p.rect(1, 6, 14, 7, '#8b5a2b').rect(1, 6, 14, 1, '#b07a3c').rect(1, 9, 14, 1, '#5c3a1c'); p.ell(8, 6, 6, 3.4, ore).set(6, 4, '#ffffff').set(10, 5, '#ffffff'); p.ell(8, 6.5, 6, 1, '#5c3a1c'); return p.outline(); }
-  function lockedBg() { const W = 144, H = 40, R = rng(77); const [c, x] = cv(W, H); for (let y = 0; y < H; y++) for (let X = 0; X < W; X++) { x.fillStyle = R() < 0.2 ? '#1a1512' : '#241d19'; x.fillRect(X, y, 1, 1); } x.fillStyle = '#16121c'; x.fillRect(0, 0, 16, H); return c; }
-  // Superfície: 9 x 3 tiles (144 x 48)
+  function lockedBg() { const W = 144, H = 40, R = rng(77), pal = ['#2a2226', '#211b1f', '#171316', '#352b30']; const [c, x] = cv(W, H); for (let y = 0; y < H; y++) for (let X = 0; X < W; X++) { x.fillStyle = R() < 0.5 ? pal[1] : pal[2]; x.fillRect(X, y, 1, 1); } stones(x, R, 0, 0, W, H, pal, 60); x.fillStyle = '#0e0b10'; x.fillRect(0, 0, 16, H); x.fillRect(128, 0, 16, H); return c; }
+  // Superfície (144 x 48 px): transparente em cima (o céu aparece), grama e solo embaixo
   function surface() {
     const W = 144, H = 48, R = rng(31); const [c, x] = cv(W, H);
-    for (let y = 0; y < H; y++) for (let X = 0; X < W; X++) { const v = R(); x.fillStyle = y < 36 ? (v < 0.12 ? '#979c5d' : v < 0.24 ? '#b6bb77' : '#a7ac69') : (v < 0.3 ? '#5e4a34' : '#6b5038'); x.fillRect(X, y, 1, 1); }
-    for (let i = 0; i < 40; i++) { const X = (R() * W) | 0, y = (R() * 34) | 0; x.fillStyle = '#7d8547'; x.fillRect(X, y, 1, 2); x.fillRect(X + 1, y + 1, 1, 1); }
-    ['#f4eec8', '#f2b84b', '#e88aa6'].forEach((col, i) => { for (let k = 0; k < 6; k++) { x.fillStyle = col; x.fillRect((R() * W) | 0, (R() * 34) | 0, 1, 1); } });
-    x.fillStyle = '#4a3826'; x.fillRect(0, 36, W, 1);
-    // castelete do elevador
-    x.fillStyle = '#8b5a2b'; x.fillRect(1, 6, 2, 30); x.fillRect(13, 6, 2, 30); x.fillRect(1, 6, 14, 2); x.fillRect(3, 14, 10, 1); x.fillRect(3, 24, 10, 1);
-    x.fillStyle = '#2f2f3d'; x.beginPath(); x.arc(8, 6, 3, 0, 7); x.fill(); x.fillStyle = '#16121c'; x.fillRect(2, 36, 12, 12);
-    // trilha de terra até o túnel
-    for (let X = 112; X < 144; X++) for (let y = 30; y < 36; y++) { x.fillStyle = R() < 0.5 ? '#c4a676' : '#b39563'; x.fillRect(X, y, 1, 1); }
+    const px = (X, Y, col) => { x.fillStyle = col; x.fillRect(X, Y, 1, 1); };
+    // árvores secas e cerca ao fundo
+    [[30, 18], [120, 14]].forEach(([tx, th]) => { x.fillStyle = '#2e2236'; x.fillRect(tx, 36 - th, 2, th); x.fillRect(tx - 4, 36 - th + 3, 4, 1); x.fillRect(tx + 2, 36 - th + 6, 5, 1); x.fillRect(tx - 3, 36 - th + 3, 1, 3); x.fillRect(tx + 6, 36 - th + 3, 1, 3); });
+    for (let X = 20; X < 112; X += 6) { x.fillStyle = '#5c3a1c'; x.fillRect(X, 30, 1, 6); } x.fillStyle = '#6b4424'; x.fillRect(20, 31, 92, 1); x.fillRect(20, 34, 92, 1);
+    // grama no topo do solo
+    for (let X = 0; X < W; X++) { const g = 35 + ((R() * 2) | 0); for (let y = g; y < 39; y++) px(X, y, y < 37 ? (R() < 0.3 ? '#8c9a4c' : '#6f7a44') : '#5d6b3a'); if (R() < 0.25) px(X, g - 1, '#8c9a4c'); }
+    for (let y = 39; y < H; y++) for (let X = 0; X < W; X++) px(X, y, R() < 0.2 ? '#4a3826' : R() < 0.5 ? '#5e4a34' : '#6b5038');
+    for (let i = 0; i < 14; i++) { const X = (R() * W) | 0, y = 41 + ((R() * 6) | 0); x.fillStyle = '#8d8a99'; x.fillRect(X, y, 2, 1); }
+    // estrada até o bunker e entrada da escada
+    for (let X = 18; X < 82; X++) { px(X, 37, '#7a6044'); px(X, 38, '#6b5038'); }
+    x.fillStyle = '#0e0b10'; x.fillRect(128, 37, 16, 11); x.fillStyle = '#6b4424'; x.fillRect(127, 30, 1, 10); x.fillRect(143, 30, 1, 10); x.fillRect(127, 30, 17, 1);
+    // castelete do elevador (treliça)
+    x.fillStyle = '#6b4424'; x.fillRect(1, 2, 2, 36); x.fillRect(13, 2, 2, 36);
+    for (let y = 6; y < 36; y += 6) { x.fillStyle = '#8b5a2b'; x.fillRect(3, y, 10, 1); for (let k = 0; k < 6; k++) { px(3 + k * 2, y + k, '#5c3a1c'); } }
+    x.fillStyle = '#16121c'; x.fillRect(3, 37, 10, 11);
     return c;
   }
-
+  function wheel(f) { const p = new Px(14, 14); p.ell(7, 7, 6.5, 6.5, '#3b3a52').ell(7, 7, 5, 5, null); for (let k = 0; k < 4; k++) { const a = k * Math.PI / 4 + (f ? Math.PI / 8 : 0); p.line(7 - Math.cos(a) * 5, 7 - Math.sin(a) * 5, 7 + Math.cos(a) * 5, 7 + Math.sin(a) * 5, '#5c5a66'); } p.ell(7, 7, 1.5, 1.5, '#8d8a99'); return p.outline(); }
+  function shed() { const p = new Px(26, 20); p.rect(2, 7, 22, 12, '#6b4424').rect(2, 7, 22, 1, '#8b5a2b'); for (let X = 3; X < 24; X += 4) p.rect(X, 8, 1, 11, '#5c3a1c'); p.line(0, 8, 13, 1, '#8d8a99').line(13, 1, 25, 8, '#8d8a99').line(1, 8, 13, 2, '#5c5a66').line(13, 2, 24, 8, '#5c5a66'); for (let y = 2; y < 8; y++) p.rect(13 - (y - 1) * 1.8, y, (y - 1) * 3.6, 1, '#6c6f80'); p.rect(9, 11, 8, 8, '#16121c'); return p.outline(); }
   // ---------- Cache de texturas ----------
   const cache = {}, texCache = {};
   const MAKERS = {
     walker: a => walker(a >> 1, a & 1).canvas(), runner: a => runner(a).canvas(), boss: a => boss(a).canvas(),
     tower: t => tower(t).canvas(), bunker: () => bunker().canvas(), barrel: f => OB.barrel(f).canvas(),
     obstacle: i => OB[OB_KINDS[i % OB_KINDS.length]](i).canvas(), shadow: () => shadowCanvas(), select: () => selectCanvas(),
-    miner: f => miner(f).canvas(), stash: f => stash(f).canvas(), truck: f => (f ? truckFull() : truck()).canvas(), pile: () => pile().canvas(), slot: () => slot().canvas(), cart: () => cart().canvas(), floor: f => floorBg(f), locked: () => lockedBg(), surface: () => surface()
+    miner: f => miner(f).canvas(), stash: f => stash(f).canvas(), truck: f => (f ? truckFull() : truck()).canvas(), pile: () => pile().canvas(), slot: () => slot().canvas(), cart: () => cart().canvas(), floor: f => floorBg(f), locked: () => lockedBg(), surface: () => surface(), sky: () => sky(), side: () => sideRock(), wheel: f => wheel(f).canvas(), shed: () => shed().canvas()
   };
   function canvas(name, arg) { const k = name + ':' + arg; if (!cache[k]) cache[k] = MAKERS[name](arg); return cache[k]; }
   function tex(name, arg) { const k = name + ':' + arg; if (!texCache[k]) { const t = new THREE.CanvasTexture(canvas(name, arg)); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; texCache[k] = t; } return texCache[k]; }

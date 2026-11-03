@@ -11,7 +11,8 @@
   // ---------- Save ----------
   const SAVE_KEY = 'ultimo-bunker-mina-v3';
   const newFloor = () => ({ lvl: 1, stash: 0, lost: 0, foreman: false, active: true, towers: {}, boss: true });
-  const fresh = () => ({ gold: 0, floors: [newFloor()], lift: { lvl: 1, op: false }, truck: { lvl: 1, op: false }, ware: 0, up: {}, lang: null, sfx: true, music: true, last: Date.now(), total: 0 });
+  const firstFloor = () => Object.assign(newFloor(), { towers: { 3: { type: 'gunner', lvl: 1, branch: null, prio: 0, spent: 0 } } });
+  const fresh = () => ({ gold: 0, floors: [firstFloor()], lift: { lvl: 1, op: false }, truck: { lvl: 1, op: false }, ware: 0, up: {}, lang: null, sfx: true, music: true, last: Date.now(), total: 0 });
   let S = fresh();
   try { const o = JSON.parse(localStorage.getItem(SAVE_KEY)); if (o && o.floors) S = Object.assign(fresh(), o); } catch (e) { }
   if (!S.truck) S.truck = { lvl: 1, op: false }; if (!S.ware) S.ware = 0;
@@ -47,7 +48,7 @@
   const geo = new THREE.PlaneGeometry(1, 1);
   const matOf = (map, o) => new THREE.MeshBasicMaterial(Object.assign({ map: map || null, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide }, o || {}));
   function mesh(map, w, h, order, o) { const m = new THREE.Mesh(geo, matOf(map, o)); m.scale.set(w, h, 1); m.renderOrder = order; scene.add(m); return m; }
-  const L = { bg: 0, shadow: 2, obj: 100, proj: 900, glow: 1001, part: 1002, bar: 1003, ui: 1004 };
+  const L = { bg: 0, shadow: 2, obj: 100, dark: 950, proj: 960, glow: 1001, part: 1002, bar: 1003, ui: 1004 };
   const depth = (m, feetY) => { m.renderOrder = 100 + Math.round(-feetY * 24); };
   function sprite(tex, wpx, hpx, x, feetY) { const m = mesh(tex, wpx * PX, hpx * PX, L.obj); m.position.set(x, feetY + hpx * PX / 2, 0); depth(m, feetY); return m; }
   function shadowAt(x, y, w) { const m = mesh(ART3.tex('shadow', 0), w, w * 0.5, L.shadow); m.position.set(x, y, 0); return m; }
@@ -98,7 +99,7 @@
     cam.scale = snapped >= s * 0.85 ? snapped : s;
     clampCam();
   }
-  function clampCam() { const hh = cam.h / 2 / cam.scale, bot = 1.6, lo = worldBottom() + hh - bot, hi = 0.3 - hh; cam.y = lo > hi ? hi : clamp(cam.y, lo, hi); }
+  function clampCam() { const hh = cam.h / 2 / cam.scale, bot = 3.2, lo = worldBottom() + hh - bot, hi = 2.4 - hh; cam.y = lo > hi ? hi : clamp(cam.y, lo, hi); }
   function updateCamera() {
     const hw = cam.w / 2 / cam.scale, hh = cam.h / 2 / cam.scale, sh = cam.shake > 0 ? (Math.random() - 0.5) * cam.shake : 0;
     camera.left = -hw; camera.right = hw; camera.top = hh; camera.bottom = -hh;
@@ -110,7 +111,15 @@
 
   // ---------- Mundo ----------
   const surfM = mesh(ART3.tex('surface', 0), COLS, 3, L.bg); surfM.position.set(COLS / 2, -1.5, 0);
-  const skyM = mesh(null, 40, 20, -1, { color: 0x7a8448, transparent: false }); skyM.position.set(COLS / 2, 10, 0);
+  const skyM = mesh(ART3.tex('sky', 0), COLS + 4, 6, -2, { transparent: false }); skyM.position.set(COLS / 2, 0.6, 0);
+  const skyTop = mesh(null, 40, 30, -3, { color: 0x2b2440, transparent: false }); skyTop.position.set(COLS / 2, 18.5, 0);
+  // rocha nas laterais (sem faixas pretas)
+  const sideTex = new THREE.CanvasTexture(ART3.canvas('side', 0)); sideTex.magFilter = sideTex.minFilter = THREE.NearestFilter; sideTex.generateMipmaps = false; sideTex.wrapS = sideTex.wrapT = THREE.RepeatWrapping; sideTex.repeat.set(1, 60);
+  [-1, COLS + 1].forEach(x => { const m = mesh(sideTex, 2, 240, 1); m.position.set(x, -2.4 - 120, 0); });
+  // penumbra do subsolo (as luzes somam por cima)
+  const darkM = mesh(null, COLS + 4, 400, L.dark, { color: 0x0c0814, opacity: 0.34 }); darkM.position.set(COLS / 2, -2.45 - 200, 0);
+  const wheelM = sprite(ART3.tex('wheel', 0), 14, 14, 0.5, -0.75); wheelM.renderOrder = 97;
+  sprite(ART3.tex('shed', 0), 26, 20, 1.75, -2.2).renderOrder = 98;
   shadowAt(5.0, -2.05, 2.1);
   sprite(ART3.tex('bunker', 0), 32, 28, 5.0, -2.1);
   const cableM = mesh(null, 0.04, 1, 95, { color: 0x2a2233 });
@@ -125,7 +134,7 @@
   function buildFloor(f) {
     const rt = { tapNoise: 0, ore: 0, work: 0, invaded: false, minerM: [], slotM: {}, towerM: {} };
     rt.bg = mesh(ART3.tex('floor', f), COLS, FH, L.bg); rt.bg.position.set(COLS / 2, floorTop(f) - FH / 2, 0);
-    [3, 6].forEach(c => { const g = glow(c + 0.5, ledgeY(f) + 0.2, 2.2, 0xffd77a, Infinity, 0.45); g.flicker = 1; });
+    [3, 6].forEach(c => { const g = glow(c + 0.5, floorTop(f) - 0.62, 3.2, 0xffc870, Infinity, 0.6); g.flicker = 1; });
     rt.stashM = sprite(ART3.tex('stash', f), 16, 14, STASH_X, walkFeet(f) + 0.05);
     MINE.slots.forEach((c, i) => { const m = sprite(ART3.tex('slot', 0), 16, 8, c + 0.5, towerFeet(f) - 0.06); m.renderOrder = 90; rt.slotM[i] = m; });
     RT[f] = rt;
@@ -242,7 +251,7 @@
           e.biteT = 0; const fl = S.floors[e.f]; fl.lost = (fl.lost || 0) + 1; refreshMiners(e.f);
           spawnZombie('walker', undefined, { f: e.f, x: STASH_X + 1.2 + Math.random() });
           particle(STASH_X + 1.5, walkFeet(e.f) + 0.6, '#8f2f3c', 10, 2, 0.4, 0.1); SFX.play('hurt'); shake(0.12);
-          toast(effW(e.f) > 0 ? T('bittenMsg', e.f + 1) : T('allBitten', e.f + 1), 2.5); save();
+          toast(effW(e.f) > 0 ? T('bittenMsg', e.f + 1) : T('allBitten', e.f + 1), 3); save();
         }
       }
     }
@@ -369,7 +378,8 @@
     for (const o of ringPool) { if (!o.on) continue; o.life -= dt; const k = 1 - o.life / o.max, r = o.r * (0.3 + 0.7 * k); o.m.scale.set(r, r, 1); o.m.material.opacity = Math.max(0, 1 - k); if (o.life <= 0) { o.on = false; o.m.visible = false; } }
     // elevador e cabo
     cartM.position.set(SHAFT_X, LIFT.y + 12 * PX / 2, 0);
-    const cTop = -0.4, cLen = cTop - (LIFT.y + 0.7); cableM.scale.y = Math.max(0.01, cLen); cableM.position.set(SHAFT_X, (cTop + LIFT.y + 0.7) / 2, 0);
+    const cTop = -0.75, cLen = cTop - (LIFT.y + 0.7); cableM.scale.y = Math.max(0.01, cLen); cableM.position.set(SHAFT_X, (cTop + LIFT.y + 0.7) / 2, 0);
+    if (LIFT.state === 'down' || LIFT.state === 'up') wheelM.material.map = ART3.tex('wheel', Math.floor(now * 8) % 2);
     truckM.position.x = TRUCK.x; truckM.scale.x = (TRUCK.state === 'back' ? -1 : 1) * 22 * PX; truckM.material.map = ART3.tex('truck', TRUCK.load > 0 ? 1 : 0);
     pileM.visible = S.ware >= 1;
     // mineiros: vão do baú até o veio, cavam e voltam carregando
@@ -467,9 +477,9 @@
       const f = +b.dataset.f, fl = S.floors[f], show = fl.active && !fl.foreman && RT[f] && RT[f].work <= 0 && !RT[f].invaded;
       place(b, 4.4, walkFeet(f) + 0.95); if (!show) b.hidden = true;
     });
-    const lb = $('liftBtn'); place(lb, SHAFT_X + 0.95, -0.55); setT(lb, T('lift') + ' ' + T('level', S.lift.lvl)); lb.classList.toggle('can', S.gold >= MINE.liftUpCost(S.lift.lvl));
+    const lb = $('liftBtn'); place(lb, SHAFT_X + 1.15, -2.68); setT(lb, T('lift') + ' ' + T('level', S.lift.lvl)); lb.classList.toggle('can', S.gold >= MINE.liftUpCost(S.lift.lvl));
     const lbub = $('liftBub'); place(lbub, SHAFT_X + 1.3, LIFT_TOP + 1.5); if (S.lift.op || LIFT.state !== 'idle' || nextStashFloor(-1) < 0) lbub.hidden = true;
-    const tb = $('truckBtn'); setT(tb, T('truck') + ' ' + T('level', S.truck.lvl)); { const p = toScreen(6.55, -0.55), x = Math.min(p.x, cam.w - tb.offsetWidth + 2); tb.style.transform = `translate(${Math.round(x)}px, ${Math.round(p.y)}px)`; tb.hidden = p.y < -40; } tb.classList.toggle('can', S.gold >= MINE.truckUpCost(S.truck.lvl));
+    const tb = $('truckBtn'); setT(tb, T('truck') + ' ' + T('level', S.truck.lvl)); { const p = toScreen(6.55, -2.68), x = Math.min(p.x, cam.w - tb.offsetWidth + 2); tb.style.transform = `translate(${Math.round(x)}px, ${Math.round(p.y)}px)`; tb.hidden = p.y < -40; } tb.classList.toggle('can', S.gold >= MINE.truckUpCost(S.truck.lvl));
     const tbub = $('truckBub'); place(tbub, TRUCK_A + 0.6, -1.25); if (S.truck.op || TRUCK.state !== 'idle' || S.ware < 1) tbub.hidden = true;
     const d = $('digBtn');
     if (d) {
@@ -562,9 +572,6 @@
     // elevador
     if (w.x < 1 && w.y < -0.5 && w.y > LIFT.y - 0.5 && w.y < LIFT.y + 1.4 || (w.x < 1.2 && w.y > -2.6 && w.y < -0.3)) { LIFT.go = true; SFX.play('click'); return; }
     if (w.y > -2.6 && w.y < -0.4 && w.x > 1.3 && w.x < 4.6) { TRUCK.go = true; SFX.play('click'); return; }
-    let hitZ = null, hd = 0.7;
-    zombies.forEach(e => { if (!e.alive) return; const d = Math.hypot(e.x - w.x, (e.y + e.by) - w.y); if (d < hd) { hd = d; hitZ = e; } });
-    if (hitZ) { const dmg = MINE.zombieHp(level()) * 0.25 * (1 + 0.25 * ul('pick')); damage(hitZ, dmg, false, false, true); particle(hitZ.x, hitZ.y + hitZ.by, '#8f2f3c', 4, 1.6, 0.3, 0.08); SFX.play('shoot'); shake(0.04); return; }
     const f = floorAt(w.y); if (f < 0) return;
     const c = Math.floor(w.x), si = MINE.slots.indexOf(c);
     if (si >= 0 && w.y > floorTop(f) - 1.05) { if (!(wasOpen && prev && prev.f === f && prev.i === si)) { sel = { f, i: si }; openRadial(); } return; }

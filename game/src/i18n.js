@@ -1,7 +1,7 @@
 // Textos do jogo em português e inglês.
 window.STR = {
   pt: {
-    truck: 'Transporte', driver: 'Motorista', driverD: 'O caminhão leva o ouro sozinho, inclusive offline', tapTruck: 'Toque para levar', depot: 'Depósito', bitten: 'Mordidos', rehire: 'Repor mineiros', bittenMsg: 'Um mineiro do andar {0} foi mordido e virou zumbi!', allBitten: 'Andar {0} tomado pelos zumbis! Toque neles ou ponha torres.',
+    truck: 'Transporte', driver: 'Motorista', driverD: 'O caminhão leva o ouro sozinho, inclusive offline', tapTruck: 'Toque para levar', depot: 'Depósito', bitten: 'Mordidos', rehire: 'Repor mineiros', bittenMsg: 'Um mineiro do andar {0} foi mordido e virou zumbi!', allBitten: 'Andar {0} tomado pelos zumbis! Só torres matam zumbis.',
     lift: 'Elevador', capacity: 'Capacidade', speed: 'Velocidade', operator: 'Operador', foreman: 'Capataz', hire2: 'Contratar', hired: 'Contratado', workersL: 'Mineiros', prodL: 'Produção', nextW: '+1 mineiro no nível {0}', tapWork: 'Toque!', tapLift: 'Toque para descer', u_ammo: 'Munição', u_ammo_d: 'Torres causam +15% de dano', activeL: 'Andar ativo', deactivate: 'Abandonar andar', activate: 'Reativar andar', stashL: 'No baú', autoNote: 'Trabalha sozinho, até offline', manualNote: 'Sem gerente: toque para trabalhar', buyMax: 'Máx', foremanD: 'O andar trabalha sem parar, inclusive offline', operatorD: 'O elevador desce sozinho, inclusive offline',
     mine: 'Mina', perSec: '{0}/s', hire: 'Mineiro', floorN: 'Andar {0}', dig: 'Cavar andar {0}', upgrades: 'Melhorias',
     coal: 'Carvão', copper: 'Cobre', iron: 'Ferro', silver: 'Prata', gold: 'Ouro', crystal: 'Cristal', ruby: 'Rubi', uranium: 'Urânio',
@@ -12,7 +12,7 @@ window.STR = {
     u_silence: 'Abafadores', u_silence_d: '-8% de barulho: menos zumbis atraídos',
     u_range: 'Lanternas', u_range_d: '+6% de alcance das torres',
     u_store: 'Armazém', u_store_d: '+1h de produção guardada enquanto você está fora (base 2h)',
-    mineHint: 'Toque no andar para cavar, no elevador e no caminhão para levar o ouro. Toque em Nv para melhorar. Zumbis descem pela escada e mordem mineiros: ponha torres nas vagas.',
+    mineHint: 'Toque no andar para cavar e no elevador e caminhão para levar o ouro. Toque em Nv para melhorar. Zumbis descem pela escada e mordem mineiros: só as torres matam.',
     offlineMine: 'A mina rendeu {0} de ouro em {1}.', offlineHurt: ' Andares sem defesa renderam menos.', resetGame: 'Apagar progresso', confirmReset: 'Apagar todo o progresso da mina?',
     noise: 'barulho', tapZombie: 'Toque nos zumbis para bater neles',
     title: 'Último Bunker', subtitle: 'Mina · zumbis · idle',
@@ -55,7 +55,7 @@ window.STR = {
     rubble: 'Obstáculo', barrel: 'Barril em chamas', perHour: '{0}/h offline (máx. {1}h)'
   },
   en: {
-    truck: 'Transport', driver: 'Driver', driverD: 'The truck hauls gold on its own, even offline', tapTruck: 'Tap to haul', depot: 'Depot', bitten: 'Bitten', rehire: 'Replace miners', bittenMsg: 'A miner on floor {0} was bitten and turned!', allBitten: 'Floor {0} overrun! Tap the zombies or build towers.',
+    truck: 'Transport', driver: 'Driver', driverD: 'The truck hauls gold on its own, even offline', tapTruck: 'Tap to haul', depot: 'Depot', bitten: 'Bitten', rehire: 'Replace miners', bittenMsg: 'A miner on floor {0} was bitten and turned!', allBitten: 'Floor {0} overrun! Only towers can kill zombies.',
     lift: 'Elevator', capacity: 'Capacity', speed: 'Speed', operator: 'Operator', foreman: 'Foreman', hire2: 'Hire', hired: 'Hired', workersL: 'Miners', prodL: 'Output', nextW: '+1 miner at level {0}', tapWork: 'Tap!', tapLift: 'Tap to send', u_ammo: 'Ammo', u_ammo_d: 'Towers deal +15% damage', activeL: 'Floor active', deactivate: 'Abandon floor', activate: 'Reactivate floor', stashL: 'In the chest', autoNote: 'Works on its own, even offline', manualNote: 'No manager: tap to work', buyMax: 'Max', foremanD: 'The floor works nonstop, even offline', operatorD: 'The elevator runs on its own, even offline',
     mine: 'Mine', perSec: '{0}/s', hire: 'Miner', floorN: 'Floor {0}', dig: 'Dig floor {0}', upgrades: 'Upgrades',
     coal: 'Coal', copper: 'Copper', iron: 'Iron', silver: 'Silver', gold: 'Gold', crystal: 'Crystal', ruby: 'Ruby', uranium: 'Uranium',
@@ -66,7 +66,7 @@ window.STR = {
     u_silence: 'Mufflers', u_silence_d: '-8% noise: fewer zombies attracted',
     u_range: 'Lanterns', u_range_d: '+6% tower range',
     u_store: 'Storehouse', u_store_d: '+1h of output stored while you are away (base 2h)',
-    mineHint: 'Tap a floor to dig, the elevator and the truck to move the gold. Tap Lv to upgrade. Zombies come down the stairs and bite miners: build towers in the slots.',
+    mineHint: 'Tap a floor to dig, the elevator and truck to move the gold. Tap Lv to upgrade. Zombies come down the stairs and bite miners: only towers can kill them.',
     offlineMine: 'The mine made {0} gold in {1}.', offlineHurt: ' Undefended floors made less.', resetGame: 'Erase progress', confirmReset: 'Erase all mine progress?',
     noise: 'noise', tapZombie: 'Tap zombies to hit them',
     title: 'Last Bunker', subtitle: 'Mine · zombies · idle',
