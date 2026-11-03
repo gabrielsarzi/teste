@@ -19,7 +19,8 @@ window.ART3 = (function () {
   const ZV = [
     { skin: '#8fbf6a', skinD: '#6f9a52', shirt: '#c9b458', shirtD: '#a38f3e', pants: '#3b3a52', hair: '#2a2233', blood: 1 },
     { skin: '#8fbf6a', skinD: '#6f9a52', shirt: '#b5473f', shirtD: '#8a3330', pants: '#3b3a52', hair: '#6b4a2e', blood: 0 },
-    { skin: '#9cc77a', skinD: '#7aa25c', shirt: '#4f78a8', shirtD: '#3a5a82', pants: '#4a3b30', hair: '#2a2233', blood: 1 }
+    { skin: '#9cc77a', skinD: '#7aa25c', shirt: '#4f78a8', shirtD: '#3a5a82', pants: '#4a3b30', hair: '#2a2233', blood: 1 },
+    { skin: '#8fbf6a', skinD: '#6f9a52', shirt: '#4f78a8', shirtD: '#3a5a82', pants: '#3b5a8a', hair: '#f1c40f', blood: 1 }
   ];
   function walker(v, f) {
     const o = ZV[v % ZV.length], p = new Px(16, 20), a = f ? 1 : 0;
@@ -142,6 +143,9 @@ window.ART3 = (function () {
     else { p.line(8, 11, 13, 7, '#8b5a2b'); p.line(12, 4, 15, 8, '#9da3a6'); p.set(15, 9, '#9da3a6'); }
     return p.outline();
   }
+  function truck() { const p = new Px(22, 14); p.rect(1, 3, 13, 7, '#8b5a2b').rect(1, 3, 13, 1, '#b07a3c').rect(14, 5, 6, 5, '#c0392b').rect(15, 6, 3, 2, '#7fd3f5').rect(1, 9, 19, 2, '#3b3a52'); p.ell(5, 11.5, 2.2, 2.2, '#2f2f3d').ell(16, 11.5, 2.2, 2.2, '#2f2f3d').set(5, 11, '#9da3a6').set(16, 11, '#9da3a6'); return p.outline(); }
+  function truckFull(f) { const p = truck(); p.ell(7.5, 3, 5.5, 2.4, '#f2c84b').set(5, 2, '#ffffff').set(9, 2, '#ffffff'); return p.outline(); }
+  function pile() { const p = new Px(20, 14); p.rect(1, 8, 18, 5, '#6b5038').rect(1, 8, 18, 1, '#8b6a48'); p.ell(10, 8, 7, 4, '#f2c84b').set(8, 6, '#ffffff').set(12, 7, '#ffffff').set(10, 5, '#fff6c8'); return p.outline(); }
   function slot() { const p = new Px(16, 8); p.rect(1, 2, 14, 4, '#8b5a2b').rect(1, 2, 14, 1, '#b07a3c').rect(3, 6, 1, 2, '#5c3a1c').rect(12, 6, 1, 2, '#5c3a1c'); p.rect(7, 3, 2, 2, '#d9cfae'); return p.outline(); }
   function cart() { const p = new Px(14, 12); p.rect(1, 2, 12, 7, '#6c6f80').rect(1, 2, 12, 1, '#9da0b2').rect(2, 0, 10, 2, '#f2c84b').ell(4, 10, 1.8, 1.8, '#2f2f3d').ell(10, 10, 1.8, 1.8, '#2f2f3d'); return p.outline(); }
   // Fundo de um andar (144 x 40 px): poço do elevador (col 0), corredor, veio (col 7) e escada dos zumbis (col 8)
@@ -194,7 +198,7 @@ window.ART3 = (function () {
     walker: a => walker(a >> 1, a & 1).canvas(), runner: a => runner(a).canvas(), boss: a => boss(a).canvas(),
     tower: t => tower(t).canvas(), bunker: () => bunker().canvas(), barrel: f => OB.barrel(f).canvas(),
     obstacle: i => OB[OB_KINDS[i % OB_KINDS.length]](i).canvas(), shadow: () => shadowCanvas(), select: () => selectCanvas(),
-    miner: f => miner(f).canvas(), stash: f => stash(f).canvas(), slot: () => slot().canvas(), cart: () => cart().canvas(), floor: f => floorBg(f), locked: () => lockedBg(), surface: () => surface()
+    miner: f => miner(f).canvas(), stash: f => stash(f).canvas(), truck: f => (f ? truckFull() : truck()).canvas(), pile: () => pile().canvas(), slot: () => slot().canvas(), cart: () => cart().canvas(), floor: f => floorBg(f), locked: () => lockedBg(), surface: () => surface()
   };
   function canvas(name, arg) { const k = name + ':' + arg; if (!cache[k]) cache[k] = MAKERS[name](arg); return cache[k]; }
   function tex(name, arg) { const k = name + ':' + arg; if (!texCache[k]) { const t = new THREE.CanvasTexture(canvas(name, arg)); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; texCache[k] = t; } return texCache[k]; }

@@ -69,6 +69,14 @@ window.MINE = {
   liftSpeed: lvl => Math.min(9, 1.4 + 0.15 * (lvl - 1)),     // andares... em tiles por segundo
   liftUpCost: lvl => Math.ceil(30 * Math.pow(1.19, lvl - 1)),
   operatorCost: 150,
+  // Transporte: caminhão leva do depósito até o bunker
+  truckCap: lvl => Math.ceil(30 * Math.pow(1.27, lvl - 1)),
+  truckSpeed: lvl => Math.min(8, 1.0 + 0.12 * (lvl - 1)),
+  truckUpCost: lvl => Math.ceil(35 * Math.pow(1.19, lvl - 1)),
+  driverCost: 300,
+  biteTime: 2.5,                 // segundos para um zumbi morder um mineiro
+  hordeGrowth: 1.15,             // +15% de zumbis a cada andar aberto
+  rehireCost: (f, lvl) => Math.ceil(0.6 * 12 * Math.pow(7, f) * Math.pow(1.12, lvl - 1)),
   loadTime: 0.5,
   floorCost: f => Math.ceil(400 * Math.pow(8, f - 1)),
   zombieHp: L => 10 * Math.pow(4, L),

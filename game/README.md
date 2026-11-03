@@ -29,17 +29,16 @@ python3 tools/build_single.py dist/ultimo-bunker.html
 | `src/art.js` | Pixel art procedural 16×16 (paleta fixa de 25 cores) |
 | `src/game.js` | Simulação, render, entrada (toque/pinça) e interface |
 
-## Como funciona (v0.5 — mina idle com elevador)
+## Como funciona (v0.6)
 
-- Cada andar tem um **nível**. O nível aumenta a velocidade; mineiros = 1 + 1 a cada 10 níveis (máx. 5).
-- Os mineiros vão até o veio, cavam e levam o minério para o **baú do andar**. O ouro fica ali.
-- O **elevador** desce, recolhe dos baús até a capacidade e sobe. Melhore capacidade e velocidade.
-- Sem gerente, você toca no andar para trabalhar e no elevador para descer. **Capataz** (andar) e **Operador** (elevador) automatizam, inclusive offline.
-- Minério mais fundo é mais duro e vale mais. Toque no veio para golpes extras.
-- Zumbis descem pela **escada** da direita e só entram nos andares ativos: param a produção e comem o baú.
-  Andar abandonado é pulado. Zumbis ficam mais fortes conforme a mina desce.
+- Cada andar tem nível (velocidade) e até 5 mineiros (+1 a cada 10 níveis). Mineiros levam o minério ao **baú do andar**.
+- **Elevador** recolhe os baús e leva ao **depósito** na superfície; o **caminhão** leva do depósito ao bunker, onde vira ouro.
+  Os três têm nível (capacidade/velocidade) e gerente (Capataz, Operador, Motorista) que automatiza e rende offline.
+- Zumbis descem pela escada e entram nos andares ativos. **Mordem os mineiros, que viram zumbis** e ficam no andar.
+  Mate-os tocando ou com torres; reponha os mineiros perdidos no painel do andar. Andar abandonado é pulado.
+- Cada andar aberto aumenta a horda em 15% e deixa os zumbis mais fortes.
 - Torres alcançam andares vizinhos e a escada; torre mais funda é mais forte; tipos novos liberam a cada andar.
-- Cada andar novo acorda a Abominação, que desce pela escada. Derrote-a para cavar o próximo.
+- Cada andar novo acorda a Abominação. Derrote-a para cavar o próximo.
 
 ## Decisões do briefing (v0.1)
 
