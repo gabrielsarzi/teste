@@ -19,7 +19,7 @@ Dominó brasileiro de dupla (4 jogadores, 7 pedras, sem compra), para celular.
 npm run build && npx cap sync android
 cd android && ./gradlew assembleDebug   # precisa do Android SDK (ANDROID_HOME)
 ```
-O APK sai em `android/app/build/outputs/apk/debug/app-debug.apk`. Ícones: `node tests/make-icons.cjs`.
+O APK sai em `android/app/build/outputs/apk/debug/app-debug.apk`. Se o Maven Central responder 429 (muitas requisições), use o espelho do Google num init script do Gradle (`~/.gradle/init.d/`) trocando `repo.maven.apache.org` por `maven-central.storage-download.googleapis.com/maven2/`. Ícones: `node tests/make-icons.cjs`.
 
 ## Rodar
 ```bash
