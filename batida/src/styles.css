@@ -977,3 +977,27 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 [data-domino="preto"], [data-domino="azul"], [data-domino="vermelho"], [data-domino="jade"] { --t-numc: #f6f1e6; --n1: #f6f1e6; --n2: #f6f1e6; --n3: #f6f1e6; --n4: #f6f1e6; --n5: #f6f1e6; --n6: #f6f1e6; }
 [data-domino="colorido"] { --n1: #c62f22; --n2: #2e8a3e; --n3: #2363a8; --n4: #b07a0e; --n5: #7d3ca8; --n6: #1a120d; }
 #app[data-numeros] .tile:not(.back) .half::after { transform: rotate(var(--nrot, 0deg)); }
+
+/* ---------- missões, conquistas e números ---------- */
+.home-foot { grid-template-columns: repeat(4, 1fr); }
+.foot-btn { position: relative; font-size: 13px; padding: 10px 4px; gap: 5px; }
+.dot-badge { position: absolute; top: 6px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--chili); box-shadow: 0 0 0 2px #1a120d; }
+.prog-body { flex: 1; overflow: auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px 0 max(14px, env(safe-area-inset-bottom, 0px)); }
+.mission, .ach { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 14px; background: var(--panel); box-shadow: inset 0 0 0 1.5px var(--line); }
+.ach { grid-template-columns: auto 1fr auto; }
+.mission.done, .ach.got { box-shadow: inset 0 0 0 1.5px rgba(242,169,59,.5); }
+.m-main { min-width: 0; display: grid; gap: 4px; }
+.m-main b { font: 400 15px/1.2 var(--f-display); }
+.m-main small { color: var(--muted); font-size: 12px; }
+.m-bar { height: 6px; border-radius: 99px; background: rgba(246,237,219,.1); overflow: hidden; }
+.m-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--amber), var(--amber-hi)); border-radius: inherit; }
+.m-state { font: 400 14px var(--f-display); color: var(--amber-hi); white-space: nowrap; }
+.m-state.ok { color: var(--good); font: 800 12px var(--f-body); }
+.ach-grid { display: grid; gap: 8px; }
+.ach-medal { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; background: rgba(246,237,219,.08); color: var(--muted); }
+.ach.got .ach-medal { background: linear-gradient(180deg, var(--amber-hi), var(--amber)); color: #2a1608; }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stat { padding: 10px 12px; border-radius: 12px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); display: grid; gap: 3px; min-width: 0; }
+.stat small { font: 700 11px var(--f-body); color: var(--muted); letter-spacing: .02em; }
+.stat b { font: 400 18px/1.1 var(--f-display); overflow-wrap: anywhere; }
+.rank-list.static { flex: none; overflow: visible; }

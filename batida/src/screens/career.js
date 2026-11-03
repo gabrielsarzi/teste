@@ -6,6 +6,7 @@ import { confetti } from '../ui/fx.js';
 import { go, career, saveCareer, settings, saveSettings, wallet, setWallet, money } from '../app.js';
 import { CAST, CAMPEONATOS, FASES, MESAS_VISUAL, DOMINOS_VISUAL, PARCEIROS } from '../classic/cast.js';
 import { iconBtn, walletChip, fiadoModal } from './home.js';
+import { track } from '../progress.js';
 
 const SUBS = ['marquinhos', 'careca', 'tonhao', 'paulao', 'valter', 'cida'];
 
@@ -207,6 +208,7 @@ export function careerScreen(stage, params = {}) {
         if (idx === car.level) car.level = Math.min(CAMPEONATOS.length, car.level + 1);
         for (const k of ['mesa', 'domino']) if (c.prize[k] && !car.unlocked[k].includes(c.prize[k])) car.unlocked[k].push(c.prize[k]);
         saveCareer(car);
+        track('title');
         showList();
         championModal(c, first);
       } else {

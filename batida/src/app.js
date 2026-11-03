@@ -96,7 +96,13 @@ export function wallet() {
   return store.get('wallet', 200);
 }
 export function setWallet(v) {
+  const before = wallet();
   store.set('wallet', Math.max(0, Math.round(v)));
+  if (v > before) {
+    const s = store.get('stats3', {});
+    s.ganhoTotal = (s.ganhoTotal || 0) + Math.round(v - before);
+    store.set('stats3', s);
+  }
   document.querySelectorAll('[data-wallet]').forEach((el) => (el.textContent = money(wallet())));
 }
 export const money = (v) => 'R$ ' + Math.round(v).toLocaleString('pt-BR');

@@ -9,6 +9,7 @@ import { confetti, chalkDust, shake, pop } from '../ui/fx.js';
 import { settings, go, stats, saveStats, wallet, setWallet, money, rivals, addRival } from '../app.js';
 import { iconBtn, rulesModal } from './home.js';
 import { isDouble, pipSum, BUCHA_NAMES } from '../core/tiles.js';
+import { track } from '../progress.js';
 
 export const QUICK_POOLS = {
   facil: ['zezao', 'naldo', 'marquinhos', 'careca'],
@@ -55,6 +56,7 @@ export function classicScreen(stage, params = {}) {
   };
   rules.players = n;
   const match = new ClassicMatch(rules, params.seed);
+  track('matchStart');
   const teamOf = (p) => match.teamOf(p);
   const nameOf = (p) => (p === 0 ? 'Você' : CAST[ids[p]].name);
   const partnerName = n === 4 ? CAST[ids[2]].name : '';
@@ -400,6 +402,7 @@ export function classicScreen(stage, params = {}) {
     if (!moves.length) {
       sfx.error();
       haptic(40);
+      track('gato');
       el.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'translateX(0)' }], { duration: 240 });
       const now = Date.now();
       if (now - lastBronca > 900) {
@@ -578,6 +581,7 @@ export function classicScreen(stage, params = {}) {
           if (dead) return;
           await animateDraw(0);
           round.draw(0);
+          track('draw');
           refreshHand();
           renderSeats();
           updateCount();
@@ -587,6 +591,7 @@ export function classicScreen(stage, params = {}) {
         await sleep(900);
         if (dead) return;
         round.pass(0);
+        track('pass');
         updateCount();
         bubble(0, 'Passo!');
         sfx.knock();
@@ -881,6 +886,7 @@ export function classicScreen(stage, params = {}) {
     }
     await sleep(1700);
     match.applyResult(res);
+    track('round', { won: res.team === 0, lost: res.team != null && res.team !== 0, batiEu: res.type === 'batida' && res.winner === 0, bucha: res.type === 'batida' && isDouble(res.tile), laelo: res.type === 'batida' && res.kinds.includes('laelo'), fechado: res.type === 'fechado' });
     const st = stats();
     st.rounds++;
     if (res.type === 'batida' && res.winner === 0) {
@@ -1022,6 +1028,7 @@ export function classicScreen(stage, params = {}) {
     await sleep(200);
     while (!dead && !match.isOver()) await playRound();
     if (dead) return;
+    track('match', { won: match.winnerTeam() === 0, mode, players: n, stake });
     if (mode !== 'quick' && params.onEnd) {
       for (const q of opponents()) addRival(ids[q], match.winnerTeam() === 0);
       params.onEnd(match.winnerTeam() === 0, match);

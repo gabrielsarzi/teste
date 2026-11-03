@@ -4,6 +4,7 @@ import { makeTile } from '../core/tiles.js';
 import { settings, saveSettings, go, career, stats, wallet, setWallet, money, owned } from '../app.js';
 import { CAMPEONATOS, MESAS_VISUAL, DOMINOS_VISUAL, DESAFIO_OPPS, CAST } from '../classic/cast.js';
 import { sfx } from '../ui/audio.js';
+import { track, pendingRewards, getStats } from '../progress.js';
 import { confetti } from '../ui/fx.js';
 
 export const ICONS = {
@@ -66,7 +67,7 @@ export function homeScreen(stage) {
   const top = h(
     'div',
     { class: 'home-top' },
-    h('div', { class: 'home-stats' }, h('span', { html: ICONS.trophy }), `${car.titles.length} título${car.titles.length === 1 ? '' : 's'}`, h('span', { class: 'sep' }), `${st.quickWins} vitória${st.quickWins === 1 ? '' : 's'}`),
+    h('div', { class: 'home-stats' }, h('span', { html: ICONS.trophy }), `${car.titles.length} título${car.titles.length === 1 ? '' : 's'}`, h('span', { class: 'sep' }), `${getStats().vitorias} vitória${getStats().vitorias === 1 ? '' : 's'}`),
     walletChip(() => walletModal()),
   );
 
@@ -98,6 +99,7 @@ export function homeScreen(stage) {
     'div',
     { class: 'home-foot' },
     h('button', { class: 'foot-btn', onClick: () => go('look') }, h('span', { html: ICONS.bag }), 'Loja'),
+    h('button', { class: 'foot-btn', onClick: () => go('progresso') }, h('span', { html: ICONS.star }), 'Missões', pendingRewards() ? h('i', { class: 'dot-badge', 'aria-label': 'Prêmios para recolher' }) : null),
     h('button', { class: 'foot-btn', onClick: () => rulesModal() }, h('span', { html: ICONS.help }), 'Regras'),
     h('button', { class: 'foot-btn', onClick: () => settingsModal() }, h('span', { html: ICONS.gear }), 'Ajustes'),
   );
@@ -140,6 +142,7 @@ function startDesafio(oppId) {
     rules: { players: 2, metaPontos: 1, buchaVale2: true, laeloVale2: true, comecaSena: true, cincoBuchas: true, votacao: true },
     onEnd: (won) => {
       store.set('desafio', { date: today(), won });
+      track('desafio', { won });
       if (won) setWallet(wallet() + 100);
       go('home');
       setTimeout(() => {
