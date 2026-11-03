@@ -13,6 +13,7 @@ async function build() {
     minify: true,
     format: 'iife',
     target: ['es2020', 'safari14'],
+    loader: { '.mp3': 'dataurl' },
     write: false,
   });
   const css = await esbuild.transform(readFileSync('src/fonts.css', 'utf8') + readFileSync('src/styles.css', 'utf8'), {

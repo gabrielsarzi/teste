@@ -193,39 +193,77 @@ export function haptic(ms = 12) {
 }
 
 // ---------- sons do bar ao fundo ----------
-// Nada de chiado: só copos tilintando e pedras batendo em outras mesas, de vez em quando.
+// Burburinho gravado num bar de verdade (Glauber's Bar, Niterói — Marina Mapurunga,
+// radio aporee, CC BY 3.0), em loop, mais copos e pedras de outras mesas de vez em quando.
+import barUrl from '../assets/bar.mp3';
+
 let amb = null;
+let barBuf = null;
+let barLoading = null;
+
+function loadBar() {
+  if (barBuf || barLoading || !ctx) return barLoading;
+  // decodifica o base64 na mão (alguns ambientes bloqueiam fetch de data:)
+  barLoading = Promise.resolve()
+    .then(() => {
+      const b64 = barUrl.slice(barUrl.indexOf(',') + 1);
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes.buffer;
+    })
+    .then((ab) => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)))
+    .then((b) => (barBuf = b))
+    .catch(() => null);
+  return barLoading;
+}
+
 export function setAmbient(on) {
   if (!on || !enabled) {
-    if (amb) clearTimeout(amb);
-    amb = null;
+    if (amb) {
+      clearTimeout(amb.timer);
+      if (amb.gain && ctx) amb.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
+      const old = amb;
+      setTimeout(() => old.src && old.src.stop(), 1500);
+      amb = null;
+    }
     return;
   }
   if (amb || !ctx) return;
+  amb = { timer: null, src: null, gain: null };
+  const me = amb;
+  loadBar().then(() => {
+    if (amb !== me || !barBuf) return;
+    const src = ctx.createBufferSource();
+    src.buffer = barBuf;
+    src.loop = true;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.gain.setTargetAtTime(0.32, ctx.currentTime, 1.5);
+    src.connect(gain).connect(master);
+    src.start();
+    me.src = src;
+    me.gain = gain;
+  });
   const next = () => {
-    amb = setTimeout(() => {
+    me.timer = setTimeout(() => {
+      if (amb !== me) return;
       if (ready()) {
         const r = Math.random();
         if (r < 0.45) {
-          // copo de vidro
           const base = 2600 + Math.random() * 1400;
-          tone(base, 0.45, { type: 'sine', vol: 0.045 });
-          tone(base * 2.76, 0.3, { type: 'sine', vol: 0.018, delay: 0.005 });
+          tone(base, 0.45, { type: 'sine', vol: 0.03 });
+          tone(base * 2.76, 0.3, { type: 'sine', vol: 0.012, delay: 0.005 });
         } else if (r < 0.85) {
-          // pedra batendo numa mesa longe
           const n = 1 + Math.floor(Math.random() * 2);
           for (let i = 0; i < n; i++) {
-            burst(0.04, 2200, 1.4, 0.12, i * 0.22);
-            tone(160, 0.06, { vol: 0.1, delay: i * 0.22, slide: 0.6 });
+            burst(0.04, 2200, 1.4, 0.08, i * 0.22);
+            tone(160, 0.06, { vol: 0.07, delay: i * 0.22, slide: 0.6 });
           }
-        } else {
-          // dois copos brindando
-          tone(3100, 0.4, { type: 'sine', vol: 0.04 });
-          tone(3350, 0.35, { type: 'sine', vol: 0.035, delay: 0.03 });
         }
       }
-      if (amb) next();
-    }, 2200 + Math.random() * 4000);
+      next();
+    }, 4000 + Math.random() * 7000);
   };
   next();
 }

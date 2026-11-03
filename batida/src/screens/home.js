@@ -224,8 +224,8 @@ export function settingsModal() {
     sw('set-num', 'Números nas pedras', 'Troca as pintas por números. Bom para vista cansada e daltônicos', 'numeros'),
     h('h3', {}, 'Som'),
     sw('set-sound', 'Som e vibração', null, 'sound'),
-    sw('set-musica', 'Música', 'Modão de viola caipira no fundo', 'musica'),
-    sw('set-bar', 'Sons do bar', 'Copos e pedras batendo em outras mesas, de vez em quando', 'somBar'),
+    sw('set-musica', 'Música', 'Viola caipira no fundo', 'musica'),
+    sw('set-bar', 'Sons do bar', 'Conversa do salão, copos e pedras de outras mesas', 'somBar'),
     h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onClick: (e) => e.target.closest('.modal-back').click() }, 'Fechar')),
   ]);
 }
@@ -287,6 +287,9 @@ export function rulesModal() {
     h('ul', {}, h('li', {}, 'Quem tem pedra que encaixa é obrigado a jogar. Tocar numa pedra que não entra é gato.'), h('li', {}, 'Bater vale 1 ponto. Bater com bucha vale 2, e com pedra que entra nos dois lados (lá-e-lô) também vale 2.'), h('li', {}, 'Jogo fechado: ninguém consegue jogar e vence quem tem menos pontos na mão. Se a pedra fechou de propósito mas cabia na outra ponta, a mesa vota se fecha ou abre. No empate, abre.'), h('li', {}, '5 buchas ou mais na mão: volta o jogo.'), h('li', {}, 'A partida vai até 4 pontos: cada ponto é uma bolinha numa ponta da cruz da lousa. A bolinha dourada no meio marca quem sai na rodada.')),
     h('h3', {}, 'Dinheiro'),
     h('ul', {}, h('li', {}, 'No jogo rápido a mesa pode valer dinheiro do jogo. Ganhou, cada adversário paga o valor.'), h('li', {}, 'Campeonato tem inscrição e prêmio em dinheiro, além de mesas e dominós.'), h('li', {}, 'Ficou liso? O Zezão pendura no fiado.')),
+    h('h3', {}, 'Créditos'),
+    h('p', {}, 'Música: “Pagode de Viola No 1”, do Projeto Música Artesanal (Gabriel Fedel), licença CC BY-SA 3.0.'),
+    h('p', {}, 'Som do bar: “Glauber’s Bar, Ingá, Niterói”, gravação de Marina Mapurunga para o radio aporee, licença CC BY 3.0.'),
     h('h3', {}, 'Contagem'),
     h('p', {}, 'Ligue em Ajustes. Cada número mostra quantas pedras dele já estão na mesa (de 7) e quantas ainda estão com os outros. Embaixo do nome de cada jogador aparece em que números ele já passou.'),
     h('div', { class: 'actions' }, h('button', { class: 'btn amber', onClick: (e) => e.target.closest('.modal-back').click() }, 'Entendi')),

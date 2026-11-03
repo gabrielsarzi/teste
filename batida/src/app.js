@@ -155,7 +155,7 @@ let currentName = 'home';
 // Música: nos menus no volume normal, durante a partida bem baixinha
 export function updateMusic() {
   if (!settings.sound || !settings.musica) return stopMusic();
-  startMusic(currentName === 'classic' ? 0.55 : 1);
+  startMusic(currentName === 'classic' ? 0.45 : 1);
 }
 export const registerScreen = (name, fn) => (screens[name] = fn);
 
