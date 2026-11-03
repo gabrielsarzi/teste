@@ -1,12 +1,15 @@
-"""Gera os prints do LimpaPC usados no site (limpador/site/img/).
+"""Gera os prints do app e as imagens de marca usadas no site (site/img/).
 
 Abre o app de verdade num servidor X virtual, mostra cada página e injeta DADOS DE DEMONSTRAÇÃO
 (nada é escaneado, apagado ou alterado no sistema). Páginas que ainda não existem são puladas.
 
 Uso (Linux, precisa de Xvfb, ImageMagick e Pillow):
-    cd limpador
-    HOME=/tmp/limpapc-home xvfb-run -a -s "-screen 0 1280x800x24" python3.12 tools/screenshots.py [--out site/img]
-          [--only dashboard,junk]
+    cd limpeza-pc   # (ou limpador, antes da renomeação)
+    HOME=/tmp/limpaone-home xvfb-run -a -s "-screen 0 1280x800x24" python3.12 tools/screenshots.py [--out site/img]
+          [--only painel,lixo]
+
+Imagens de marca (favicon, logo e og.png 1200×630) a partir de assets/icon.png — não precisa de Xvfb:
+    python3 tools/screenshots.py --brand
 """
 from __future__ import annotations
 
@@ -24,8 +27,72 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--out", default=os.path.join(ROOT, "site", "img"))
 ap.add_argument("--only", default="", help="lista de arquivos (sem .png) separados por vírgula")
 ap.add_argument("--wait", type=int, default=900, help="ms de espera antes de cada print")
+ap.add_argument("--brand", action="store_true", help="só gera favicon, logo e og.png a partir de assets/icon.png")
 args = ap.parse_args()
 os.makedirs(args.out, exist_ok=True)
+
+
+# ------------------------------------------------------------------ imagens de marca
+def make_brand(out=args.out, name="LimpaOne"):
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
+    site = os.path.dirname(os.path.abspath(out))
+    icon = Image.open(os.path.join(ROOT, "assets", "icon.png")).convert("RGBA")
+    big = icon.resize((512, 512), Image.LANCZOS) if icon.width < 512 else icon
+    for size, fname in ((128, "logo.png"), (180, "apple-touch-icon.png"), (32, "favicon-32.png")):
+        big.resize((size, size), Image.LANCZOS).save(os.path.join(out, fname), optimize=True)
+    big.save(os.path.join(site, "favicon.ico"), sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
+
+    def font(weight, size):
+        for path in (f"/usr/share/fonts/opentype/inter/Inter-{weight}.otf", f"C:/Windows/Fonts/segoeui{'b' if weight != 'Medium' else ''}.ttf",
+                     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
+            if os.path.exists(path):
+                return ImageFont.truetype(path, size)
+        return ImageFont.load_default()
+
+    W_, H_ = 1200, 630
+    img = Image.new("RGB", (W_, H_), "#0f1426")
+    glow = Image.new("RGB", (W_, H_), "#0f1426")
+    gd = ImageDraw.Draw(glow)
+    gd.ellipse((-260, -320, 560, 360), fill="#3b2f9e")
+    gd.ellipse((760, 330, 1500, 900), fill="#0f5f78")
+    img = Image.blend(img, glow.filter(ImageFilter.GaussianBlur(140)), 0.9)
+    d = ImageDraw.Draw(img)
+    # print do app à direita, cortado pela borda
+    shot = os.path.join(out, "painel-escuro.png")
+    if os.path.exists(shot):
+        sc = Image.open(shot).convert("RGB")
+        sc = sc.resize((int(sc.width * 0.62), int(sc.height * 0.62)), Image.LANCZOS)
+        x0, y0 = 700, 150
+        mask = Image.new("L", sc.size, 0)
+        ImageDraw.Draw(mask).rounded_rectangle((0, 0, sc.width, sc.height), 16, fill=255)
+        shadow = Image.new("L", (W_, H_), 0)
+        ImageDraw.Draw(shadow).rounded_rectangle((x0 + 10, y0 + 24, x0 + sc.width + 10, y0 + sc.height + 24), 16, fill=150)
+        img.paste(Image.new("RGB", (W_, H_), "#05070f"), (0, 0), shadow.filter(ImageFilter.GaussianBlur(24)))
+        img.paste(sc, (x0, y0), mask)
+        d.rounded_rectangle((x0 - 1, y0 - 1, x0 + sc.width, y0 + sc.height), 16, outline="#4b4fc9", width=2)
+    ic = big.resize((132, 132), Image.LANCZOS)
+    img.paste(ic, (80, 92), ic)
+    d.text((80, 262), name, font=font("ExtraBold", 92), fill="#ffffff")
+    d.text((82, 378), "Limpeza, otimização e", font=font("SemiBold", 36), fill="#c9cff0")
+    d.text((82, 424), "recuperação de arquivos", font=font("SemiBold", 36), fill="#c9cff0")
+    d.text((82, 470), "para Windows 10 e 11", font=font("SemiBold", 36), fill="#c9cff0")
+    x = 82
+    f = font("SemiBold", 22)
+    for label in ("Grátis", "Código aberto", "Sem anúncios"):
+        w = d.textlength(label, font=f)
+        d.rounded_rectangle((x, 540, x + w + 32, 580), 20, fill="#1d2546", outline="#3a4377")
+        d.text((x + 16, 547), label, font=f, fill="#e6e9f7")
+        x += w + 44
+    bar = Image.linear_gradient("L").rotate(90).resize((W_, 8))
+    grad = Image.composite(Image.new("RGB", (W_, 8), "#22d3ee"), Image.new("RGB", (W_, 8), "#6d5dfc"), bar)
+    img.paste(grad, (0, H_ - 8))
+    img.save(os.path.join(out, "og.png"), optimize=True)
+    print("imagens de marca geradas em", out, "e", os.path.join(site, "favicon.ico"))
+
+
+if args.brand:
+    make_brand()
+    sys.exit(0)
 W, H = 1280, 800
 
 GB, MB, KB = 1024 ** 3, 1024 ** 2, 1024
