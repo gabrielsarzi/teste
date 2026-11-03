@@ -13,8 +13,8 @@ export const settings = Object.assign(
     conversa: true, // provocações e frases na mesa
     telaLimpa: false, // esconde os textos de ajuda da mesa
     tempo: 30, // segundos para jogar (0 = sem limite)
-    somBar: false, // sons do bar ao fundo (copos e pedras)
-    musica: false, // violão de fundo
+    somBar: true, // sons do bar ao fundo (copos e pedras)
+    musica: true, // modão de viola ao fundo
     jogadores: 4, // jogo rápido: 2, 3 ou 4
     aposta: 20,
     pedras: 'normal', // normal | grande
@@ -41,6 +41,11 @@ if (settings.rv < 3) {
 if (settings.rv < 4) {
   settings.somBar = false; // o ruído antigo saiu; o novo começa desligado
   settings.rv = 4;
+}
+if (settings.rv < 5) {
+  settings.musica = true; // modão de viola e sons do bar passam a vir ligados
+  settings.somBar = true;
+  settings.rv = 5;
 }
 store.set('settings', settings);
 
@@ -150,7 +155,7 @@ let currentName = 'home';
 // Música: nos menus no volume normal, durante a partida bem baixinha
 export function updateMusic() {
   if (!settings.sound || !settings.musica) return stopMusic();
-  startMusic(currentName === 'classic' ? 0.35 : 1);
+  startMusic(currentName === 'classic' ? 0.55 : 1);
 }
 export const registerScreen = (name, fn) => (screens[name] = fn);
 

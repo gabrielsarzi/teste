@@ -209,23 +209,23 @@ export function setAmbient(on) {
         if (r < 0.45) {
           // copo de vidro
           const base = 2600 + Math.random() * 1400;
-          tone(base, 0.4, { type: 'sine', vol: 0.02 });
-          tone(base * 2.76, 0.25, { type: 'sine', vol: 0.008, delay: 0.005 });
+          tone(base, 0.45, { type: 'sine', vol: 0.045 });
+          tone(base * 2.76, 0.3, { type: 'sine', vol: 0.018, delay: 0.005 });
         } else if (r < 0.85) {
           // pedra batendo numa mesa longe
           const n = 1 + Math.floor(Math.random() * 2);
           for (let i = 0; i < n; i++) {
-            burst(0.04, 2200, 1.4, 0.06, i * 0.22);
-            tone(160, 0.06, { vol: 0.05, delay: i * 0.22, slide: 0.6 });
+            burst(0.04, 2200, 1.4, 0.12, i * 0.22);
+            tone(160, 0.06, { vol: 0.1, delay: i * 0.22, slide: 0.6 });
           }
         } else {
           // dois copos brindando
-          tone(3100, 0.35, { type: 'sine', vol: 0.018 });
-          tone(3350, 0.3, { type: 'sine', vol: 0.016, delay: 0.03 });
+          tone(3100, 0.4, { type: 'sine', vol: 0.04 });
+          tone(3350, 0.35, { type: 'sine', vol: 0.035, delay: 0.03 });
         }
       }
       if (amb) next();
-    }, 3500 + Math.random() * 6000);
+    }, 2200 + Math.random() * 4000);
   };
   next();
 }
