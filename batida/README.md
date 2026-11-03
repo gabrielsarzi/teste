@@ -1,10 +1,12 @@
 # Batida! — dominó de boteco
 
-Dominó brasileiro de dupla (4 jogadores, 7 pedras, sem compra), para celular.
+Dominó brasileiro tradicional para celular: 2 ou 3 jogadores (com compra) ou 4 em dupla, 7 pedras cada.
+
+> Contexto completo do projeto (decisões, regras combinadas, próximos passos): veja **CLAUDE.md**.
 
 - **Jogo rápido**: escolha o nível dos adversários (fácil, médio, difícil) e as regras da casa.
 - **Carreira**: 6 campeonatos (quartas, semi e final), do boteco do bairro ao Brasileirão. Cada título libera mesas e dominós.
-- Regras: obrigado a jogar se tiver pedra; jogo fechado conta os pontos na mão; batida de bucha vale 2 e lá-e-lô vale 2 (as duas dão para desligar); 4 rodadas, um início de cada.
+- Regras: obrigado a jogar se tiver pedra; jogo fechado conta os pontos na mão; batida de bucha vale 2 e lá-e-lô vale 2 (as duas dão para desligar); partida até 4 pontos (placar em cruz na lousa); 5 buchas volta o jogo; fechamento forçado vai para votação.
 - Opções: ajuda nas pedras, contagem da mesa, conversa na mesa (provocações e frases), ritmo.
 - IA: heurística com níveis e uma IA mestre (Monte Carlo) para os campeões.
 
