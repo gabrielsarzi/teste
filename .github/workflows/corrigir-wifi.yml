@@ -1,0 +1,40 @@
+name: Pacote Corrigir Wi-Fi (Lenovo 83MM)
+
+on:
+  push:
+    paths:
+      - "corrigir-wifi/**"
+      - ".github/workflows/corrigir-wifi.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Baixar drivers oficiais Lenovo e conferir SHA-256
+        run: |
+          set -e
+          mkdir -p pkg/drivers/wifi pkg/drivers/bluetooth
+          cp corrigir-wifi/CORRIGIR-WIFI.bat corrigir-wifi/LEIA-ME.txt pkg/
+          curl -fsSL -o pkg/drivers/wifi/0as3090f6enm9ch0.exe https://download.lenovo.com/consumer/mobiles/0as3090f6enm9ch0.exe
+          curl -fsSL -o pkg/drivers/bluetooth/0as3060fmrd8ach0.exe https://download.lenovo.com/consumer/mobiles/0as3060fmrd8ach0.exe
+          echo "516ff285cb1b0ab73e901085b4c9633274e7241d12905fa5c2ce5de0e29c2a8c  pkg/drivers/wifi/0as3090f6enm9ch0.exe" | sha256sum -c -
+          echo "18cb69c6f21e9147724f57dec723b20a6952261a6541b689b74944fcbc29b22d  pkg/drivers/bluetooth/0as3060fmrd8ach0.exe" | sha256sum -c -
+          cd pkg && zip -r ../Corrigir-WiFi-Lenovo-83MM.zip . && cd ..
+          ls -la Corrigir-WiFi-Lenovo-83MM.zip
+      - name: Publicar para download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: corrigir-wifi-83mm
+          target_commitish: ${{ github.sha }}
+          name: Corrigir Wi-Fi - Lenovo IdeaPad Slim 3 15ARP10 (83MM)
+          prerelease: true
+          make_latest: false
+          body: |
+            Pacote de recuperação do Wi-Fi (Código 56 e outros) com os drivers oficiais Lenovo de Wi-Fi e Bluetooth.
+            Baixe o ZIP, extraia, e dê dois cliques em CORRIGIR-WIFI.bat. Veja LEIA-ME.txt.
+          files: Corrigir-WiFi-Lenovo-83MM.zip

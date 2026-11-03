@@ -1,0 +1,23 @@
+CORRIGIR WI-FI - LimpaOne
+Lenovo IdeaPad Slim 3 15ARP10 (tipo 83MM) - Realtek RTL8852BE
+
+COMO USAR
+1. Extraia este ZIP inteiro (botao direito > Extrair tudo).
+   Nao rode de dentro do ZIP: a pasta "drivers" precisa estar ao lado do .bat.
+2. Dentro da pasta extraida, de dois cliques em CORRIGIR-WIFI.bat
+   (se aparecer "O Windows protegeu o computador": Mais informacoes > Executar assim mesmo).
+3. Clique em "Sim" para permitir como administrador.
+4. Espere terminar. No final, digite S para reiniciar.
+
+O QUE ELE FAZ
+- Backup do registro de rede (pasta backup-rede-... na Area de Trabalho)
+- Remove componentes de rede quebrados que nao sao da Microsoft (ex.: sobras do VMware)
+- Limpa ligacoes invalidas das placas e reativa os servicos de rede
+- Reseta a rede (winsock, IP, netcfg)
+- Instala os drivers OFICIAIS da Lenovo de Wi-Fi e Bluetooth (pasta drivers)
+- Reinstala as placas com problema
+- Se ainda houver erro, roda o reparo de arquivos do Windows (SFC)
+- Salva o relatorio corrigir-wifi-relatorio.txt na Area de Trabalho
+
+Os drivers foram baixados de download.lenovo.com e conferidos pelo SHA-256
+publicado no catalogo oficial da Lenovo para o modelo 83MM.
