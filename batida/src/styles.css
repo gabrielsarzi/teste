@@ -659,3 +659,7 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 
 .lousa .team .tally { min-height: 38px; }
 .lousa .team .tally svg { height: 36px; width: 36px; }
+
+.lousa .team .tally { min-height: 44px; }
+.lousa .team .tally svg { height: 44px; width: 44px; }
+.lousa { padding: 4px 12px; }

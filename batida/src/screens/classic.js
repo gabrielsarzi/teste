@@ -16,15 +16,17 @@ const QUICK_POOLS = {
   dificil: ['paulao', 'lurdinha', 'valter', 'edu'],
 };
 
-// A cruz da lousa: cada ponto é uma bolinha num dos quatro cantos. 4 bolinhas fecham a partida.
-function cruz(n) {
-  const spots = [[8.5, 8.5], [27.5, 8.5], [27.5, 27.5], [8.5, 27.5]];
+// A cruz da lousa: cada ponto é uma bolinha numa ponta da cruz (4 pontos fecham a partida).
+// A bolinha no meio marca a dupla que sai na rodada.
+function cruz(n, saida = false) {
+  const tips = [[20, 4.5], [35.5, 20], [20, 35.5], [4.5, 20]];
   let dots = '';
-  spots.forEach(([x, y], i) => {
-    if (i < n) dots += `<circle cx="${x}" cy="${y}" r="4.2" fill="#eeece2"/>`;
+  tips.forEach(([x, y], i) => {
+    if (i < n) dots += `<circle cx="${x}" cy="${y}" r="4" fill="#eeece2"/>`;
   });
-  const extra = n > 4 ? `<text x="36" y="34" fill="#eeece2" font-size="11" font-family="Caveat, cursive" text-anchor="end">+${n - 4}</text>` : '';
-  return `<svg viewBox="0 0 36 36" width="36" height="36" role="img" aria-label="${n} ponto${n === 1 ? '' : 's'}"><path d="M18 2.5 Q18.6 18 17.6 33.5 M2.5 18.4 Q18 17.4 33.5 18" stroke="#eeece2" stroke-width="2.6" fill="none" stroke-linecap="round"/>${dots}${extra}</svg>`;
+  if (saida) dots += `<circle cx="20" cy="20" r="3.8" fill="#f2c14e" stroke="#23302a" stroke-width="1.2"/>`;
+  const extra = n > 4 ? `<text x="40" y="40" fill="#eeece2" font-size="11" font-family="Caveat, cursive" text-anchor="end">+${n - 4}</text>` : '';
+  return `<svg viewBox="0 0 40 40" width="40" height="40" role="img" aria-label="${n} ponto${n === 1 ? '' : 's'}${saida ? ', saída desta rodada' : ''}"><path d="M20 6 Q20.6 20 19.6 34 M6 20.4 Q20 19.4 34 20" stroke="#eeece2" stroke-width="2.6" fill="none" stroke-linecap="round"/>${dots}${extra}</svg>`;
 }
 
 function pickTwo(arr) {
@@ -95,8 +97,9 @@ export function classicScreen(stage, params = {}) {
   boardView.el.addEventListener('click', () => selected && deselect());
 
   function updateScore() {
-    tallyUs.innerHTML = cruz(match.score[0]);
-    tallyThem.innerHTML = cruz(match.score[1]);
+    const saida = round && round.voltou == null && !round.result ? round.starter % 2 : -1;
+    tallyUs.innerHTML = cruz(match.score[0], saida === 0);
+    tallyThem.innerHTML = cruz(match.score[1], saida === 1);
     const lbl = `até ${match.rules.metaPontos}`;
     roundLbl.innerHTML = '';
     roundLbl.append('Rodada', h('b', {}, String(Math.max(1, match.roundNo))), lbl);
@@ -521,6 +524,7 @@ export function classicScreen(stage, params = {}) {
       await shuffleAndDeal();
     }
     if (dead) return;
+    updateScore();
     round.hands[0].sort((x, y) => x.a - y.a || x.b - y.b);
     renderSeats();
     buildHand();
