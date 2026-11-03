@@ -297,6 +297,10 @@ class LeftoverDialog(tk.Toplevel):
             return
         if not messagebox.askyesno("Remover sobras", f"Remover {len(sel)} item(ns)?", parent=self):
             return
+        from .safety import guarded
+        guarded(self, "remover sobras de programas", lambda: self._do_remove(sel))
+
+    def _do_remove(self, sel):
         done, errors, freed = remove_items(sel, self.app.settings["to_trash"])
         for iid, it in list(self.items.items()):
             if it in done:
@@ -404,6 +408,7 @@ class StoreAppsPage(ResultsPage):
     columns = [("App", 260, "w"), ("Versão", 120, "w"), ("Tamanho", 90, "e"), ("Situação", 190, "w"),
                ("Pacote", 380, "w")]
     scan_label = "Listar apps"
+    needs_restore_point = True
     action_label = "Remover selecionados"
     uses_trash = False
     auto_scan = True

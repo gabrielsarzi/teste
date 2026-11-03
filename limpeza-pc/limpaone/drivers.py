@@ -576,8 +576,9 @@ def normalize_install(rc, data) -> dict:
 
 
 def install_updates(ids: list[str]) -> dict:
-    """Baixa e instala (como administrador) as atualizações de driver escolhidas, pelo próprio Windows Update."""
-    if not IS_WIN:
+    """DESATIVADO: o LimpaOne não instala drivers (risco de deixar o PC sem rede/som/vídeo)."""
+    raise RuntimeError("A instalação de drivers foi desativada no LimpaOne por segurança.")
+    if not IS_WIN:  # noqa: unreachable — mantido só como referência
         raise NotWindows("A instalação de drivers só funciona no Windows.")
     safe = [i for i in ids if re.fullmatch(r"[0-9A-Fa-f-]{36}", i or "")]
     if not safe:

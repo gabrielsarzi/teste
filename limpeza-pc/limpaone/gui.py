@@ -34,6 +34,31 @@ def _soft_icon(master, t, name, size=40, bg_key="surface", fg=None, soft=None):
     return cv
 
 
+def _protection_banner(parent, app):
+    """Aviso quando a Proteção do Sistema (pontos de restauração) está desligada."""
+    from .safety import restore_enabled
+    if restore_enabled() is not False:
+        return None
+    t, c = app.t, app.t.c
+    f = tk.Frame(parent, bg=c["warning_soft"], highlightthickness=1, highlightbackground=c["warning"])
+    f.pack(fill="x", pady=(0, t.px(12)))
+    Icon(f, "shield", t.px(22), c["warning"], c["warning_soft"], 2.0).pack(side="left", padx=(t.px(14), t.px(10)),
+                                                                         pady=t.px(12))
+    tk.Label(f, text="A Proteção do Sistema está DESLIGADA: se algo der errado no Windows, não há ponto de "
+                     "restauração para voltar atrás. Recomendamos ativar.", bg=c["warning_soft"], fg=c["text"],
+             font=t.f_bold, justify="left", anchor="w", wraplength=t.px(640)).pack(side="left", fill="x", expand=True)
+
+    def enable():
+        from .safety import guarded
+
+        def done():
+            f.destroy()
+            app.toast("Proteção do Sistema ativada e ponto de restauração criado.")
+        guarded(f, "ativar protecao do sistema", done)
+    ttk.Button(f, text="Ativar agora", style="Primary.TButton", command=enable).pack(side="right", padx=t.px(14))
+    return f
+
+
 def health_score(disk_pct, ram_pct, junk, recycle, startup_on, dup_waste):
     score = 100
     score -= 30 if disk_pct > 0.92 else 18 if disk_pct > 0.85 else 8 if disk_pct > 0.75 else 0
@@ -64,6 +89,7 @@ class DashboardPage(BackgroundMixin, Page):
         self.busy = False
         self.cancel = threading.Event()
         self.summary = app.settings.get("last_scan") or None
+        _protection_banner(self.body, app)
         sf = ScrollFrame(self.body, t)
         sf.pack(fill="both", expand=True)
         root = sf.inner
@@ -731,7 +757,18 @@ class SettingsPage(Page):
             ttk.Radiobutton(row, text=label, value=val, variable=self.theme_var, style="Card.TRadiobutton",
                             command=self.change_theme).pack(side="left", padx=(0, t.px(22)))
 
-        f = section("Segurança")
+        f = section("Segurança", "Antes de alterar o registro, ajustes do Windows, apps do sistema ou restos de "
+                                 "programas, o LimpaOne cria um ponto de restauração. O LimpaOne não instala drivers.")
+        from .safety import restore_enabled
+        st = restore_enabled()
+        if st is not None:
+            row = ttk.Frame(f, style="Flat.TFrame")
+            row.pack(fill="x", pady=(0, t.px(10)))
+            if st:
+                ttk.Label(row, text="  Proteção do Sistema ativada  ", style="BadgeOk.TLabel").pack(side="left")
+            else:
+                ttk.Label(row, text="  Proteção do Sistema DESLIGADA  ", style="BadgeWarn.TLabel").pack(side="left")
+            ttk.Button(row, text="Criar ponto de restauração agora", command=self._make_rp).pack(side="right")
         self.trash_var = tk.BooleanVar(value=s["to_trash"])
         ttk.Checkbutton(f, text="Enviar arquivos apagados para a Lixeira (recomendado — permite desfazer)",
                         variable=self.trash_var, style="Card.TCheckbutton",
@@ -807,6 +844,10 @@ class SettingsPage(Page):
                    command=lambda: open_location(os.path.join(app_data_dir(), "historico.log"))).pack(side="left")
         ttk.Button(row, text="Abrir pasta de dados", command=lambda: open_location(app_data_dir())).pack(
             side="left", padx=t.px(8))
+
+    def _make_rp(self):
+        from .safety import guarded
+        guarded(self, "manual", lambda: self.app.toast("Ponto de restauração criado."))
 
     def change_theme(self):
         self.app.settings.set("theme", self.theme_var.get())

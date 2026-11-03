@@ -122,6 +122,7 @@ class ResultsPage(BackgroundMixin, Page):
     uses_roots = False
     show_open = True
     auto_scan = False
+    needs_restore_point = False   # True = cria ponto de restauração antes da ação principal
     empty_text = "Nenhum resultado ainda.\nClique em “Analisar” para começar."
 
     def __init__(self, master, app):
@@ -531,9 +532,17 @@ class ResultsPage(BackgroundMixin, Page):
         to_trash = self.app.settings["to_trash"] if self.uses_trash else False
         if not messagebox.askyesno("Confirmar", self.confirm_text(items, to_trash), parent=self, icon="warning"):
             return
-        self._set_busy(True)
-        self.run_bg(lambda c, p: self.perform(items, to_trash, p), lambda r: self.after_action(*r),
-                    "Processando…", on_finally=lambda: self._set_busy(False))
+
+        def go():
+            self._set_busy(True)
+            self.run_bg(lambda c, p: self.perform(items, to_trash, p), lambda r: self.after_action(*r),
+                        "Processando…", on_finally=lambda: self._set_busy(False))
+
+        if self.needs_restore_point:
+            from .safety import guarded
+            guarded(self, self.title, go, self.show_progress)
+        else:
+            go()
 
 
 # =================================================================== utilitários de formulário
@@ -737,6 +746,7 @@ class LeftoversPage(ResultsPage):
     columns = [("Tipo", 150, "w"), ("Nome", 230, "w"), ("Tamanho", 90, "e"),
                ("Modificado em", 120, "center"), ("Local", 480, "w")]
     scan_label = "Procurar restos"
+    needs_restore_point = True
 
     def build_options(self, f):
         self.days = tk.StringVar(value="60")
@@ -790,6 +800,7 @@ class ProgramsPage(ResultsPage):
     scan_label = "Listar programas"
     action_label = "Desinstalar"
     uses_trash = False
+    needs_restore_point = True
     auto_scan = True
 
     def build_options(self, f):

@@ -11,7 +11,7 @@ from . import drivers as drv
 from . import sysinfo
 from .pages import BackgroundMixin, CHECK, Page, ResultsPage, UNCHECK
 from .theme import draw_icon
-from .utils import IS_WIN, Item, fmt_size, log, open_location
+from .utils import IS_WIN, Item, fmt_size, log, open_location, open_uri
 from .widgets import Icon, ScrollFrame, card
 from .winutil import run
 
@@ -60,12 +60,12 @@ def _with_status(values, status):
 class DriversPage(ResultsPage):
     key, icon = "drivers", "chip"
     title = "Drivers"
-    subtitle = ("Dispositivos do computador e seus drivers: veja o que está com problema ou desatualizado, "
-                "procure versões novas no Windows Update e faça um backup antes de mexer.")
+    subtitle = ("Diagnóstico dos drivers: veja o que está com problema ou desatualizado, consulte o que existe de "
+                "novo no Windows Update e faça backup. Por segurança, o LimpaOne não instala drivers.")
     columns = [("Dispositivo", 250, "w"), ("Situação", 345, "w"), ("Versão", 122, "w"), ("Data", 88, "center"),
                ("Fabricante", 150, "w"), ("Categoria", 120, "w")]
     scan_label = "Listar drivers"
-    action_label = "Instalar atualizações"
+    action_label = "Abrir Windows Update"
     action_style = "Primary.TButton"
     uses_trash = False
     show_open = False
@@ -89,9 +89,10 @@ class DriversPage(ResultsPage):
         Icon(note, "shield", t.px(20), t.c["success"], t.c["surface"], 2.0).pack(side="left", padx=(0, t.px(12)))
         self.lbl_note = ttk.Label(
             note, style="Card.Muted.TLabel", justify="left", wraplength=t.px(820),
-            text="Por segurança, o LimpaOne procura drivers apenas no Windows Update oficial da Microsoft — "
-                 "nada de sites ou pacotes de terceiros. Drivers de placa de vídeo (NVIDIA, AMD, Intel) costumam "
-                 "ter versões mais novas no aplicativo do próprio fabricante.")
+            text="O LimpaOne NÃO instala drivers: uma instalação que dá errado pode deixar o PC sem internet, som "
+                 "ou vídeo. Aqui você vê o diagnóstico e o que há de novo; se realmente precisar atualizar, use o "
+                 "Windows Update (Atualizações opcionais) ou o app do fabricante (Lenovo Vantage, NVIDIA, AMD, "
+                 "Intel), de preferência depois de fazer o backup dos drivers.")
         extra = 0
         if IS_WIN:
             ttk.Button(note, text="Gerenciador de Dispositivos", style="Ghost.TButton",
@@ -238,8 +239,9 @@ class DriversPage(ResultsPage):
             d = u["date"]
             risky = is_risky_update(u)
             self.updates.append(Item(
-                path=u["id"], size=u["size"], kind="update", checked=not risky,
-                values=(u["title"], ("⚠ Rede/Bluetooth: pode derrubar a internet" if risky else "Atualização disponível")
+                path=u["id"], size=u["size"], kind="update", checked=False,
+                values=(u["title"], ("Disponível no Windows Update · ⚠ rede/Bluetooth: só se precisar" if risky
+                                     else "Disponível no Windows Update")
                         + (f" · {fmt_size(u['size'])}" if u["size"] else "")
                         + (" · pede reinício" if u["reboot"] else ""), u["version"], u["date_txt"], u["maker"], u["cls"]),
                 raw=(u["title"].lower(), -1, u["version"], d.toordinal() if d else 0, u["maker"].lower(), u["cls"].lower()),
@@ -261,43 +263,18 @@ class DriversPage(ResultsPage):
                                 "Driver & Support Assistant).", parent=self)
 
     def run_action(self):
-        if self.busy:
+        """O LimpaOne não instala drivers: abre a tela oficial do Windows Update."""
+        if not IS_WIN:
+            messagebox.showinfo("Windows Update", "Disponível apenas no Windows.", parent=self)
             return
-        items = self.checked()
-        if not items:
-            if not self.updates:
-                msg = "Clique em “Procurar atualizações” para buscar drivers novos no Windows Update."
-            else:
-                msg = "Marque uma ou mais atualizações (linhas em destaque) clicando na caixa ☐."
-            messagebox.showinfo("Nenhuma atualização marcada", msg, parent=self)
-            return
-        risky = [i for i in items if is_risky_update(i.data)]
-        if risky and not messagebox.askyesno(
-                "Atenção: driver de rede",
-                "Você marcou driver(s) de REDE ou Bluetooth:\n\n" + "\n".join(f"• {i.values[0]}" for i in risky[:6])
-                + "\n\nSe algo der errado na instalação, o computador pode ficar SEM INTERNET (Wi-Fi e cabo), e "
-                  "aí não dá nem para baixar a correção. Só atualize esses drivers se a sua internet estiver com "
-                  "problema.\n\nO LimpaOne vai criar um ponto de restauração e um backup antes. Continuar mesmo assim?",
-                parent=self, icon="warning", default="no"):
-            return
-        names = "\n".join(f"• {i.values[0]}" for i in items[:12])
-        more = f"\n… e mais {len(items) - 12}" if len(items) > 12 else ""
-        size = sum(i.size for i in items)
-        if not messagebox.askyesno(
-                "Instalar drivers",
-                f"Instalar {len(items)} driver(s) do Windows Update?\n\n{names}{more}\n\n"
-                + (f"Download: cerca de {fmt_size(size)}.\n" if size else "")
-                + "Antes de instalar, o LimpaOne vai, automaticamente:\n"
-                  "  1. verificar se a configuração de rede do Windows está saudável;\n"
-                  "  2. criar um PONTO DE RESTAURAÇÃO (ativando a Proteção do Sistema se preciso);\n"
-                  "  3. fazer backup dos drivers atuais.\n"
-                  "Se qualquer etapa falhar, nada é instalado.\n\n"
-                  "O Windows vai pedir permissão de administrador. Salve seus trabalhos antes.",
-                parent=self, icon="warning"):
-            return
-        self._set_busy(True)
-        self.run_bg(lambda c, p: self.perform(items, False, p), lambda r: self.after_action(*r),
-                    "Instalando drivers…", on_finally=lambda: self._set_busy(False))
+        messagebox.showinfo(
+            "Atualizar drivers pelo Windows",
+            "O LimpaOne não instala drivers por segurança.\n\n"
+            "Vai abrir: Windows Update → Opções avançadas → Atualizações opcionais → Atualizações de driver.\n\n"
+            "Dicas:\n• Só atualize se algum dispositivo estiver com problema.\n"
+            "• Evite atualizar drivers de rede (Wi-Fi, cabo, Bluetooth) se a sua internet funciona.\n"
+            "• Faça o “Backup dos drivers” antes.", parent=self)
+        open_uri("ms-settings:windowsupdate-optionalupdates")
 
     def perform(self, items, to_trash, progress):
         progress(f"Baixando e instalando {len(items)} driver(s) pelo Windows Update… (não desligue o PC)")

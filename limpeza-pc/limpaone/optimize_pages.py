@@ -54,6 +54,7 @@ def _windows_only(master, t, what):
 
 # =================================================================== LIMPEZA DO REGISTRO
 class RegistryPage(ResultsPage):
+    needs_restore_point = True
     key, icon = "registry", "database"
     title = "Limpeza do registro"
     subtitle = ("Procura só entradas comprovadamente quebradas: referências a programas e arquivos que não "
@@ -404,6 +405,17 @@ class TweaksPage(BackgroundMixin, Page):
             return
         if not changes:
             self.refresh()
+            return
+        if any(on for _, on in changes) and not getattr(self, "_rp_ok", False):
+            from .safety import guarded
+
+            def go():
+                self._rp_ok = True
+                try:
+                    self._run(changes, success)
+                finally:
+                    self._rp_ok = False
+            guarded(self, "ajustes do Windows", go)
             return
         backup = self.backup
 
