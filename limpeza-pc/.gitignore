@@ -1,0 +1,6 @@
+__pycache__/
+build/
+dist/
+*.spec
+limpaone/_build.py
+version_info.txt

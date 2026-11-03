@@ -1,0 +1,72 @@
+name: Build LimpaOne (Windows)
+
+on:
+  push:
+    paths:
+      - "limpeza-pc/**"
+      - ".github/workflows/limpaone-windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  VERSION: 3.0.${{ github.run_number }}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: limpeza-pc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar dependências
+        run: python -m pip install pyinstaller psutil send2trash pillow qrcode
+      - name: Gerar ícone e metadados de versão
+        run: |
+          python tools/make_icon.py
+          python tools/make_version_file.py ${{ env.VERSION }}
+      - name: Teste rápido de importação
+        run: python -c "import limpaone.gui, limpaone.recovery, limpaone.analyzer, limpaone.apps_pages, limpaone.hw_pages, limpaone.test_pages, limpaone.optimize_pages, limpaone.uninstall_pages, limpaone.donate; from limpaone import __version__; print('ok', __version__)"
+      - name: Gerar LimpaOne.exe (portátil)
+        run: python -m PyInstaller --noconfirm --onefile --windowed --name LimpaOne --icon assets/icon.ico --version-file version_info.txt --collect-submodules limpaone main.py
+      - name: Gerar instalador (Inno Setup)
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DMyAppVersion=${{ env.VERSION }} installer.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LimpaOne-Windows
+          path: |
+            limpeza-pc/dist/LimpaOne.exe
+            limpeza-pc/dist/LimpaOne-Setup.exe
+      - name: Publicar para download (GitHub Releases)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: limpaone-v${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: LimpaOne ${{ env.VERSION }}
+          make_latest: true
+          body: |
+            ## Baixe um dos arquivos abaixo
+            - **`LimpaOne-Setup.exe`**: instalador (atalho no Menu Iniciar e na Área de Trabalho, desinstala pelo Windows)
+            - **`LimpaOne.exe`**: versão portátil, é só abrir
+
+            ### Novidades da versão 3
+            - Novo nome: **LimpaOne** · site: https://limpaone.sarzitecnologia.com.br
+            - Menu lateral em grupos (sanfona) e novas áreas: Limpeza, Programas, Desempenho, Diagnóstico e Recuperação
+            - Instalar programas em lote e gerar kit pós-formatação · Atualizar programas em 1 clique
+            - Desinstalador avançado (sobras, desinstalação forçada, apps da Store/bloatware)
+            - Limpeza do registro com backup · Limpeza de privacidade · Limpeza automática agendada
+            - Drivers pelo Windows Update · Meu computador (ficha técnica) · Teste de desempenho · Velocidade da internet
+            - Otimizar Windows · Otimizar discos (TRIM/desfragmentação) · Destruidor de arquivos
+
+            Se o Windows mostrar "O Windows protegeu o computador", clique em **Mais informações → Executar assim mesmo** (o programa ainda não tem assinatura digital).
+          files: |
+            limpeza-pc/dist/LimpaOne.exe
+            limpeza-pc/dist/LimpaOne-Setup.exe

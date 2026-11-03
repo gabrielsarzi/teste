@@ -1,0 +1,4 @@
+# Opcionais — o LimpaOne funciona sem eles, mas fica melhor com:
+psutil>=5.9      # lista de processos/RAM mais completa
+send2trash>=1.8  # envio para a Lixeira usando a API nativa de cada sistema
+qrcode>=7      # QR Code do PIX na página de doação

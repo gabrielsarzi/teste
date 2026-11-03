@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LimpaOne — limpeza, otimização e recuperação de arquivos para Windows, grátis</title>
+<meta name="description" content="LimpaOne é um app gratuito e de código aberto para Windows 10 e 11: limpa lixo e cache, desinstala programas sem deixar sobras, atualiza e instala apps em lote, otimiza o Windows e recupera arquivos apagados. Sem anúncios e sem coleta de dados.">
+<link rel="canonical" href="https://limpaone.sarzitecnologia.com.br/">
+<meta name="theme-color" content="#0f1426">
+<meta name="color-scheme" content="light dark">
+
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:site_name" content="LimpaOne">
+<meta property="og:title" content="LimpaOne — seu PC limpo, rápido e organizado, num app só">
+<meta property="og:description" content="Limpeza, desinstalador, atualizador, otimização e recuperação de arquivos para Windows 10 e 11. Grátis, código aberto, sem anúncios e sem coleta de dados.">
+<meta property="og:url" content="https://limpaone.sarzitecnologia.com.br/">
+<meta property="og:image" content="https://limpaone.sarzitecnologia.com.br/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Logo do LimpaOne com o texto: limpeza, otimização e recuperação para Windows">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="LimpaOne — seu PC limpo, rápido e organizado, num app só">
+<meta name="twitter:description" content="Grátis, código aberto, sem anúncios e sem coleta de dados. Para Windows 10 e 11.">
+<meta name="twitter:image" content="https://limpaone.sarzitecnologia.com.br/img/og.png">
+
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "LimpaOne",
+  "operatingSystem": "Windows 10, Windows 11",
+  "applicationCategory": "UtilitiesApplication",
+  "offers": {"@type": "Offer", "price": "0", "priceCurrency": "BRL"},
+  "license": "https://opensource.org/licenses/MIT",
+  "url": "https://limpaone.sarzitecnologia.com.br/",
+  "downloadUrl": "https://github.com/gabrielsarzi/teste/releases/latest/download/LimpaOne-Setup.exe",
+  "publisher": {"@type": "Organization", "name": "Sarzi Tecnologia", "url": "https://sarzitecnologia.com.br"}
+}
+</script>
+</head>
+<body>
+
+<!-- Ícones (traço fino, 24×24). Usados com <svg><use href="#i-nome"/></svg> -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="g-brand" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d5dfc"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
+  </defs>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></symbol>
+  <symbol id="i-usb" viewBox="0 0 24 24"><rect x="7" y="9" width="10" height="12" rx="2"/><path d="M9 9V3h6v6M10.5 5.5h0M13.5 5.5h0"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M10 3.5 11.6 8a2 2 0 0 0 1.3 1.3l4.6 1.6-4.6 1.6a2 2 0 0 0-1.3 1.3L10 18.5l-1.6-4.6a2 2 0 0 0-1.3-1.3L2.5 11l4.6-1.6A2 2 0 0 0 8.4 8L10 3.5Z"/><path d="M18.5 14.5v5M16 17h5M18 3v3M16.5 4.5h3"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A9.9 9.9 0 0 1 12 5c5 0 8.5 4.3 9.5 7-.4 1.1-1.2 2.4-2.3 3.6M6.6 6.6C4.7 7.9 3.2 9.9 2.5 12c1 2.7 4.5 7 9.5 7 1.9 0 3.5-.6 4.9-1.4"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+  <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8v-13M4.5 12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21 12.5A9 9 0 1 1 11.5 3"/><path d="M15 3.3A9 9 0 0 1 20.7 9H15V3.3Z"/></symbol>
+  <symbol id="i-files" viewBox="0 0 24 24"><path d="M8 7V4.5A1.5 1.5 0 0 1 9.5 3H15l5 5v9.5a1.5 1.5 0 0 1-1.5 1.5H16"/><path d="M15 3v5h5"/><rect x="4" y="7" width="12" height="14" rx="1.5"/></symbol>
+  <symbol id="i-grid-x" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="m14.5 14.5 5 5M19.5 14.5l-5 5"/></symbol>
+  <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5 8h14l-1 12.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20.5L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.6L4 8.5M4 4v4.5h4.5M4 13a8 8 0 0 0 14.3 4.6L20 15.5M20 20v-4.5h-4.5"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5v9L12 21l9-4.5v-9Z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></symbol>
+  <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx=".5"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></symbol>
+  <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M14 4.5c2.6-1.3 5-1.5 5.5-1 .5.5.3 2.9-1 5.5L13 14.5 9.5 11 15 5.5"/><path d="M9.5 11 6 10.5 8.5 8h4M13 14.5l.5 3.5 2.5-2.5v-4"/><path d="M6.5 15.5c-1.5.5-2.5 2.5-2.5 4.5 2 0 4-1 4.5-2.5"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+  <symbol id="i-drive" viewBox="0 0 24 24"><rect x="3" y="12" width="18" height="8" rx="2"/><path d="M5 12 7.5 5h9L19 12M7 16h.01M10.5 16h.01"/></symbol>
+  <symbol id="i-cpu-update" viewBox="0 0 24 24"><rect x="4" y="4" width="12" height="12" rx="2"/><path d="M8 1.5V4M12 1.5V4M1.5 8H4M1.5 12H4"/><path d="M15 21a5 5 0 1 0 0-.1M15 18v-3"/><path d="m13.5 16.5 1.5-1.5 1.5 1.5"/></symbol>
+  <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0 5 5L21 10a5.5 5.5 0 0 1-7.4 6.4l-5.4 5.4a2 2 0 0 1-2.9-2.9l5.4-5.4A5.5 5.5 0 0 1 17 6l-1.3 1.3"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M3.5 17a9 9 0 1 1 17 0"/><path d="m12 13 4-5"/><circle cx="12" cy="13" r="1.5"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r=".9"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 6.5h16M9.5 6.5V4.5h5v2M6 6.5l1 13a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5l1-13"/><path d="M10 10.5v6M14 10.5v6"/></symbol>
+  <symbol id="i-lifebuoy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="m5.6 5.6 3.9 3.9M14.5 14.5l3.9 3.9M18.4 5.6l-3.9 3.9M9.5 14.5l-3.9 3.9"/></symbol>
+  <symbol id="i-shred" viewBox="0 0 24 24"><path d="M6 10V4.5A1.5 1.5 0 0 1 7.5 3H14l4 4v3"/><rect x="3" y="10" width="18" height="4" rx="1"/><path d="M6 14v6M9 14v4M12 14v7M15 14v4M18 14v6"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+  <symbol id="i-contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 10.5 12 3.5l8.5 7V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19v-8.5Z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.2 7.5 9.5 4.4-1.3 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m8.8 12 2.2 2.2 4.3-4.4"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10.5" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3M12 14.5v2.5"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M4 8.5h10.5a5.5 5.5 0 0 1 0 11H8"/><path d="m8 4.5-4 4 4 4"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/></symbol>
+  <symbol id="i-cloud-off" viewBox="0 0 24 24"><path d="M3 3l18 18M8.5 8.4A5 5 0 0 0 6.5 18h11M17.5 18A3.5 3.5 0 0 0 19 11.4 6.5 6.5 0 0 0 9.8 6.4"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.5 4.5l-3 15"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-9-9.4C2 7.3 4.2 4.5 7.3 4.5c2 0 3.6 1.1 4.7 2.7 1.1-1.6 2.7-2.7 4.7-2.7 3.1 0 5.3 2.8 4.3 6.1-1.5 4.8-9 9.4-9 9.4Z"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9L12 3.5Z"/></symbol>
+  <symbol id="i-bug" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="13" rx="5"/><path d="M12 11v9M7 12H3.5M20.5 12H17M7.5 17l-3 2M16.5 17l3 2M7.5 8.5l-2.5-2M16.5 8.5l2.5-2M9.5 7a2.5 2.5 0 0 1 5 0"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="5.5" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="m8.2 10.8 7.6-4M8.2 13.2l7.6 4"/></symbol>
+  <symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-4.5 1.4-4.5-2.2-6.3-2.7M15 21.5v-3.3a3 3 0 0 0-.8-2.2c2.7-.3 5.5-1.3 5.5-6a4.7 4.7 0 0 0-1.3-3.2 4.3 4.3 0 0 0-.1-3.2s-1-.3-3.4 1.3a11.6 11.6 0 0 0-6 0C6.5 3.3 5.5 3.6 5.5 3.6a4.3 4.3 0 0 0-.1 3.2A4.7 4.7 0 0 0 4.1 10c0 4.6 2.8 5.7 5.5 6a3 3 0 0 0-.8 2.2v3.3"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+  <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5M11 8.5v5M8.5 11h5"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+</svg>
+
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
+
+<header class="topbar">
+  <div class="wrap topbar__in">
+    <a class="brand" href="#topo" aria-label="LimpaOne — início">
+      <img src="img/logo.png" width="36" height="36" alt="">
+      <span>LimpaOne</span>
+    </a>
+    <nav class="topnav" aria-label="Seções">
+      <a href="#recursos">Recursos</a>
+      <a href="#prints">Prints</a>
+      <a href="#comparar">Comparar</a>
+      <a href="#seguranca">Segurança</a>
+      <a href="#faq">Dúvidas</a>
+      <a href="#apoie">Apoie</a>
+    </nav>
+    <a class="btn btn--primary btn--sm" href="#baixar">
+      <svg class="ico"><use href="#i-download"/></svg><span>Baixar</span>
+    </a>
+  </div>
+</header>
+
+<main id="conteudo">
+
+<!-- ============================================================ TOPO -->
+<section class="hero" id="topo">
+  <div class="hero__bg" aria-hidden="true"></div>
+  <div class="wrap hero__in">
+    <p class="pill"><span class="pill__dot"></span>Novo: atualizar e instalar programas em lote, otimização do Windows e drivers</p>
+    <h1>Seu PC limpo, rápido e organizado. <span class="grad nowrap">Num app só.</span></h1>
+    <p class="lead">O LimpaOne junta limpeza, desinstalador, atualizador de programas, otimização e recuperação de arquivos
+      num único app para Windows — gratuito de verdade, de código aberto e sem nenhuma pegadinha.</p>
+
+    <div class="cta" id="baixar">
+      <a class="btn btn--primary btn--lg" href="https://github.com/gabrielsarzi/teste/releases/latest/download/LimpaOne-Setup.exe">
+        <svg class="ico"><use href="#i-download"/></svg>
+        <span>Baixar instalador <small>LimpaOne-Setup.exe</small></span>
+      </a>
+      <a class="btn btn--ghost btn--lg" href="https://github.com/gabrielsarzi/teste/releases/latest/download/LimpaOne.exe">
+        <svg class="ico"><use href="#i-usb"/></svg>
+        <span>Versão portátil <small>LimpaOne.exe, sem instalar</small></span>
+      </a>
+    </div>
+    <ul class="badges" aria-label="Resumo">
+      <li><svg class="ico"><use href="#i-monitor"/></svg>Windows 10 e 11</li>
+      <li><svg class="ico"><use href="#i-check"/></svg>grátis</li>
+      <li><svg class="ico"><use href="#i-check"/></svg>sem anúncios</li>
+      <li><svg class="ico"><use href="#i-check"/></svg>sem coleta de dados</li>
+    </ul>
+
+    <figure class="shot shot--hero">
+      <div class="shot__bar" aria-hidden="true"><i></i><i></i><i></i></div>
+      <picture>
+        <source srcset="img/painel-escuro.png" media="(prefers-color-scheme: dark)">
+        <img src="img/painel.png" width="1280" height="800"
+             alt="Painel do LimpaOne: nota de saúde do PC, espaço que pode ser liberado, uso de disco, memória RAM e Lixeira, e o resultado da análise completa.">
+      </picture>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================================================ NÚMEROS -->
+<section class="stats" aria-label="Destaques">
+  <div class="wrap stats__in">
+    <div><strong>20+</strong><span>ferramentas num só lugar</span></div>
+    <div><strong>1</strong><span>clique para analisar o PC</span></div>
+    <div><strong>0</strong><span>anúncios, cadastros ou “versão Pro”</span></div>
+    <div><strong>100%</strong><span>código aberto (licença MIT)</span></div>
+  </div>
+</section>
+
+<!-- ============================================================ RECURSOS -->
+<section class="section" id="recursos">
+  <div class="wrap">
+    <header class="section__head">
+      <p class="eyebrow">Recursos</p>
+      <h2>Tudo o que você instalaria em vários programas</h2>
+      <p>O menu do app é dividido em cinco áreas. Comece pelo <strong>Painel</strong>: uma análise completa em um clique,
+        com nota de saúde do PC e o botão “Limpar recomendado”.</p>
+    </header>
+
+    <div class="group">
+      <div class="group__head">
+        <span class="chip"><svg class="ico"><use href="#i-sparkles"/></svg></span>
+        <div><h3>Limpeza</h3><p>Libere gigabytes sem medo de apagar o que importa.</p></div>
+      </div>
+      <ul class="feats">
+        <li><svg class="ico"><use href="#i-sparkles"/></svg><h4>Lixo e cache</h4><p>Temporários, caches de navegadores e programas, Windows Update, miniaturas, relatórios de erro e Windows.old.</p></li>
+        <li><svg class="ico"><use href="#i-eye-off"/></svg><h4>Privacidade</h4><p>Histórico, cookies e documentos recentes — vêm desmarcados; você decide o que apagar.</p></li>
+        <li><svg class="ico"><use href="#i-database"/></svg><h4>Limpeza do registro</h4><p>Só entradas comprovadamente quebradas, com backup .reg automático para desfazer.</p></li>
+        <li><svg class="ico"><use href="#i-pie"/></svg><h4>Mapa do disco</h4><p>O tamanho de cada pasta e um gráfico por tipo de arquivo. Descubra o que enche o disco.</p></li>
+        <li><svg class="ico"><use href="#i-files"/></svg><h4>Arquivos grandes, repetidos e antigos</h4><p>Duplicatas comparadas byte a byte (sempre fica uma cópia) e o que não é aberto há anos.</p></li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <div class="group__head">
+        <span class="chip"><svg class="ico"><use href="#i-grid-x"/></svg></span>
+        <div><h3>Programas</h3><p>Remova, atualize e instale — tudo pelo mesmo lugar.</p></div>
+      </div>
+      <ul class="feats">
+        <li><svg class="ico"><use href="#i-grid-x"/></svg><h4>Desinstalador completo</h4><p>Mostra o último uso de cada programa, remove as sobras depois e tem desinstalação forçada para os quebrados.</p></li>
+        <li><svg class="ico"><use href="#i-bag"/></svg><h4>Apps da Store e bloatware</h4><p>Tire os apps que vêm de fábrica e você nunca usa. Dá para reinstalar pela Store.</p></li>
+        <li><svg class="ico"><use href="#i-refresh"/></svg><h4>Atualizar programas</h4><p>Veja o que tem versão nova e atualize tudo de uma vez pelo winget, o gerenciador oficial do Windows.</p></li>
+        <li><svg class="ico"><use href="#i-box"/></svg><h4>Instalar em lote e kit pós-formatação</h4><p>Escolha seus programas, instale todos juntos e gere um instalador .bat para levar a outro PC.</p></li>
+        <li><svg class="ico"><use href="#i-power"/></svg><h4>Inicialização</h4><p>Desative o que abre sozinho com o Windows e deixa o boot lento. Reversível a qualquer momento.</p></li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <div class="group__head">
+        <span class="chip"><svg class="ico"><use href="#i-rocket"/></svg></span>
+        <div><h3>Desempenho</h3><p>Ajustes seguros para o PC responder mais rápido.</p></div>
+      </div>
+      <ul class="feats">
+        <li><svg class="ico"><use href="#i-chip"/></svg><h4>Memória RAM</h4><p>O que está consumindo memória agora, com opção de finalizar programas e liberar memória ociosa.</p></li>
+        <li><svg class="ico"><use href="#i-sliders"/></svg><h4>Otimizar Windows</h4><p>Ajustes de desempenho, privacidade e conveniência — cada um pode ser desfeito com um clique.</p></li>
+        <li><svg class="ico"><use href="#i-drive"/></svg><h4>Otimizar discos</h4><p>TRIM nos SSDs e desfragmentação nos HDs, usando o otimizador do próprio Windows.</p></li>
+        <li><svg class="ico"><use href="#i-cpu-update"/></svg><h4>Drivers</h4><p>Encontra dispositivos com problema e busca drivers só no Windows Update, com backup antes.</p></li>
+        <li><svg class="ico"><use href="#i-wrench"/></svg><h4>Ferramentas do Windows</h4><p>Desativar hibernação, limpeza profunda do Windows Update, limpar DNS e outros atalhos úteis.</p></li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <div class="group__head">
+        <span class="chip"><svg class="ico"><use href="#i-gauge"/></svg></span>
+        <div><h3>Diagnóstico</h3><p>Conheça seu computador e meça o que importa.</p></div>
+      </div>
+      <ul class="feats">
+        <li><svg class="ico"><use href="#i-monitor"/></svg><h4>Meu computador</h4><p>A ficha técnica completa: processador, memória, vídeo, discos com a saúde de cada um, rede e bateria.</p></li>
+        <li><svg class="ico"><use href="#i-gauge"/></svg><h4>Teste de desempenho</h4><p>Mede processador, memória e disco em cerca de um minuto e dá uma nota para o seu PC.</p></li>
+        <li><svg class="ico"><use href="#i-wifi"/></svg><h4>Velocidade da internet</h4><p>Ping, download e upload, com histórico para acompanhar a sua conexão.</p></li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <div class="group__head">
+        <span class="chip"><svg class="ico"><use href="#i-lifebuoy"/></svg></span>
+        <div><h3>Recuperação</h3><p>Apagou sem querer? Ainda dá tempo.</p></div>
+      </div>
+      <ul class="feats">
+        <li><svg class="ico"><use href="#i-trash"/></svg><h4>Lixeira</h4><p>Veja o que está na Lixeira com o local original e restaure com um clique.</p></li>
+        <li><svg class="ico"><use href="#i-lifebuoy"/></svg><h4>Recuperar apagados</h4><p>Lê a tabela NTFS para achar arquivos apagados de vez e mostra a chance de cada um. Em pendrives e cartões, busca por assinatura (fotos, vídeos, PDFs, Office).</p></li>
+        <li><svg class="ico"><use href="#i-shred"/></svg><h4>Destruidor de arquivos</h4><p>Apaga de forma irreversível, sobrescrevendo o conteúdo — ideal antes de vender ou doar o PC.</p></li>
+      </ul>
+    </div>
+
+    <ul class="extras" aria-label="E também">
+      <li><svg class="ico"><use href="#i-clock"/></svg>Limpeza automática agendada</li>
+      <li><svg class="ico"><use href="#i-contrast"/></svg>Modo claro e escuro</li>
+      <li><svg class="ico"><use href="#i-list"/></svg>Busca e exportação CSV em todas as listas</li>
+      <li><svg class="ico"><use href="#i-refresh"/></svg>Aviso de nova versão</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ PRINTS -->
+<section class="section section--alt" id="prints">
+  <div class="wrap">
+    <header class="section__head">
+      <p class="eyebrow">Por dentro do app</p>
+      <h2>Simples de entender, do primeiro clique ao último</h2>
+      <p>Clique em um print para ampliar. Use as setas do teclado para navegar.</p>
+    </header>
+    <ul class="gallery">
+      <li class="gallery__main"><a href="img/painel.png" data-caption="Painel: análise completa em 1 clique e nota de saúde do PC"><img src="img/painel.png" width="1280" height="800" loading="lazy" alt="Painel com nota de saúde, disco, RAM, Lixeira e resultado da análise"></a><p>Painel e análise completa</p></li>
+      <li><a href="img/lixo.png" data-caption="Lixo e cache: temporários, caches e Windows Update — privacidade vem desmarcada"><img src="img/lixo.png" width="1280" height="800" loading="lazy" alt="Lista de lixo e cache com tamanho de cada local"></a><p>Lixo e cache</p></li>
+      <li><a href="img/mapa-disco.png" data-caption="Mapa do disco: o tamanho de cada pasta e o espaço por tipo de arquivo"><img src="img/mapa-disco.png" width="1280" height="800" loading="lazy" alt="Mapa do disco com pastas, barras de uso e gráfico por tipo de arquivo"></a><p>Mapa do disco</p></li>
+      <li><a href="img/programas.png" data-caption="Desinstalar programas: os menos usados aparecem primeiro"><img src="img/programas.png" width="1280" height="800" loading="lazy" alt="Lista de programas instalados com último uso e situação"></a><p>Desinstalador</p></li>
+      <li><a href="img/atualizar.png" data-caption="Atualizar programas: tudo de uma vez pelo winget"><img src="img/atualizar.png" width="1280" height="800" loading="lazy" alt="Lista de programas com versão atual e nova versão"></a><p>Atualizar programas</p></li>
+      <li><a href="img/instalar.png" data-caption="Instalar programas em lote e gerar o kit pós-formatação"><img src="img/instalar.png" width="1280" height="800" loading="lazy" alt="Catálogo de programas por categoria para instalar em lote"></a><p>Instalar em lote</p></li>
+      <li><a href="img/store.png" data-caption="Apps da Store: bloatware pré-marcado, apps essenciais protegidos"><img src="img/store.png" width="1280" height="800" loading="lazy" alt="Lista de apps da Microsoft Store com os pré-instalados marcados"></a><p>Apps da Store</p></li>
+      <li><a href="img/inicializacao.png" data-caption="Inicialização: desative o que deixa o boot lento"><img src="img/inicializacao.png" width="1280" height="800" loading="lazy" alt="Lista de programas que abrem com o Windows, ativados e desativados"></a><p>Inicialização</p></li>
+      <li><a href="img/ram-escuro.png" data-caption="Memória RAM (modo escuro): o que está consumindo memória agora"><img src="img/ram-escuro.png" width="1280" height="800" loading="lazy" alt="Página de memória RAM no modo escuro com medidor de uso"></a><p>Memória RAM · modo escuro</p></li>
+      <li><a href="img/otimizar-windows.png" data-caption="Otimizar Windows: ajustes reversíveis com recomendação"><img src="img/otimizar-windows.png" width="1280" height="800" loading="lazy" alt="Lista de ajustes do Windows com selos de recomendado"></a><p>Otimizar Windows</p></li>
+      <li><a href="img/drivers.png" data-caption="Drivers: problemas e atualizações pelo Windows Update"><img src="img/drivers.png" width="1280" height="800" loading="lazy" alt="Lista de dispositivos e drivers com situação de cada um"></a><p>Drivers</p></li>
+      <li><a href="img/registro.png" data-caption="Limpeza do registro: só entradas quebradas, com backup"><img src="img/registro.png" width="1280" height="800" loading="lazy" alt="Lista de entradas quebradas do registro por categoria"></a><p>Limpeza do registro</p></li>
+      <li><a href="img/teste-desempenho.png" data-caption="Teste de desempenho: processador, memória e disco"><img src="img/teste-desempenho.png" width="1280" height="800" loading="lazy" alt="Tela do teste de desempenho com cartões de processador, memória e disco"></a><p>Teste de desempenho</p></li>
+      <li><a href="img/recuperar-escuro.png" data-caption="Recuperar apagados (modo escuro): chance de recuperação de cada arquivo"><img src="img/recuperar-escuro.png" width="1280" height="800" loading="lazy" alt="Lista de arquivos apagados encontrados com a chance de recuperação, no modo escuro"></a><p>Recuperar apagados · modo escuro</p></li>
+      <li><a href="img/repetidos.png" data-caption="Arquivos repetidos: comparação byte a byte, sempre fica uma cópia"><img src="img/repetidos.png" width="1280" height="800" loading="lazy" alt="Grupos de arquivos idênticos com as cópias marcadas"></a><p>Arquivos repetidos</p></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ VERSÕES -->
+<section class="section" id="versoes">
+  <div class="wrap">
+    <header class="section__head">
+      <p class="eyebrow">Download</p>
+      <h2>Instalável ou portátil: você escolhe</h2>
+      <p>As duas versões têm exatamente os mesmos recursos e são geradas automaticamente a partir do código aberto.</p>
+    </header>
+    <div class="versions">
+      <article class="vcard vcard--main">
+        <span class="tag">Recomendado</span>
+        <svg class="ico ico--xl"><use href="#i-download"/></svg>
+        <h3>Instalador</h3>
+        <p class="vcard__file">LimpaOne-Setup.exe</p>
+        <ul class="ticks">
+          <li><svg class="ico"><use href="#i-check"/></svg>Atalho no Menu Iniciar (e na Área de Trabalho, se quiser)</li>
+          <li><svg class="ico"><use href="#i-check"/></svg>Aparece em “Aplicativos instalados” para desinstalar</li>
+          <li><svg class="ico"><use href="#i-check"/></svg>Ideal para o seu computador do dia a dia</li>
+        </ul>
+        <a class="btn btn--primary" href="https://github.com/gabrielsarzi/teste/releases/latest/download/LimpaOne-Setup.exe"><svg class="ico"><use href="#i-download"/></svg>Baixar instalador</a>
+      </article>
+      <article class="vcard">
+        <span class="tag tag--soft">Sem instalar</span>
+        <svg class="ico ico--xl"><use href="#i-usb"/></svg>
+        <h3>Portátil</h3>
+        <p class="vcard__file">LimpaOne.exe</p>
+        <ul class="ticks">
+          <li><svg class="ico"><use href="#i-check"/></svg>Um único arquivo: é só abrir</li>
+          <li><svg class="ico"><use href="#i-check"/></svg>Leve no pendrive para ajudar amigos e clientes</li>
+          <li><svg class="ico"><use href="#i-check"/></svg>Ótimo para técnicos e PCs de trabalho</li>
+        </ul>
+        <a class="btn btn--ghost" href="https://github.com/gabrielsarzi/teste/releases/latest/download/LimpaOne.exe"><svg class="ico"><use href="#i-usb"/></svg>Baixar versão portátil</a>
+      </article>
+    </div>
+    <p class="note">Usa Linux ou macOS? O LimpaOne também roda com Python — veja as instruções no
+      <a href="https://github.com/gabrielsarzi/teste">repositório</a>. Algumas funções são exclusivas do Windows.</p>
+  </div>
+</section>
+
+<!-- ============================================================ COMPARAÇÃO -->
+<section class="section section--dark" id="comparar">
+  <div class="wrap">
+    <header class="section__head">
+      <p class="eyebrow">Comparação</p>
+      <h2>Um app no lugar de uma pasta cheia de programas</h2>
+      <p>Para fazer tudo o que o LimpaOne faz, normalmente você juntaria um limpador, um desinstalador, um analisador de disco,
+        um atualizador de programas, um otimizador e um recuperador de arquivos — cada um com as próprias regras.</p>
+    </header>
+    <div class="table-wrap" role="region" aria-label="Tabela de comparação" tabindex="0">
+      <table class="compare">
+        <thead>
+          <tr><th scope="col"><span class="sr">Critério</span></th><th scope="col" class="us">LimpaOne</th><th scope="col">Vários programas separados</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Quantos programas instalar</th><td class="us"><b>1</b></td><td>5 ou mais</td></tr>
+          <tr><th scope="row">Todos os recursos grátis, sem “versão Pro”</th><td class="us"><span class="yes"><svg class="ico"><use href="#i-check"/></svg>Sim</span></td><td><span class="maybe">Varia de programa para programa</span></td></tr>
+          <tr><th scope="row">Sem anúncios e sem ofertas de upgrade</th><td class="us"><span class="yes"><svg class="ico"><use href="#i-check"/></svg>Sim</span></td><td><span class="maybe">Varia</span></td></tr>
+          <tr><th scope="row">Código aberto, para qualquer um conferir</th><td class="us"><span class="yes"><svg class="ico"><use href="#i-check"/></svg>Sim, licença MIT</span></td><td><span class="maybe">Varia</span></td></tr>
+          <tr><th scope="row">Sem coleta de dados</th><td class="us"><span class="yes"><svg class="ico"><use href="#i-check"/></svg>Nada sai do PC</span></td><td><span class="maybe">Cada um com sua política</span></td></tr>
+          <tr><th scope="row">Recuperação de arquivos apagados</th><td class="us"><span class="yes"><svg class="ico"><use href="#i-check"/></svg>Incluída</span></td><td><span class="maybe">Geralmente outro programa</span></td></tr>
+          <tr><th scope="row">Kit pós-formatação (instalar tudo de uma vez)</th><td class="us"><span class="yes"><svg class="ico"><use href="#i-check"/></svg>Incluído</span></td><td><span class="maybe">Geralmente outro programa</span></td></tr>
+          <tr><th scope="row">Uma interface e um histórico de ações</th><td class="us"><span class="yes"><svg class="ico"><use href="#i-check"/></svg>Sim</span></td><td><span class="no"><svg class="ico"><use href="#i-x"/></svg>Uma por programa</span></td></tr>
+          <tr><th scope="row">Atualizações</th><td class="us">Aviso no próprio app</td><td>Uma por programa</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note note--dark">Comparação genérica, sem referência a produtos específicos. “Varia” significa que depende do programa escolhido.</p>
+  </div>
+</section>
+
+<!-- ============================================================ SEGURANÇA -->
+<section class="section" id="seguranca">
+  <div class="wrap">
+    <header class="section__head">
+      <p class="eyebrow">Segurança e privacidade</p>
+      <h2>Feito para não dar dor de cabeça</h2>
+      <p>Um limpador precisa ser cuidadoso. O LimpaOne foi pensado para que nenhum clique seja irreversível sem você saber.</p>
+    </header>
+    <ul class="safety">
+      <li><span class="chip"><svg class="ico"><use href="#i-trash"/></svg></span><h3>Lixeira por padrão</h3><p>Arquivos apagados vão para a Lixeira, então dá para voltar atrás.</p></li>
+      <li><span class="chip"><svg class="ico"><use href="#i-lock"/></svg></span><h3>Pastas do sistema protegidas</h3><p>Windows, Arquivos de Programas, raízes de disco e sua pasta de usuário são bloqueadas.</p></li>
+      <li><span class="chip"><svg class="ico"><use href="#i-undo"/></svg></span><h3>Backup e desfazer</h3><p>Registro e drivers ganham backup antes de qualquer mudança; ajustes do Windows são reversíveis.</p></li>
+      <li><span class="chip"><svg class="ico"><use href="#i-shield"/></svg></span><h3>Confirmação sempre</h3><p>Antes de agir, o app mostra quantos itens e quanto espaço estão envolvidos.</p></li>
+      <li><span class="chip"><svg class="ico"><use href="#i-list"/></svg></span><h3>Histórico de ações</h3><p>Tudo o que foi feito fica registrado num arquivo de histórico no seu PC.</p></li>
+      <li><span class="chip"><svg class="ico"><use href="#i-cloud-off"/></svg></span><h3>Nada sai do seu PC</h3><p>Sem conta, sem telemetria. A internet só é usada para atualizações e downloads que você pedir.</p></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ FAQ -->
+<section class="section section--alt" id="faq">
+  <div class="wrap wrap--narrow">
+    <header class="section__head">
+      <p class="eyebrow">Dúvidas frequentes</p>
+      <h2>Perguntas e respostas</h2>
+    </header>
+    <div class="faq">
+      <details>
+        <summary>Apareceu “O Windows protegeu o computador”. E agora?</summary>
+        <div><p>É normal em programas novos que ainda não são muito baixados. Clique em <b>Mais informações</b> e depois em
+          <b>Executar assim mesmo</b>. Se preferir conferir antes, todo o código está aberto no GitHub e cada versão é gerada
+          automaticamente a partir dele.</p></div>
+      </details>
+      <details>
+        <summary>O LimpaOne é grátis mesmo?</summary>
+        <div><p>Sim. Todos os recursos são gratuitos, sem anúncios, sem cadastro e sem “versão Pro”. O código é aberto,
+          sob a licença MIT. Se o app te ajudar, você pode <a href="#apoie">apoiar o projeto</a> — mas é opcional.</p></div>
+      </details>
+      <details>
+        <summary>Precisa de internet?</summary>
+        <div><p>Não para limpar, otimizar ou recuperar arquivos. A internet só é usada para verificar se há versão nova
+          (dá para desligar nas Configurações), para atualizar e baixar programas pelo winget, buscar drivers no
+          Windows Update e no teste de velocidade.</p></div>
+      </details>
+      <details>
+        <summary>Funciona em SSD?</summary>
+        <div><p>Sim, todas as funções de limpeza e otimização funcionam em SSD — e o otimizador de discos aplica o TRIM, que é
+          o recomendado para eles. Já a <b>recuperação de arquivos apagados é limitada em SSDs</b>: o próprio disco costuma
+          zerar os dados apagados (TRIM). O LimpaOne detecta o SSD e avisa. Em HDs, pendrives e cartões as chances são bem maiores.</p></div>
+      </details>
+      <details>
+        <summary>Posso apagar algo importante sem querer?</summary>
+        <div><p>O app foi feito para evitar isso: pastas do sistema são bloqueadas, arquivos vão para a Lixeira por padrão,
+          itens de privacidade vêm desmarcados, a limpeza do registro faz backup e tudo pede confirmação. Ainda assim,
+          revise sempre a lista antes de apagar.</p></div>
+      </details>
+      <details>
+        <summary>Preciso executar como administrador?</summary>
+        <div><p>Para a maioria das funções, não. Algumas pedem permissão de administrador, como ler o disco diretamente para
+          recuperar arquivos ou alterar itens que valem para todos os usuários. O app avisa quando for preciso.</p></div>
+      </details>
+      <details>
+        <summary>Qual versão eu baixo: instalador ou portátil?</summary>
+        <div><p>Para o seu PC, o <b>instalador</b> é mais prático (atalhos e desinstalação pelo Windows). A <b>portátil</b> é um
+          único arquivo que roda sem instalar — ótima para levar no pendrive.</p></div>
+      </details>
+      <details>
+        <summary>Como posso apoiar o projeto?</summary>
+        <div><p>Fazendo uma doação, deixando uma estrela no GitHub, relatando problemas e indicando o LimpaOne para quem
+          precisa. Veja as opções <a href="#apoie">logo abaixo</a>.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ APOIE -->
+<section class="section" id="apoie">
+  <div class="wrap">
+    <div class="support">
+      <div class="support__text">
+        <p class="eyebrow eyebrow--light">Apoie o projeto</p>
+        <h2>Gratuito para todos, mantido por quem usa</h2>
+        <p>O LimpaOne não tem anúncios nem vende dados. Se ele te poupou tempo ou espaço, considere apoiar o desenvolvimento.
+          Qualquer valor ajuda a manter o projeto vivo e gratuito.</p>
+        <div class="support__btns">
+          <!-- ================================================================ -->
+          <!-- CONFIGURAR: link de doação / PIX                                 -->
+          <!-- Troque o href="#" abaixo pelo link de doação (ou página do PIX). -->
+          <!-- ================================================================ -->
+          <a class="btn btn--white" href="#" id="doar"><svg class="ico"><use href="#i-heart"/></svg>Fazer uma doação</a>
+          <a class="btn btn--outline-light" href="https://github.com/gabrielsarzi/teste"><svg class="ico"><use href="#i-star"/></svg>Estrela no GitHub</a>
+        </div>
+      </div>
+      <ul class="support__list">
+        <li><svg class="ico"><use href="#i-bug"/></svg><div><b>Relate um problema</b><a href="https://github.com/gabrielsarzi/teste/issues">Abrir uma issue no GitHub</a></div></li>
+        <li><svg class="ico"><use href="#i-code"/></svg><div><b>Contribua com código</b><a href="https://github.com/gabrielsarzi/teste">Ver o repositório</a></div></li>
+        <li><svg class="ico"><use href="#i-share"/></svg><div><b>Indique para alguém</b><span>Compartilhe este site com quem vive pedindo ajuda com o PC.</span></div></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ CTA FINAL -->
+<section class="final">
+  <div class="wrap final__in">
+    <img src="img/logo.png" width="64" height="64" alt="">
+    <h2>Pronto para deixar o PC mais leve?</h2>
+    <p>Baixe grátis para Windows 10 e 11. Leva menos de um minuto.</p>
+    <div class="cta cta--center">
+      <a class="btn btn--primary btn--lg" href="https://github.com/gabrielsarzi/teste/releases/latest/download/LimpaOne-Setup.exe"><svg class="ico"><use href="#i-download"/></svg><span>Baixar instalador</span></a>
+      <a class="btn btn--ghost btn--lg" href="https://github.com/gabrielsarzi/teste/releases/latest/download/LimpaOne.exe"><svg class="ico"><use href="#i-usb"/></svg><span>Versão portátil</span></a>
+    </div>
+    <p class="small"><a href="https://github.com/gabrielsarzi/teste/releases">Todas as versões e notas de lançamento</a></p>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer__in">
+    <div class="footer__brand">
+      <a class="brand" href="#topo"><img src="img/logo.png" width="32" height="32" alt=""><span>LimpaOne</span></a>
+      <p>Limpeza, otimização e recuperação de arquivos para Windows. Gratuito e de código aberto.</p>
+    </div>
+    <nav class="footer__links" aria-label="Rodapé">
+      <a href="https://github.com/gabrielsarzi/teste"><svg class="ico"><use href="#i-github"/></svg>Código-fonte</a>
+      <a href="https://github.com/gabrielsarzi/teste/releases">Versões</a>
+      <a href="https://github.com/gabrielsarzi/teste/issues">Relatar problema</a>
+      <a href="https://github.com/gabrielsarzi/teste/blob/main/limpeza-pc/LICENSE">Licença MIT</a>
+    </nav>
+  </div>
+  <div class="wrap footer__legal">
+    <p>© LimpaOne · distribuído sob a <a href="https://github.com/gabrielsarzi/teste/blob/main/limpeza-pc/LICENSE">licença MIT</a>.
+      Use por sua conta e risco e revise sempre o que vai apagar. Windows é marca registrada da Microsoft Corporation;
+      o LimpaOne é um projeto independente.</p>
+    <a class="maker" href="https://sarzitecnologia.com.br">por <b>Sarzi Tecnologia</b></a>
+  </div>
+</footer>
+
+<!-- Visualizador de prints -->
+<dialog class="lightbox" id="lightbox" aria-label="Print ampliado">
+  <button class="lb-btn lb-close" type="button" aria-label="Fechar"><svg class="ico"><use href="#i-x"/></svg></button>
+  <button class="lb-btn lb-prev" type="button" aria-label="Print anterior"><svg class="ico"><use href="#i-chevron-left"/></svg></button>
+  <figure>
+    <img src="" alt="">
+    <figcaption></figcaption>
+  </figure>
+  <button class="lb-btn lb-next" type="button" aria-label="Próximo print"><svg class="ico"><use href="#i-chevron-right"/></svg></button>
+</dialog>
+
+<script>
+/* Visualizador de prints: sem JS os links abrem a imagem normalmente. */
+(function () {
+  var dlg = document.getElementById("lightbox");
+  if (!dlg || typeof dlg.showModal !== "function") return;
+  var links = Array.prototype.slice.call(document.querySelectorAll(".gallery a"));
+  var img = dlg.querySelector("img"), cap = dlg.querySelector("figcaption"), cur = 0;
+  function show(i) {
+    cur = (i + links.length) % links.length;
+    var a = links[cur];
+    img.src = a.getAttribute("href");
+    img.alt = a.querySelector("img").alt;
+    cap.textContent = a.dataset.caption || "";
+  }
+  links.forEach(function (a, i) {
+    a.addEventListener("click", function (e) { e.preventDefault(); show(i); dlg.showModal(); });
+  });
+  dlg.querySelector(".lb-close").onclick = function () { dlg.close(); };
+  dlg.querySelector(".lb-prev").onclick = function () { show(cur - 1); };
+  dlg.querySelector(".lb-next").onclick = function () { show(cur + 1); };
+  dlg.addEventListener("click", function (e) { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowLeft") show(cur - 1);
+    if (e.key === "ArrowRight") show(cur + 1);
+  });
+})();
+</script>
+</body>
+</html>

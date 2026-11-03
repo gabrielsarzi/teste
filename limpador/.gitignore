@@ -1,6 +1,0 @@
-__pycache__/
-build/
-dist/
-*.spec
-limpapc/_build.py
-version_info.txt
