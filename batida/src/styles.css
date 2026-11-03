@@ -1020,3 +1020,9 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 .no-ads small { color: #c9d7e3; font-size: 12.5px; }
 .na-price { font: 400 18px var(--f-display); color: #fff; background: var(--azulejo); padding: 8px 12px; border-radius: 10px; }
 .no-ads.done { opacity: .7; }
+
+/* logo na lousa, no lugar da rodada */
+.lousa .round { display: grid; place-items: center; }
+.lousa-logo { font: 400 22px/1 var(--f-display); color: var(--bone); letter-spacing: -0.01em; transform: rotate(-4deg); text-shadow: 0 2px 0 rgba(0,0,0,.35); white-space: nowrap; }
+.lousa-logo span { color: var(--amber); }
+.lousa.teams-3 .lousa-logo { font-size: 17px; }

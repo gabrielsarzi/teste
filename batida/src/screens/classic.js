@@ -140,8 +140,7 @@ export function classicScreen(stage, params = {}) {
   function updateScore() {
     const saidaTeam = round && round.voltou == null && !round.result ? teamOf(round.starter) : -1;
     crosses.forEach((c, t) => (c.innerHTML = cruz(match.score[t], saidaTeam === t)));
-    roundLbl.innerHTML = '';
-    roundLbl.append('Rodada', h('b', {}, String(Math.max(1, match.roundNo))), `até ${match.rules.metaPontos}`);
+    if (!roundLbl.firstChild) roundLbl.append(h('div', { class: 'lousa-logo', 'aria-label': 'Batida' }, 'Batida', h('span', {}, '!')));
   }
 
   function renderSeats() {
