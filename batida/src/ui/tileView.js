@@ -40,6 +40,10 @@ export function backEl(u, cls = '') {
 
 const BASE = 40; // tamanho base da meia-pedra dentro da mesa
 
+// A mesa é calculada em fileiras e desenhada transposta: a corrente sobe e desce
+// e só vira para o lado quando chega no limite de cima ou de baixo.
+const T = (p) => ({ x: p.y, y: p.x });
+
 export class BoardView {
   constructor({ onPickSide } = {}) {
     this.el = h('div', { class: 'board' });
@@ -68,10 +72,12 @@ export class BoardView {
 
   // transforma um registro da mesa em pedra posicionada
   _transform(rec) {
-    const cx = (rec.near.x + rec.far.x) / 2;
-    const cy = (rec.near.y + rec.far.y) / 2;
-    const vx = rec.far.x - rec.near.x;
-    const vy = rec.far.y - rec.near.y;
+    const n = T(rec.near);
+    const f = T(rec.far);
+    const cx = (n.x + f.x) / 2;
+    const cy = (n.y + f.y) / 2;
+    const vx = f.x - n.x;
+    const vy = f.y - n.y;
     let ang = 0;
     if (vx > 0.5) ang = -90;
     else if (vx < -0.5) ang = 90;
@@ -108,8 +114,8 @@ export class BoardView {
   prepareRound() {
     const aw = this.el.clientWidth || 300;
     const ah = this.el.clientHeight || 400;
-    const r = aw / ah;
-    setLimit(r > 1.3 ? 6.6 : r > 0.95 ? 4.6 : 3.6);
+    const r = ah / aw; // comprimento da coluna é a altura da mesa
+    setLimit(r > 1.3 ? 5.6 : r > 0.95 ? 4.6 : 3.6);
     this.k = null;
     this.tx = 0;
     this.ty = 0;
@@ -119,9 +125,10 @@ export class BoardView {
   fit(instant = false) {
     const board = this.board;
     if (!board) return;
-    const b = board.bounds();
+    const b0 = board.bounds();
+    const b = { minX: b0.minY, maxX: b0.maxY, minY: b0.minX, maxY: b0.maxX };
     for (const t of this.targets) {
-      for (const hpos of [t.g.near, t.g.far]) {
+      for (const hpos of [T(t.g.near), T(t.g.far)]) {
         b.minX = Math.min(b.minX, hpos.x - 0.5);
         b.maxX = Math.max(b.maxX, hpos.x + 0.5);
         b.minY = Math.min(b.minY, hpos.y - 0.5);
@@ -175,8 +182,8 @@ export class BoardView {
     const tcx = target.left + target.width / 2;
     const tcy = target.top + target.height / 2;
     const size = BASE * this.k;
-    const vx = rec.far.x - rec.near.x;
-    const vy = rec.far.y - rec.near.y;
+    const vx = rec.far.y - rec.near.y;
+    const vy = rec.far.x - rec.near.x;
     const ang = vx > 0.5 ? -90 : vx < -0.5 ? 90 : vy < -0.5 ? 180 : 0;
     const clone = tileEl(rec.tile, { top: rec.nearVal, bot: rec.farVal, u: size, cls: 'flying' });
     if (faceDown) clone.classList.add('reveal');
@@ -210,7 +217,7 @@ export class BoardView {
     this.board = board;
     for (const side of sides) {
       const g = side === 'C' ? { near: { x: -0.5, y: 0 }, far: { x: 0.5, y: 0 } } : board.ghost(side);
-      const el = h('button', { class: 'target', 'aria-label': side === 'L' ? 'Ponta esquerda' : 'Ponta direita' });
+      const el = h('button', { class: 'target', 'aria-label': side === 'L' ? 'Ponta de cima' : 'Ponta de baixo' });
       el.style.transform = this._transform({ near: g.near, far: g.far });
       el.addEventListener('click', (e) => {
         e.stopPropagation();
