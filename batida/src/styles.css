@@ -656,3 +656,6 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 .shuffle-layer { position: fixed; z-index: 40; pointer-events: none; }
 .shuffle-layer .tile { position: absolute; left: 0; top: 0; }
 .res-batida { flex-wrap: wrap; gap: 6px; }
+
+.lousa .team .tally { min-height: 38px; }
+.lousa .team .tally svg { height: 36px; width: 36px; }

@@ -16,18 +16,15 @@ const QUICK_POOLS = {
   dificil: ['paulao', 'lurdinha', 'valter', 'edu'],
 };
 
-function tally(n) {
-  const groups = [];
-  let left = n;
-  while (left > 0) {
-    const k = Math.min(5, left);
-    left -= k;
-    let d = '';
-    for (let i = 0; i < Math.min(k, 4); i++) d += `M${4 + i * 7} 3 q1 9 -0.5 18 `;
-    if (k === 5) d += 'M0 16 L30 6';
-    groups.push(`<svg viewBox="0 0 32 24" aria-hidden="true" style="width:${k === 5 ? 32 : 4 + Math.min(k, 4) * 7}px"><path d="${d}" stroke="#eeece2" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>`);
-  }
-  return groups.join('') || '<span style="opacity:.4">–</span>';
+// A cruz da lousa: cada ponto é uma bolinha num dos quatro cantos. 4 bolinhas fecham a partida.
+function cruz(n) {
+  const spots = [[8.5, 8.5], [27.5, 8.5], [27.5, 27.5], [8.5, 27.5]];
+  let dots = '';
+  spots.forEach(([x, y], i) => {
+    if (i < n) dots += `<circle cx="${x}" cy="${y}" r="4.2" fill="#eeece2"/>`;
+  });
+  const extra = n > 4 ? `<text x="36" y="34" fill="#eeece2" font-size="11" font-family="Caveat, cursive" text-anchor="end">+${n - 4}</text>` : '';
+  return `<svg viewBox="0 0 36 36" width="36" height="36" role="img" aria-label="${n} ponto${n === 1 ? '' : 's'}"><path d="M18 2.5 Q18.6 18 17.6 33.5 M2.5 18.4 Q18 17.4 33.5 18" stroke="#eeece2" stroke-width="2.6" fill="none" stroke-linecap="round"/>${dots}${extra}</svg>`;
 }
 
 function pickTwo(arr) {
@@ -47,7 +44,6 @@ export function classicScreen(stage, params = {}) {
     laeloVale2: settings.laeloVale2,
     comecaSena: settings.comecaSena,
     cincoBuchas: settings.cincoBuchas,
-    formato: settings.formato,
   };
   const match = new ClassicMatch(rules);
   const nameOf = (p) => (p === 0 ? 'Você' : CAST[ids[p]].name);
@@ -99,9 +95,9 @@ export function classicScreen(stage, params = {}) {
   boardView.el.addEventListener('click', () => selected && deselect());
 
   function updateScore() {
-    tallyUs.innerHTML = tally(match.score[0]);
-    tallyThem.innerHTML = tally(match.score[1]);
-    const lbl = match.rules.formato === 'pontos' ? `até ${match.rules.metaPontos}` : match.roundNo > 4 ? 'desempate' : 'de 4';
+    tallyUs.innerHTML = cruz(match.score[0]);
+    tallyThem.innerHTML = cruz(match.score[1]);
+    const lbl = `até ${match.rules.metaPontos}`;
     roundLbl.innerHTML = '';
     roundLbl.append('Rodada', h('b', {}, String(Math.max(1, match.roundNo))), lbl);
   }

@@ -82,7 +82,7 @@ export function careerScreen(stage, params = {}) {
         h('div', { class: 'grow' }, h('div', { class: 'eyebrow' }, c.place), h('div', { class: 'title-sm' }, c.name)),
       ),
     );
-    const fmt = c.format.formato === 'pontos' ? `Jogos até ${c.format.metaPontos} pontos` : 'Jogos de 4 rodadas';
+    const fmt = `Jogos até ${c.format.metaPontos} pontos`;
     const box = h('div', { class: 'bracket' });
     box.append(
       h(

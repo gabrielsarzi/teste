@@ -81,37 +81,37 @@ export function line(id, kind) {
 export const CAMPEONATOS = [
   {
     id: 'boteco', name: 'Torneio do Boteco do Zezão', short: 'Boteco do Zezão', place: 'Bairro',
-    format: { formato: 'rodadas' },
+    format: { formato: 'pontos', metaPontos: 4 },
     duplas: [['zezao', 'naldo'], ['marquinhos', 'careca'], ['rogerio', 'bia']],
     prize: { mesa: 'plastico' },
   },
   {
     id: 'praca', name: 'Copa da Praça', short: 'Copa da Praça', place: 'Praça da Matriz',
-    format: { formato: 'rodadas' },
+    format: { formato: 'pontos', metaPontos: 4 },
     duplas: [['naldo', 'marquinhos'], ['bia', 'tonhao'], ['rogerio', 'neide']],
     prize: { domino: 'colorido' },
   },
   {
     id: 'clube', name: 'Campeonato do Clube', short: 'Clube Recreativo', place: 'Clube Recreativo',
-    format: { formato: 'pontos', metaPontos: 6 },
+    format: { formato: 'pontos', metaPontos: 4 },
     duplas: [['tonhao', 'juninho'], ['neide', 'paulao'], ['lurdinha', 'paulao']],
     prize: { mesa: 'feltro' },
   },
   {
     id: 'cidade', name: 'Copa da Cidade', short: 'Copa da Cidade', place: 'Ginásio Municipal',
-    format: { formato: 'pontos', metaPontos: 6 },
+    format: { formato: 'pontos', metaPontos: 4 },
     duplas: [['juninho', 'lurdinha'], ['paulao', 'valter'], ['valter', 'edu']],
     prize: { domino: 'preto' },
   },
   {
     id: 'estadual', name: 'Estadual de Dominó', short: 'Estadual', place: 'Centro de Convenções',
-    format: { formato: 'pontos', metaPontos: 6 },
+    format: { formato: 'pontos', metaPontos: 4 },
     duplas: [['lurdinha', 'valter'], ['edu', 'cida'], ['cida', 'valter']],
     prize: { mesa: 'marmore' },
   },
   {
     id: 'brasileirao', name: 'Brasileirão de Dominó', short: 'Brasileirão', place: 'Final nacional',
-    format: { formato: 'pontos', metaPontos: 6 },
+    format: { formato: 'pontos', metaPontos: 4 },
     duplas: [['edu', 'valter'], ['cida', 'edu'], ['bene', 'cida']],
     prize: { domino: 'dourado', mesa: 'toalha' },
   },

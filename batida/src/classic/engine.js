@@ -11,8 +11,8 @@ export const DEFAULT_RULES = {
   laeloVale2: false, // bater lá-e-lô (pedra que serve nas duas pontas) vale 2
   comecaSena: true, // primeira rodada começa com a bucha de sena
   cincoBuchas: true, // quem recebe 5 buchas ou mais: volta o jogo (embaralha de novo)
-  formato: 'rodadas', // 'rodadas' (4, um início de cada) | 'pontos' (até 6)
-  metaPontos: 6,
+  formato: 'pontos', // a partida vai até alguém fazer 4 pontos (a cruz completa)
+  metaPontos: 4,
 };
 
 export class ClassicMatch {
@@ -31,9 +31,7 @@ export class ClassicMatch {
   }
 
   isOver() {
-    if (this.rules.formato === 'pontos') return Math.max(...this.score) >= this.rules.metaPontos;
-    // 4 rodadas; se empatar, segue rodada de desempate
-    return this.roundNo >= 4 && this.score[0] !== this.score[1];
+    return Math.max(...this.score) >= this.rules.metaPontos;
   }
 
   winnerTeam() {

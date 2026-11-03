@@ -14,7 +14,6 @@ export const settings = Object.assign(
     laeloVale2: true,
     comecaSena: true,
     cincoBuchas: true,
-    formato: 'rodadas',
     nivel: 'medio', // jogo rápido: facil | medio | dificil
     mesa: 'madeira',
     domino: 'osso',
@@ -25,8 +24,12 @@ export const settings = Object.assign(
 if (!settings.rv) {
   settings.laeloVale2 = true;
   settings.rv = 2;
-  store.set('settings', settings);
 }
+if (settings.rv < 3) {
+  delete settings.formato; // agora é sempre até 4 pontos
+  settings.rv = 3;
+}
+store.set('settings', settings);
 
 export function applySettings() {
   setSound(settings.sound);
