@@ -228,7 +228,10 @@ export function classicScreen(stage, params = {}) {
   const handEls = new Map();
   function handU(k) {
     const w = handEl.clientWidth || stage.clientWidth - 24;
-    return Math.max(24, Math.min(48, Math.floor((w - 6 * (k - 1)) / k)));
+    const big = settings.pedras === 'grande';
+    const gap = big ? 4 : 6;
+    handEl.style.gap = gap + 'px';
+    return Math.max(24, Math.min(big ? 58 : 48, Math.floor((w - gap * (k - 1)) / k)));
   }
 
   function addHandTile(t, i, enter = true) {
@@ -993,7 +996,7 @@ export function classicScreen(stage, params = {}) {
   function confirmExit() {
     const m = modal([
       h('h2', {}, 'Levantar da mesa?'),
-      h('p', {}, mode === 'career' ? 'Se sair agora, conta como derrota neste jogo do campeonato.' : mode === 'desafio' ? 'Sair agora conta como desafio perdido hoje.' : mode === 'online' ? (stake ? `Quem levanta perde a aposta (${money(stake)}) e fica 5 minutos sem entrar em mesa valendo dinheiro.` : 'Sair no meio conta como derrota.') : stake ? `Quem levanta perde a aposta (${money(stake)}).` : 'A partida em andamento vai ser perdida.'),
+      h('p', {}, mode === 'career' ? 'Se sair agora, conta como derrota neste jogo do campeonato.' : mode === 'desafio' ? 'Sair agora conta como desafio perdido hoje.' : mode === 'online' ? (stake ? `Quem levanta perde o valor da mesa (${money(stake)}) e fica 5 minutos sem entrar em mesa valendo dinheiro.` : 'Sair no meio conta como derrota.') : stake ? `Quem levanta perde o valor da mesa (${money(stake)}).` : 'A partida em andamento vai ser perdida.'),
       h(
         'div',
         { class: 'actions' },

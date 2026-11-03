@@ -111,7 +111,7 @@ export function walletModal() {
   const m = modal([
     h('h2', {}, 'Carteira'),
     h('div', { class: 'big', style: { color: 'var(--amber-hi)' } }, money(wallet())),
-    h('p', {}, 'Ganhe dinheiro apostando no jogo rápido, vencendo campeonatos e no desafio do dia. Gaste na loja, nas inscrições e contratando parceiros.'),
+    h('p', {}, 'Ganhe dinheiro em mesas valendo no jogo rápido, vencendo campeonatos e no desafio do dia. Gaste na loja, nas inscrições e contratando parceiros.'),
     wallet() < 10 ? h('button', { class: 'btn chili wide', onClick: () => { m.close(); fiadoModal(); } }, 'Pendurar no fiado') : null,
     h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onClick: () => m.close() }, 'Fechar')),
   ]);
@@ -203,6 +203,9 @@ export function settingsModal() {
     sw('set-conversa', 'Conversa na mesa', 'Provocações, comentários e o botão de frases', 'conversa'),
     row('Tempo para jogar', 'Depois da metade, o adversário cobra', seg([[30, '30 s'], [60, '60 s'], [0, 'Livre']], settings.tempo, (v) => { settings.tempo = v; saveSettings(); })),
     row('Ritmo da mesa', 'Quanto tempo os outros levam para jogar', seg([['lento', 'Calmo'], ['normal', 'Normal'], ['rapido', 'Rápido']], settings.speed, (v) => { settings.speed = v; saveSettings(); })),
+    h('h3', {}, 'Pedras'),
+    row('Tamanho', 'Pedras grandes deixam a mesa e a mão com mais zoom', seg([['normal', 'Normal'], ['grande', 'Grande']], settings.pedras, (v) => { settings.pedras = v; saveSettings(); })),
+    sw('set-num', 'Números nas pedras', 'Troca as pintas por números. Bom para vista cansada e daltônicos', 'numeros'),
     h('h3', {}, 'Som'),
     sw('set-sound', 'Som e vibração', null, 'sound'),
     sw('set-bar', 'Sons do bar', 'Copos e pedras batendo em outras mesas, de vez em quando', 'somBar'),
@@ -238,7 +241,7 @@ function quickSetup() {
       m.el.querySelector('.toggle-row .d').textContent = v === 4 ? 'Dupla: você e o Rafa contra dois' : 'Cada um por si, com compra no monte';
     })),
     row('Adversários', null, seg([['facil', 'Fácil'], ['medio', 'Médio'], ['dificil', 'Difícil']], settings.nivel, (v) => { settings.nivel = v; saveSettings(); })),
-    row('Aposta', `Na carteira: ${money(w)}`, seg(bets.map((b) => [b, b ? `R$${b}` : 'Sem', b > w]), settings.aposta, (v) => { settings.aposta = v; saveSettings(); label(); })),
+    row('Valendo', `Na carteira: ${money(w)}`, seg(bets.map((b) => [b, b ? `R$${b}` : 'Nada', b > w]), settings.aposta, (v) => { settings.aposta = v; saveSettings(); label(); })),
     row('Mesa', null, lookPicker('mesa')),
     row('Dominó', null, lookPicker('domino')),
     h(
@@ -266,7 +269,7 @@ export function rulesModal() {
     h('h3', {}, 'Regras da casa'),
     h('ul', {}, h('li', {}, 'Quem tem pedra que encaixa é obrigado a jogar. Tocar numa pedra que não entra é gato.'), h('li', {}, 'Bater vale 1 ponto. Bater com bucha vale 2, e com pedra que entra nos dois lados (lá-e-lô) também vale 2.'), h('li', {}, 'Jogo fechado: ninguém consegue jogar e vence quem tem menos pontos na mão. Se a pedra fechou de propósito mas cabia na outra ponta, a mesa vota se fecha ou abre. No empate, abre.'), h('li', {}, '5 buchas ou mais na mão: volta o jogo.'), h('li', {}, 'A partida vai até 4 pontos: cada ponto é uma bolinha numa ponta da cruz da lousa. A bolinha dourada no meio marca quem sai na rodada.')),
     h('h3', {}, 'Dinheiro'),
-    h('ul', {}, h('li', {}, 'No jogo rápido dá para apostar. Ganhou, cada adversário paga a aposta.'), h('li', {}, 'Campeonato tem inscrição e prêmio em dinheiro, além de mesas e dominós.'), h('li', {}, 'Ficou liso? O Zezão pendura no fiado.')),
+    h('ul', {}, h('li', {}, 'No jogo rápido a mesa pode valer dinheiro do jogo. Ganhou, cada adversário paga o valor.'), h('li', {}, 'Campeonato tem inscrição e prêmio em dinheiro, além de mesas e dominós.'), h('li', {}, 'Ficou liso? O Zezão pendura no fiado.')),
     h('h3', {}, 'Contagem'),
     h('p', {}, 'Ligue em Ajustes. Cada número mostra quantas pedras dele já estão na mesa (de 7) e quantas ainda estão com os outros. Embaixo do nome de cada jogador aparece em que números ele já passou.'),
     h('div', { class: 'actions' }, h('button', { class: 'btn amber', onClick: (e) => e.target.closest('.modal-back').click() }, 'Entendi')),

@@ -963,3 +963,17 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 /* entrada suave de cada tela */
 #stage.enter { animation: stageIn .22s ease-out both; }
 @keyframes stageIn { from { opacity: 0; transform: translateY(6px); } }
+
+/* modo números: o número no lugar das pintas, com contraste do tema */
+#app[data-numeros] .tile:not(.back) .pip { display: none; }
+#app[data-numeros] .tile:not(.back) .half::after {
+  content: attr(data-n); position: absolute; inset: 0; display: grid; place-items: center;
+  font: 400 calc(var(--u) * 0.62)/1 var(--f-display); color: var(--t-numc, #1a120d);
+}
+#app[data-numeros] .tile:not(.back) .half.n0::after { content: '0'; opacity: .35; }
+#app[data-numeros] .half.n1 { --t-numc: var(--n1, #1a120d); } #app[data-numeros] .half.n2 { --t-numc: var(--n2, #1a120d); }
+#app[data-numeros] .half.n3 { --t-numc: var(--n3, #1a120d); } #app[data-numeros] .half.n4 { --t-numc: var(--n4, #1a120d); }
+#app[data-numeros] .half.n5 { --t-numc: var(--n5, #1a120d); } #app[data-numeros] .half.n6 { --t-numc: var(--n6, #1a120d); }
+[data-domino="preto"], [data-domino="azul"], [data-domino="vermelho"], [data-domino="jade"] { --t-numc: #f6f1e6; --n1: #f6f1e6; --n2: #f6f1e6; --n3: #f6f1e6; --n4: #f6f1e6; --n5: #f6f1e6; --n6: #f6f1e6; }
+[data-domino="colorido"] { --n1: #c62f22; --n2: #2e8a3e; --n3: #2363a8; --n4: #b07a0e; --n5: #7d3ca8; --n6: #1a120d; }
+#app[data-numeros] .tile:not(.back) .half::after { transform: rotate(var(--nrot, 0deg)); }

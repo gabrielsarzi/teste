@@ -15,6 +15,8 @@ export const settings = Object.assign(
     somBar: false, // sons do bar ao fundo (copos e pedras)
     jogadores: 4, // jogo rápido: 2, 3 ou 4
     aposta: 20,
+    pedras: 'normal', // normal | grande
+    numeros: false, // números no lugar das pintas (vista cansada e daltônicos)
     buchaVale2: true,
     laeloVale2: true,
     comecaSena: true,
@@ -66,6 +68,9 @@ export function applyLook() {
     }
   }
   app.dataset.domino = settings.domino;
+  app.dataset.pedras = settings.pedras;
+  if (settings.numeros) app.dataset.numeros = '1';
+  else delete app.dataset.numeros;
   try {
     if (!texCache[settings.mesa]) texCache[settings.mesa] = tableTexture(settings.mesa);
     const url = texCache[settings.mesa];

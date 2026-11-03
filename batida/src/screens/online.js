@@ -19,7 +19,7 @@ function penalize() {
 }
 function penaltyMsg() {
   const m = Math.ceil(penaltyLeft() / 60000);
-  return `Você levantou no meio de uma partida valendo dinheiro. Espere ${m} min para entrar em mesa com aposta.`;
+  return `Você levantou no meio de uma partida valendo dinheiro. Espere ${m} min para entrar em mesa valendo dinheiro.`;
 }
 function scorePts(pts) {
   addPoints(pts);
@@ -185,7 +185,7 @@ export function onlineScreen(stage, params = {}) {
     for (let i = 0; i < s.humans; i++) dots.append(h('i', { class: 'h' }));
     for (let i = 0; i < s.bots; i++) dots.append(h('i', { class: 'b' }));
     for (let i = 0; i < s.free; i++) dots.append(h('i'));
-    const price = s.kind === 'rapido' ? (s.stake ? `Valendo ${money(s.stake)}` : 'Sem aposta') : `Inscrição ${money(s.fee)}`;
+    const price = s.kind === 'rapido' ? (s.stake ? `Valendo ${money(s.stake)}` : 'Amistoso') : `Inscrição ${money(s.fee)}`;
     const b = h(
       'button',
       { class: 'room-card' },
@@ -262,7 +262,7 @@ export function onlineScreen(stage, params = {}) {
       isCamp
         ? h('div', { class: 'toggle-row' }, h('div', {}, h('div', { class: 't' }, 'Inscrição'), h('div', { class: 'd' }, 'A dupla campeã leva tudo')), seg([20, 50, 100, 200].map((v) => [v, `R$${v}`, v > w]), o.fee, (v) => (o.fee = v)))
         : h('div', { class: 'toggle-row' }, h('div', {}, h('div', { class: 't' }, 'Na mesa')), seg([[2, '2'], [3, '3'], [4, '4 (dupla)']], o.players, (v) => (o.players = v))),
-      isCamp ? null : h('div', { class: 'toggle-row' }, h('div', {}, h('div', { class: 't' }, 'Aposta')), seg([0, 10, 20, 50, 100].map((v) => [v, v ? `R$${v}` : 'Sem', v > w]), o.stake, (v) => (o.stake = v))),
+      isCamp ? null : h('div', { class: 'toggle-row' }, h('div', {}, h('div', { class: 't' }, 'Valendo')), seg([0, 10, 20, 50, 100].map((v) => [v, v ? `R$${v}` : 'Nada', v > w]), o.stake, (v) => (o.stake = v))),
       h('div', { class: 'toggle-row' }, h('label', { for: 'room-priv' }, h('div', { class: 't' }, 'Sala privada'), h('div', { class: 'd' }, 'Só entra quem tiver o código')), h('span', { class: 'switch' }, priv, h('span'))),
       h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onClick: () => m.close() }, 'Cancelar'), h('button', {
         class: 'btn amber',
@@ -310,7 +310,7 @@ export function onlineScreen(stage, params = {}) {
       } else {
         seatsBox = h('div', { class: 'seat-grid' }, room.seats.map(seatEl));
       }
-      const info = room.kind === 'rapido' ? (room.stake ? `Valendo ${money(room.stake)} · até 4 pontos` : 'Sem aposta · até 4 pontos') : `Inscrição ${money(room.fee)} · prêmio ${money(room.fee * 8)} para a dupla campeã`;
+      const info = room.kind === 'rapido' ? (room.stake ? `Valendo ${money(room.stake)} · até 4 pontos` : 'Amistoso · até 4 pontos') : `Inscrição ${money(room.fee)} · prêmio ${money(room.fee * 8)} para a dupla campeã`;
       const codeChip = h('button', { class: 'code-chip', 'aria-label': `Código da sala ${room.code}`, onClick: () => copyCode(room.code) }, h('small', {}, room.private ? 'Privada · código' : 'Código'), room.code);
       const log = h('div', { class: 'room-log' }, room.log.slice(-4).map((l) => h('div', {}, l.text)));
       const canStart = room.seats.filter((s) => s && !s.bot).every((s) => s.uid === room.hostId || s.ready);
@@ -362,7 +362,7 @@ export function onlineScreen(stage, params = {}) {
       const back = top('Ranking da semana', t.left ? `Termina em ${t.left}` : 'Online');
       stage.append(
         back,
-        h('p', { class: 'rank-help' }, `Vitória online vale ${PONTOS.vitoria} pontos (${PONTOS.vitoriaAposta} com aposta), derrota vale ${PONTOS.derrota}, título de campeonato vale ${PONTOS.titulo}. Na segunda-feira o ranking zera e o top 100 recebe o prêmio.`),
+        h('p', { class: 'rank-help' }, `Vitória online vale ${PONTOS.vitoria} pontos (${PONTOS.vitoriaAposta} valendo dinheiro), derrota vale ${PONTOS.derrota}, título de campeonato vale ${PONTOS.titulo}. Na segunda-feira o ranking zera e o top 100 recebe o prêmio.`),
         tiers,
         list,
         me ? h('div', { class: 'rank-me' }, h('span', {}, `Você: ${me.pos}º`), h('b', {}, `${me.pts} pts`)) : null,
@@ -459,7 +459,7 @@ export function onlineScreen(stage, params = {}) {
     const k = room.seats.findIndex((s) => s.uid === S.me.uid);
     const order = [...Array(n).keys()].map((i) => ids[(k + i) % n]);
     if (room.stake > wallet()) {
-      toast('Falta dinheiro para a aposta dessa mesa.');
+      toast('Falta dinheiro para o valor dessa mesa.');
       return S.backend.leave().then(() => lobby());
     }
     go('classic', {
@@ -574,7 +574,7 @@ export function onlineScreen(stage, params = {}) {
     off = S.backend.on(onEvent);
     const b = params.back;
     roomView();
-    if (b.quit && penaltyLeft()) toast(`Saiu no meio: perdeu a aposta e fica ${PENALTY_MIN} min sem mesa valendo dinheiro.`);
+    if (b.quit && penaltyLeft()) toast(`Saiu no meio: perdeu o valor da mesa e fica ${PENALTY_MIN} min sem mesa valendo dinheiro.`);
     else if (b.delta || b.pts) toast([b.delta ? `${b.won ? 'Ganhou' : 'Perdeu'} ${money(Math.abs(b.delta))}` : '', b.pts ? `+${b.pts} pts no ranking` : ''].filter(Boolean).join(' · '));
   } else enter();
 

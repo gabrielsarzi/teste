@@ -15,7 +15,7 @@ const PIPS = {
 };
 
 function half(v, pos) {
-  return h('div', { class: `half ${pos} n${v}` }, PIPS[v].map((p) => h('i', { class: `pip ${p}` })));
+  return h('div', { class: `half ${pos} n${v}`, 'data-n': v }, PIPS[v].map((p) => h('i', { class: `pip ${p}` })));
 }
 
 // top = valor de cima, bot = valor de baixo (pedra em pé)
@@ -96,9 +96,19 @@ export class BoardView {
     return `translate(${cx * BASE - BASE / 2 + j.x}px, ${cy * BASE - BASE + j.y}px) rotate(${ang + j.r}deg) scale(0.93)`;
   }
 
+  // ângulo da pedra na mesa (para o número ficar sempre em pé no modo números)
+  _angle(rec) {
+    const n = T(rec.near);
+    const f = T(rec.far);
+    const vx = f.x - n.x;
+    const vy = f.y - n.y;
+    return vx > 0.5 ? -90 : vx < -0.5 ? 90 : vy < -0.5 ? 180 : 0;
+  }
+
   addRec(rec, { pending = false } = {}) {
     const el = tileEl(rec.tile, { top: rec.nearVal, bot: rec.farVal, u: BASE, cls: pending ? 'pending' : '' });
     el.style.transform = this._transform(rec);
+    el.style.setProperty('--nrot', `${-this._angle(rec)}deg`);
     this.layer.append(el);
     this.items.set(rec.tile.uid, el);
     return el;
@@ -147,12 +157,13 @@ export class BoardView {
       }
     }
     // reserva espaço para a próxima pedra em cada ponta
-    const pad = 1.6;
+    const big = document.getElementById('app')?.dataset.pedras === 'grande';
+    const pad = big ? 1.15 : 1.6;
     const w = (b.maxX - b.minX + pad * 2) * BASE;
     const hh = (b.maxY - b.minY + pad * 2) * BASE;
     const aw = this.el.clientWidth || 300;
     const ah = this.el.clientHeight || 300;
-    const ideal = Math.min(aw / w, ah / hh, 1.05);
+    const ideal = Math.min(aw / w, ah / hh, big ? 1.35 : 1.05);
     let k = this.k;
     if (k == null || ideal < k || ideal > k * 1.25) k = ideal;
     const mx = ((b.minX + b.maxX) / 2) * BASE;
@@ -197,6 +208,7 @@ export class BoardView {
     const vy = rec.far.x - rec.near.x;
     const ang = vx > 0.5 ? -90 : vx < -0.5 ? 90 : vy < -0.5 ? 180 : 0;
     const clone = tileEl(rec.tile, { top: rec.nearVal, bot: rec.farVal, u: size, cls: 'flying' });
+    clone.style.setProperty('--nrot', `${-ang}deg`);
     if (faceDown) clone.classList.add('reveal');
     Object.assign(clone.style, {
       position: 'fixed', left: tcx - size / 2 + 'px', top: tcy - size + 'px', zIndex: 60, margin: 0,

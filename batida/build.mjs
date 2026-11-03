@@ -15,7 +15,7 @@ async function build() {
     target: ['es2020', 'safari14'],
     write: false,
   });
-  const css = await esbuild.transform(readFileSync('src/styles.css', 'utf8'), {
+  const css = await esbuild.transform(readFileSync('src/fonts.css', 'utf8') + readFileSync('src/styles.css', 'utf8'), {
     loader: 'css',
     minify: true,
   });
