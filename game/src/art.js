@@ -68,7 +68,7 @@ window.ART = (function () {
   }
 
   // Chão inteiro do mapa num único canvas (mapa + margem de 2 tiles).
-  function ground(cols, rows, m, spawns, core) {
+  function groundCanvas(cols, rows, m, spawns, core) {
     const W = (cols + 2 * m) * 16, H = (rows + 2 * m) * 16, R = rng(1337);
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const x = cv.getContext('2d'); const id = x.createImageData(W, H);
     const put = (px, py, c, a) => { if (px < 0 || py < 0 || px >= W || py >= H) return; const [r, g, b] = RGB[c]; const i = (py * W + px) * 4; const al = a === undefined ? 1 : a; id.data[i] = id.data[i] * (1 - al) + r * al; id.data[i + 1] = id.data[i + 1] * (1 - al) + g * al; id.data[i + 2] = id.data[i + 2] * (1 - al) + b * al; id.data[i + 3] = 255; };
@@ -94,8 +94,11 @@ window.ART = (function () {
     const bx = (m + core.c) * 16, by = (m + core.r) * 16;
     for (let py = by - 2; py < by + 16; py++) for (let px = bx - 2; px < bx + 18; px++) put(px, py, (px + py) % 7 === 0 ? 'M' : 'c', 0.9);
     x.putImageData(id, 0, 0);
-    const t = new THREE.CanvasTexture(cv); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; return t;
+    return cv;
+  }
+  function ground(cols, rows, m, spawns, core) {
+    const t = new THREE.CanvasTexture(groundCanvas(cols, rows, m, spawns, core)); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; return t;
   }
 
-  return { P, tex, canvas, towerIcon, icon, glowTex, ground };
+  return { P, Pix, D, tex, canvas, towerIcon, icon, glowTex, ground, groundCanvas };
 })();
