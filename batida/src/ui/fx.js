@@ -4,6 +4,44 @@ import { h } from './dom.js';
 let canvas, c2d, parts = [], running = false, dpr = 1;
 const reduce = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// guarda onde a pessoa tocou por último (as moedas saem de lá)
+let lastPt = null;
+export function trackPointer() {
+  addEventListener('pointerdown', (e) => (lastPt = { x: e.clientX, y: e.clientY, t: Date.now() }), { capture: true, passive: true });
+}
+
+// Moedas voando do ponto do toque até a carteira do topo
+export function flyCoins(amount) {
+  const chip = [...document.querySelectorAll('.wallet')].find((w) => w.offsetParent);
+  if (!chip || reduce()) return false;
+  const to = chip.getBoundingClientRect();
+  const from = lastPt && Date.now() - lastPt.t < 4000 ? lastPt : { x: innerWidth / 2, y: innerHeight * 0.55 };
+  const n = Math.min(10, 3 + Math.floor(amount / 25));
+  for (let i = 0; i < n; i++) {
+    const c = h('div', { class: 'fly-coin', 'aria-hidden': 'true' });
+    document.getElementById('app').append(c);
+    const sx = from.x + (Math.random() - 0.5) * 40;
+    const sy = from.y + (Math.random() - 0.5) * 30;
+    const tx = to.left + 18;
+    const ty = to.top + to.height / 2;
+    const mx = (sx + tx) / 2 + (Math.random() - 0.5) * 120;
+    const my = Math.min(sy, ty) - 60 - Math.random() * 60;
+    c.animate(
+      [
+        { transform: `translate(${sx}px, ${sy}px) scale(.6)`, opacity: 0 },
+        { transform: `translate(${sx}px, ${sy - 20}px) scale(1)`, opacity: 1, offset: 0.12 },
+        { transform: `translate(${mx}px, ${my}px) scale(1.05)`, offset: 0.55 },
+        { transform: `translate(${tx}px, ${ty}px) scale(.7)`, opacity: 1 },
+      ],
+      { duration: 650 + i * 45, delay: i * 55, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' },
+    ).finished.then(() => {
+      c.remove();
+      if (i === n - 1) pop(chip, 'pop');
+    }).catch(() => c.remove());
+  }
+  return true;
+}
+
 export function initFx(root) {
   canvas = h('canvas', { class: 'fx-canvas', 'aria-hidden': 'true' });
   root.append(canvas);

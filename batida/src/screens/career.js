@@ -10,6 +10,7 @@ import { track } from '../progress.js';
 import { maybeInterstitial } from '../ads.js';
 
 const SUBS = ['marquinhos', 'careca', 'tonhao', 'paulao', 'valter', 'cida'];
+const TROPHY_SVG = '<svg viewBox="0 0 40 48" aria-hidden="true"><defs><linearGradient id="tg" x1="0" x2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset=".5" stop-color="#f2b33d"/><stop offset="1" stop-color="#b9801c"/></linearGradient></defs><path d="M10 4h20v12a10 10 0 0 1-20 0z" fill="url(#tg)"/><path d="M10 7H4a6 6 0 0 0 7 8M30 7h6a6 6 0 0 1-7 8" fill="none" stroke="#d99a2a" stroke-width="2.5"/><rect x="17" y="25" width="6" height="9" fill="#d99a2a"/><rect x="11" y="34" width="18" height="5" rx="1.5" fill="url(#tg)"/><rect x="9" y="39" width="22" height="6" rx="1.5" fill="#6b4a2e"/></svg>';
 
 function stars(dupla) {
   const lv = dupla.reduce((s, id) => s + (CAST[id].master ? 0.9 + CAST[id].master / 100 : CAST[id].skill), 0) / 2;
@@ -53,6 +54,12 @@ export function careerScreen(stage, params = {}) {
         walletChip(),
       ),
     );
+    const shelf = h('div', { class: 'shelf', 'aria-label': `Estante de troféus: ${car.titles.length} de ${CAMPEONATOS.length}` });
+    CAMPEONATOS.forEach((c) => {
+      const won = car.titles.includes(c.id);
+      shelf.append(h('div', { class: `trophy ${won ? 'won' : ''}`, title: c.name }, h('span', { html: TROPHY_SVG }), h('small', {}, c.short.replace('Torneio do ', '').split(' ').slice(-1)[0])));
+    });
+    stage.append(h('div', { class: 'shelf-wrap' }, shelf, h('div', { class: 'shelf-board' })));
     const list = h('div', { class: 'ladder' });
     CAMPEONATOS.forEach((c, i) => {
       const won = car.titles.includes(c.id);

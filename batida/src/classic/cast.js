@@ -150,6 +150,7 @@ export const DOMINOS_VISUAL = [
   { id: 'preto', name: 'Pedra preta', desc: 'Preta com pinta branca.', price: 700 },
   { id: 'dourado', name: 'Dourado de campeão', desc: 'Só para quem ganhou o Brasileirão.', price: null },
   { id: 'marfim', name: 'Marfim antigo', desc: 'Amarelado de tanto jogo.', price: 200 },
+  { id: 'gasto', name: 'Pedra de bar', desc: 'Riscada, lascada e manchada de tanto jogo.', price: 350 },
   { id: 'madeira', name: 'Pedra de madeira', desc: 'Madeira lixada com pinta queimada.', price: 450 },
   { id: 'azul', name: 'Azul royal', desc: 'Azul forte com pinta branca.', price: 600 },
   { id: 'vermelho', name: 'Vermelho cereja', desc: 'Vermelha e brilhante.', price: 600 },

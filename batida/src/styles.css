@@ -231,7 +231,7 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 .hand .tile.mark { transform: translateY(-14px) rotate(-4deg); box-shadow: 0 0 0 3px var(--chili-hi), 0 10px 20px rgba(0,0,0,.6); }
 .hand .tile.enter { animation: dealIn .34s cubic-bezier(.3,.7,.4,1.2) both; }
 @keyframes dealIn { from { transform: translateY(60px) rotate(8deg); opacity: 0; } }
-.hand.locked .tile { pointer-events: none; }
+.hand.locked .tile { cursor: grab; }
 
 /* ---------- Botões e painéis ---------- */
 .btn {
@@ -1048,3 +1048,90 @@ button:focus-visible, .tile:focus-visible { outline: 3px solid var(--amber-hi); 
 .tile-card { grid-template-columns: 1fr; justify-items: center; align-content: center; text-align: center; gap: 6px; padding: 14px 10px; }
 .tile-card .tc-body { display: grid; justify-items: center; }
 .tile-card .tc-title { font-size: 18px; }
+
+/* ---------- abertura ---------- */
+.splash { position: fixed; inset: 0; z-index: 200; background: #0b0705; display: grid; place-content: center; justify-items: center; overflow: hidden; }
+.splash.out { animation: fadeOut .4s ease both; }
+.sp-lamp { position: absolute; top: 0; left: 50%; width: 140px; height: 54px; transform: translateX(-50%); background: radial-gradient(60% 100% at 50% 0, #3a2a1e, #140d09); border-radius: 0 0 70px 70px / 0 0 54px 54px; }
+.sp-glow { position: absolute; top: 30px; left: 50%; width: 520px; height: 520px; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 205, 130, .45), rgba(255, 170, 80, .1) 55%, transparent); opacity: 0; animation: spGlow .5s .2s ease-out forwards; }
+@keyframes spGlow { 0% { opacity: 0; } 40% { opacity: .5; } 55% { opacity: .15; } 100% { opacity: 1; } }
+.sp-title { position: relative; font: 400 clamp(68px, 22vw, 110px)/.9 var(--f-display); color: var(--bone); text-shadow: 0 3px 0 #c9b796, 0 6px 0 #6e5537, 0 18px 30px rgba(0,0,0,.6); transform: rotate(-3deg); animation: spDrop .55s .55s cubic-bezier(.5,0,.75,1) both; }
+.sp-title span { color: var(--amber); }
+@keyframes spDrop { 0% { transform: translateY(-120vh) rotate(-14deg) scale(1.4); } 82% { transform: translateY(8px) rotate(-2deg) scale(1); } 100% { transform: translateY(0) rotate(-3deg); } }
+.sp-sub { position: relative; margin-top: 14px; font: 700 26px/1 var(--f-chalk); color: var(--amber-hi); opacity: 0; animation: fadeIn .4s 1.2s forwards; transform: rotate(-2deg); }
+.splash .sp-title + .sp-sub { animation-name: spSub; }
+@keyframes spSub { to { opacity: 1; } }
+
+/* luz da luminária em cima da mesa: centro quente, bordas no escuro */
+.felt::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 0;
+  background: radial-gradient(ellipse 62% 48% at 50% 40%, rgba(255, 214, 150, .22), rgba(255, 190, 110, .06) 55%, transparent 75%);
+}
+.felt::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 3;
+  background: radial-gradient(ellipse 80% 70% at 50% 42%, transparent 55%, rgba(10, 5, 2, .38) 100%);
+}
+.felt .board { position: relative; z-index: 1; }
+.felt .monte, .felt .stake-chip { z-index: 4; }
+
+/* batida: a lousa sente a pancada */
+.lousa.thud { animation: thud .45s cubic-bezier(.3,.7,.4,1); }
+@keyframes thud { 15% { transform: translateY(5px) rotate(-1deg) scale(1.02); } 45% { transform: translateY(-2px) rotate(.6deg); } }
+
+/* emoji rápido no nome */
+.nameplate { position: relative; }
+.emoji-pop {
+  position: absolute; left: 50%; top: -6px; transform: translate(-50%, -100%);
+  font-size: 30px; line-height: 1; pointer-events: none; z-index: 20;
+  animation: emojiPop 1.25s cubic-bezier(.3,.7,.4,1.2) both;
+  filter: drop-shadow(0 3px 4px rgba(0,0,0,.5));
+}
+@keyframes emojiPop {
+  0% { transform: translate(-50%, -60%) scale(.3); opacity: 0; }
+  18% { transform: translate(-50%, -110%) scale(1.15); opacity: 1; }
+  30% { transform: translate(-50%, -100%) scale(1); }
+  80% { opacity: 1; }
+  100% { transform: translate(-50%, -150%) scale(.9); opacity: 0; }
+}
+
+/* ---------- pedra gasta (dominó de bar usado há anos) ---------- */
+[data-domino="gasto"] {
+  --t-face1: #efe3c6; --t-face2: #d9c7a0; --t-edge: #a38e68; --t-shine: rgba(255,250,235,.55);
+  --t-line: rgba(70, 50, 30, .5);
+  --t-pip: radial-gradient(circle at 40% 35%, #4a3b30, #2a1f17 70%);
+}
+[data-domino="gasto"] .tile:not(.back) {
+  border-radius: calc(var(--u) * .2) calc(var(--u) * .11) calc(var(--u) * .18) calc(var(--u) * .09);
+  background:
+    linear-gradient(115deg, transparent 30%, rgba(90, 70, 40, .07) 30.6%, transparent 31.4%),
+    linear-gradient(58deg, transparent 62%, rgba(90, 70, 40, .06) 62.5%, transparent 63.2%),
+    linear-gradient(170deg, transparent 75%, rgba(255, 255, 255, .35) 76%, transparent 77%),
+    radial-gradient(circle at 22% 78%, rgba(120, 85, 40, .16), transparent 18%),
+    radial-gradient(circle at 80% 18%, rgba(120, 85, 40, .12), transparent 14%),
+    linear-gradient(160deg, var(--t-shine), rgba(255,255,255,0) 38%),
+    linear-gradient(180deg, var(--t-face1), var(--t-face2));
+}
+[data-domino="gasto"] .tile:not(.back) .pip { opacity: .82; }
+
+.fly-coin {
+  position: fixed; left: -11px; top: -11px; width: 22px; height: 22px; z-index: 96; pointer-events: none; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff1b8, #f2c14e 45%, #b9801c 80%);
+  box-shadow: inset 0 0 0 2px #9a6a14, 0 2px 4px rgba(0,0,0,.5);
+}
+.wallet.pop { animation: boxPop .35s ease; }
+
+/* estante de troféus */
+.shelf-wrap { margin: 4px 0 10px; flex: none; }
+.shelf { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; align-items: end; padding: 0 6px; }
+.trophy { display: grid; justify-items: center; gap: 2px; }
+.trophy svg { width: 34px; height: 41px; display: block; filter: grayscale(1) brightness(.35) contrast(1.1); opacity: .55; }
+.trophy.won svg { filter: drop-shadow(0 0 10px rgba(255, 200, 90, .45)); opacity: 1; }
+.trophy small { font: 800 8.5px/1 var(--f-body); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.trophy.won small { color: var(--amber-hi); }
+.shelf-board { height: 10px; margin-top: 2px; border-radius: 3px; background: linear-gradient(180deg, #8a5a33, #4a2c1b); box-shadow: 0 6px 10px rgba(0,0,0,.5); }
+
+/* ---------- decoração da mesa (vista de cima) ---------- */
+.decor { position: absolute; inset: 0; pointer-events: none; z-index: 0; border-radius: inherit; overflow: hidden; }
+.decor svg { position: absolute; }
+.decor .marks { inset: 0; width: 100%; height: 100%; }
+.felt > .board { z-index: 1; }

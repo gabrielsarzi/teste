@@ -3,6 +3,7 @@ import { h, store, setSpeed } from './ui/dom.js';
 import { setSound, setAmbient, sfx } from './ui/audio.js';
 import { startMusic, stopMusic, STATIONS } from './ui/music.js';
 import { tableTexture, grainTexture } from './ui/art.js';
+import { flyCoins } from './ui/fx.js';
 
 export const settings = Object.assign(
   {
@@ -112,6 +113,7 @@ export function setWallet(v) {
   const before = wallet();
   store.set('wallet', Math.max(0, Math.round(v)));
   if (v > before) {
+    flyCoins(v - before);
     const s = store.get('stats3', {});
     s.ganhoTotal = (s.ganhoTotal || 0) + Math.round(v - before);
     store.set('stats3', s);

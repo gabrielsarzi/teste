@@ -1,4 +1,6 @@
-import { initFx } from './ui/fx.js';
+import { initFx, trackPointer } from './ui/fx.js';
+import './classic/sotaques.js';
+import { splash } from './screens/splash.js';
 import { unlockAudio, setAmbient, sfx, haptic } from './ui/audio.js';
 import { applySettings, registerScreen, go, settings, updateMusic } from './app.js';
 import { homeScreen } from './screens/home.js';
@@ -40,7 +42,9 @@ function boot() {
     true,
   );
   addEventListener('keydown', unlock);
+  trackPointer();
   go('home');
+  splash();
 }
 
 boot();

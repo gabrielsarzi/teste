@@ -194,7 +194,7 @@ export class BoardView {
   }
 
   // anima uma pedra vinda de um retângulo de origem (mão ou assento) até a mesa
-  async flyIn(rec, fromRect, { pending = false, power = 1, faceDown = false } = {}) {
+  async flyIn(rec, fromRect, { pending = false, power = 1, faceDown = false, slam = false } = {}) {
     const el = this.addRec(rec, { pending });
     this.board = this.board || null;
     el.style.visibility = 'hidden';
@@ -220,10 +220,10 @@ export class BoardView {
     const anim = clone.animate(
       [
         { transform: `translate(${fcx - tcx}px, ${fcy - tcy}px) scale(${s0}) rotate(0deg)`, offset: 0 },
-        { transform: `translate(${(fcx - tcx) * 0.25}px, ${(fcy - tcy) * 0.25 - 26}px) scale(${1.25}) rotate(${ang * 0.8}deg)`, offset: 0.62 },
+        { transform: `translate(${(fcx - tcx) * 0.25}px, ${(fcy - tcy) * 0.25 - (slam ? 60 : 26)}px) scale(${slam ? 1.9 : 1.25}) rotate(${ang * 0.8}deg)`, offset: slam ? 0.78 : 0.62 },
         { transform: `translate(0,0) scale(1) rotate(${ang}deg)`, offset: 1 },
       ],
-      { duration: 340, easing: 'cubic-bezier(.3,.7,.4,1)' },
+      { duration: slam ? 820 : 340, easing: slam ? 'cubic-bezier(.5,0,.75,1)' : 'cubic-bezier(.3,.7,.4,1)' },
     );
     await anim.finished.catch(() => {});
     clone.remove();

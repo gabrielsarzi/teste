@@ -8,6 +8,7 @@ import { sfx, haptic } from '../ui/audio.js';
 import { confetti, chalkDust, shake, pop } from '../ui/fx.js';
 import { settings, go, stats, saveStats, wallet, setWallet, money, rivals, addRival, nextStation } from '../app.js';
 import { STATIONS } from '../ui/music.js';
+import { tableDecor } from '../ui/decor.js';
 import { iconBtn, rulesModal, muteBtn } from './home.js';
 import { isDouble, pipSum, BUCHA_NAMES } from '../core/tiles.js';
 import { track } from '../progress.js';
@@ -113,7 +114,7 @@ export function classicScreen(stage, params = {}) {
   const seatAt = (pos) => seats.find((s) => s && s.pos === pos)?.el || h('div', { class: `seat ${pos === 'top' ? 'top' : `side ${pos}`} empty`, 'aria-hidden': 'true' });
   const boardView = new BoardView();
   const monte = h('div', { class: 'monte', hidden: true }, h('div', { class: 'monte-stack' }), h('div', { class: 'monte-n' }));
-  const felt = h('div', { class: 'felt' }, boardView.el, monte);
+  const felt = h('div', { class: 'felt' }, tableDecor().el, boardView.el, monte);
   const tableEl = h('div', { class: `table-classic n${n}` }, seatAt('top'), seatAt('left'), felt, seatAt('right'));
 
   const myWho = h('div', { class: 'who' }, 'Você');
@@ -357,6 +358,18 @@ export function classicScreen(stage, params = {}) {
     handEl.classList.toggle('my-turn', !!myTurn);
   }
 
+  // reação rápida: um emoji grande que aparece no nome por um instante
+  function react(p, emoji, delay = 0) {
+    if (!settings.conversa || dead || p === 0 || !seats[p]) return;
+    setTimeout(() => {
+      if (dead) return;
+      const e = h('span', { class: 'emoji-pop', 'aria-hidden': 'true' }, emoji);
+      seats[p].who.append(e);
+      setTimeout(() => e.remove(), 1300);
+    }, delay);
+  }
+  const pickE = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
   let lastChat = 0;
   function bubble(p, text, kind = '', chatter = false) {
     if (chatter) {
@@ -426,6 +439,7 @@ export function classicScreen(stage, params = {}) {
         const opp = opponents();
         const who = opp[Math.floor(Math.random() * opp.length)];
         bubble(who, line(ids[who], 'bronca'), 'bronca');
+        react(who, '🙄');
       }
       setHint(round.board.empty && round.mustStartWith ? `Tem que sair com a ${BUCHA_NAMES[round.mustStartWith.a]}.` : 'Essa não encaixa.', true, 1500);
       return;
@@ -544,7 +558,13 @@ export function classicScreen(stage, params = {}) {
     boardView.board = round.board;
     const mania = p !== 0 && CAST[ids[p]].mania;
     const power = res.result ? 1.5 : mania && mania.slam ? 1.4 : isDouble(mv.tile) ? 1.15 : 1;
-    await boardView.flyIn(res.rec, fromRect, { power });
+    const slam = res.result && res.result.type === 'batida';
+    await boardView.flyIn(res.rec, fromRect, { power, slam });
+    if (slam) {
+      lousa.classList.remove('thud');
+      void lousa.offsetWidth;
+      lousa.classList.add('thud');
+    }
     if (mania && mania.slam && !res.result) {
       shake(0.5);
       if (Math.random() < 0.3) bubble(p, say(ids[p], 'slam'), '', true);
@@ -715,6 +735,8 @@ export function classicScreen(stage, params = {}) {
   }
 
   function passChatter(p) {
+    if (p !== 0) react(p, pickE(['😬', '🤦', '😩']));
+    for (let q = 1; q < n; q++) if (q !== p && teamOf(q) !== teamOf(p) && Math.random() < 0.35) react(q, pickE(['😏', '😂', '🤭']), 400);
     if (!chance(0.55)) return;
     later(() => {
       if (p === 0 && n === 4 && Math.random() < 0.4) return bubble(2, say(ids[2], 'console_pass'), '', true);
@@ -728,6 +750,7 @@ export function classicScreen(stage, params = {}) {
 
   function afterPlayChatter(p, tile) {
     if (!settings.conversa) return;
+    if (isDouble(tile) && round.board.placed.length > 1) for (let q = 1; q < n; q++) if (q !== p && Math.random() < 0.3) react(q, pickE(['😮', '👀']), 250);
     const left = round.hands[p].length;
     if (left === 1) {
       if (p !== 0 && Math.random() < 0.6) return later(() => bubble(p, say(ids[p], 'one_left_self'), '', true), 300);
@@ -917,6 +940,11 @@ export function classicScreen(stage, params = {}) {
     setTurn(-1);
     refreshHand();
     const res = round.result;
+    for (let q = 1; q < n; q++) {
+      if (res.team == null) react(q, '🤝', q * 120);
+      else if (teamOf(q) === res.team) react(q, pickE(['🙌', '😎', '🎉']), q * 120);
+      else react(q, pickE(['😤', '🤦', '😩']), q * 120);
+    }
     await revealHands();
     // a reação vem depois que a pedra assentou
     if (res.type === 'fechado') {
