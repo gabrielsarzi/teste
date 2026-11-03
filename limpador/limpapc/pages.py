@@ -11,7 +11,7 @@ from .scanners import scan_duplicates, scan_junk, scan_large, scan_old
 from .system import (delete_reg_key, empty_recycle_bin, kill_pid, scan_leftovers, scan_processes,
                      scan_programs, scan_startup, set_startup_enabled, trim_memory, uninstall_program)
 from .utils import (IS_LINUX, IS_WIN, Item, app_data_dir, clear_contents, delete_path, fmt_size, log,
-                    memory_info, open_location, open_uri)
+                    memory_info, open_location)
 from .widgets import Icon, RingGauge
 
 MAX_ROWS = 5000
@@ -559,8 +559,9 @@ def as_int(var, default):
 class JunkPage(ResultsPage):
     key, icon = "junk", "sparkles"
     title = "Lixo e cache"
-    subtitle = ("Temporários, caches de navegadores e programas, relatórios de erro e restos do Windows Update. "
-                "Tudo é recriado automaticamente quando necessário. Feche os navegadores antes de limpar.")
+    subtitle = ("Temporários, caches de navegadores e programas, relatórios de erro e restos do Windows Update — "
+                "tudo é recriado quando necessário. Itens de Privacidade (histórico, cookies, recentes) vêm "
+                "desmarcados: marque se quiser apagar seus rastros.")
     columns = [("Local", 380, "w"), ("Tamanho", 100, "e"), ("Arquivos", 90, "e"), ("Caminho", 450, "w")]
     scan_label = "Analisar"
     action_label = "Limpar selecionados"
@@ -577,8 +578,27 @@ class JunkPage(ResultsPage):
     def scan_job(self, p, cancel, progress):
         return scan_junk(cancel, progress, p["recycle"])
 
+    def validate(self, items):
+        procs = {p.lower() for i in items for p in i.data.get("procs", ())}
+        if not procs:
+            return True
+        from .system import list_processes
+        running = {p["name"].lower() for p in list_processes()}
+        open_ = sorted(procs & running)
+        if open_:
+            return messagebox.askyesno("Feche os navegadores",
+                                       "Para limpar histórico e cookies, feche antes: " + ", ".join(open_) +
+                                       ".\n\nCom o navegador aberto esses arquivos ficam bloqueados e não são "
+                                       "apagados. Continuar mesmo assim?", parent=self)
+        return True
+
     def confirm_text(self, items, to_trash):
         total = sum(i.size for i in items)
+        priv = [i for i in items if i.data.get("privacy")]
+        if priv:
+            return (f"Limpar {len(items)} local(is), liberando até {fmt_size(total)}?\n\n"
+                    f"Inclui {len(priv)} item(ns) de privacidade (histórico/cookies): você pode precisar fazer "
+                    "login de novo nos sites. Temporários são apagados permanentemente.")
         return (f"Limpar {len(items)} local(is), liberando até {fmt_size(total)}?\n\n"
                 "Arquivos temporários são apagados permanentemente. Arquivos em uso são pulados.")
 
@@ -761,9 +781,10 @@ class LeftoversPage(ResultsPage):
 # =================================================================== programas, RAM e inicialização
 class ProgramsPage(ResultsPage):
     key, icon = "programs", "grid"
-    title = "Programas"
-    subtitle = ("Programas instalados, do menos usado para o mais usado, com tamanho e data do último uso. "
-                "Desinstalar abre o desinstalador oficial de cada programa.")
+    title = "Desinstalar programas"
+    subtitle = ("Programas instalados, do menos usado para o mais usado. Depois do desinstalador oficial, o LimpaPC "
+                "procura as sobras (pastas, registro e atalhos) para remover. Programas quebrados podem ser "
+                "removidos com a desinstalação forçada.")
     columns = [("Programa", 270, "w"), ("Versão", 95, "w"), ("Editor", 170, "w"), ("Tamanho", 90, "e"),
                ("Instalado em", 105, "center"), ("Último uso", 115, "center"), ("Situação", 160, "w")]
     scan_label = "Listar programas"
@@ -780,8 +801,21 @@ class ProgramsPage(ResultsPage):
                             style="Card.TCheckbutton").pack(side="left")
 
     def build_actions(self, f):
-        if IS_WIN:
-            ttk.Button(f, text="Apps da Microsoft Store", command=lambda: open_uri("ms-settings:appsfeatures")).pack(side="left")
+        ttk.Button(f, text="Desinstalação forçada", command=self.force).pack(side="left")
+
+    def force(self):
+        items = self.checked()
+        if not items:
+            messagebox.showinfo("Desinstalação forçada", "Marque o(s) programa(s) primeiro.", parent=self)
+            return
+        names = "\n".join(f"• {i.values[0]}" for i in items[:10])
+        if not messagebox.askyesno("Desinstalação forçada",
+                                   f"Use só quando o desinstalador normal não funciona.\n\n{names}\n\n"
+                                   "O LimpaPC vai procurar e remover as pastas, chaves do registro e atalhos desses "
+                                   "programas sem rodar o desinstalador deles. Continuar?", icon="warning", parent=self):
+            return
+        from .uninstall_pages import LeftoverDialog
+        LeftoverDialog(self, [i.data for i in items], forced=True)
 
     def get_params(self):
         return {"days": as_int(self.days, 90), "only_apps": self.only_apps.get()}
@@ -825,6 +859,10 @@ class ProgramsPage(ResultsPage):
 
     def after_action(self, done, errors, freed):
         super().after_action(done, errors, freed)
+        progs = [i.data for i in done if i.data.get("uninstall") != "::trash::"]
+        if progs:
+            from .uninstall_pages import LeftoverDialog
+            self.after(800, lambda: LeftoverDialog(self, progs))
         self.start_scan()
 
 

@@ -27,22 +27,36 @@ class Icon(tk.Canvas):
 
 
 class NavItem(tk.Frame):
-    def __init__(self, master, theme, icon, text, command):
+    """Item do menu lateral. `sub=True` = opção dentro de um grupo (recuada, sem ícone)."""
+
+    def __init__(self, master, theme, icon, text, command, sub=False):
         c = theme.c
         super().__init__(master, bg=c["sidebar"], cursor="hand2")
-        self.theme, self.command, self.active = theme, command, False
+        self.theme, self.command, self.active, self.sub = theme, command, False, sub
         self.bar = tk.Frame(self, bg=c["sidebar"], width=theme.px(3))
         self.bar.pack(side="left", fill="y")
-        self.icon = Icon(self, icon, theme.px(18), c["sidebar_text"], c["sidebar"])
-        self.icon.pack(side="left", padx=(theme.px(14), theme.px(10)), pady=theme.px(8))
-        self.label = tk.Label(self, text=text, bg=c["sidebar"], fg=c["sidebar_text"], font=theme.f_nav, anchor="w")
+        self.icon = None
+        if sub:
+            self.dot = tk.Canvas(self, width=theme.px(6), height=theme.px(6), bg=c["sidebar"], highlightthickness=0)
+            self.dot.pack(side="left", padx=(theme.px(36), theme.px(12)), pady=theme.px(9))
+        else:
+            self.dot = None
+            self.icon = Icon(self, icon, theme.px(18), c["sidebar_text"], c["sidebar"])
+            self.icon.pack(side="left", padx=(theme.px(14), theme.px(10)), pady=theme.px(8))
+        self.label = tk.Label(self, text=text, bg=c["sidebar"], fg=c["sidebar_text"], anchor="w",
+                              font=theme.f_small if sub else theme.f_nav)
         self.label.pack(side="left", fill="x", expand=True)
         self.badge = tk.Label(self, text="", bg=c["sidebar"], fg=c["sidebar_accent"], font=theme.f_small)
         self.badge.pack(side="right", padx=theme.px(10))
-        for w in (self, self.icon, self.label, self.badge):
-            w.bind("<Enter>", lambda e: self._paint(hover=True))
-            w.bind("<Leave>", lambda e: self._paint())
-            w.bind("<Button-1>", lambda e: self.command())
+        self.extra = []
+        for w in (self, self.label, self.badge) + tuple(x for x in (self.icon, self.dot) if x):
+            self._hook(w)
+        self._paint()
+
+    def _hook(self, w):
+        w.bind("<Enter>", lambda e: self._paint(hover=True))
+        w.bind("<Leave>", lambda e: self._paint())
+        w.bind("<Button-1>", lambda e: self.command())
 
     def set_active(self, active):
         self.active = active
@@ -53,13 +67,84 @@ class NavItem(tk.Frame):
 
     def _paint(self, hover=False):
         c = self.theme.c
-        bg = c["sidebar_active"] if self.active else (c["sidebar_hover"] if hover else c["sidebar"])
+        if self.sub:
+            bg = c["sidebar_hover"] if (hover and not self.active) else (c["sidebar_active"] if self.active else c["sidebar"])
+        else:
+            bg = c["sidebar_active"] if self.active else (c["sidebar_hover"] if hover else c["sidebar"])
         fg = "#ffffff" if self.active else c["sidebar_text"]
-        for w in (self, self.label, self.badge):
+        for w in (self, self.label, self.badge) + tuple(self.extra):
             w.configure(bg=bg)
-        self.label.configure(fg=fg, font=self.theme.f_bold if self.active else self.theme.f_nav)
+        if self.sub:
+            self.label.configure(fg=fg, font=self.theme.f_bold if self.active else self.theme.f_nav)
+            self.dot.configure(bg=bg)
+            self.dot.delete("all")
+            col = c["sidebar_accent"] if self.active else c["sidebar_muted"]
+            self.dot.create_oval(0, 0, self.theme.px(6) - 1, self.theme.px(6) - 1, fill=col, outline="")
+        else:
+            self.label.configure(fg=fg, font=self.theme.f_bold if self.active else self.theme.f_nav)
+            self.icon.redraw(color=c["sidebar_accent"] if self.active else c["sidebar_text"], bg=bg)
         self.bar.configure(bg=c["sidebar_accent"] if self.active else bg)
-        self.icon.redraw(color=c["sidebar_accent"] if self.active else c["sidebar_text"], bg=bg)
+
+
+class NavGroup(tk.Frame):
+    """Grupo recolhível do menu lateral (sanfona): cabeçalho + lista de opções."""
+
+    def __init__(self, master, theme, icon, text, on_toggle):
+        c = theme.c
+        super().__init__(master, bg=c["sidebar"])
+        self.theme, self.expanded, self.has_active = theme, False, False
+        self.head = tk.Frame(self, bg=c["sidebar"], cursor="hand2")
+        self.head.pack(fill="x")
+        self.bar = tk.Frame(self.head, bg=c["sidebar"], width=theme.px(3))
+        self.bar.pack(side="left", fill="y")
+        self.icon = Icon(self.head, icon, theme.px(18), c["sidebar_text"], c["sidebar"])
+        self.icon.pack(side="left", padx=(theme.px(14), theme.px(10)), pady=theme.px(8))
+        self.label = tk.Label(self.head, text=text, bg=c["sidebar"], fg=c["sidebar_text"], font=theme.f_nav, anchor="w")
+        self.label.pack(side="left", fill="x", expand=True)
+        self.badge = tk.Label(self.head, text="", bg=c["sidebar"], fg=c["sidebar_accent"], font=theme.f_small)
+        self.badge.pack(side="left")
+        self.chev = tk.Canvas(self.head, width=theme.px(14), height=theme.px(14), bg=c["sidebar"], highlightthickness=0)
+        self.chev.pack(side="right", padx=theme.px(14))
+        self.body = tk.Frame(self, bg=c["sidebar"])
+        self.items = []
+        for w in (self.head, self.icon, self.label, self.chev, self.badge):
+            w.bind("<Enter>", lambda e: self._paint(True))
+            w.bind("<Leave>", lambda e: self._paint())
+            w.bind("<Button-1>", lambda e: on_toggle(self))
+        self._paint()
+
+    def add(self, item):
+        self.items.append(item)
+        item.pack(in_=self.body, fill="x")
+
+    def set_expanded(self, exp):
+        self.expanded = exp
+        if exp:
+            self.body.pack(fill="x", pady=(0, self.theme.px(4)))
+        else:
+            self.body.pack_forget()
+        self._paint()
+
+    def set_has_active(self, v):
+        self.has_active = v
+        self._paint()
+
+    def _paint(self, hover=False):
+        c = self.theme.c
+        bg = c["sidebar_hover"] if hover else c["sidebar"]
+        hot = self.has_active or self.expanded
+        for w in (self.head, self.label, self.chev, self.badge):
+            w.configure(bg=bg)
+        self.bar.configure(bg=c["sidebar_accent"] if self.has_active and not self.expanded else bg)
+        self.label.configure(fg="#ffffff" if hot else c["sidebar_text"], font=self.theme.f_bold if hot else self.theme.f_nav)
+        self.icon.redraw(color=c["sidebar_accent"] if self.has_active else c["sidebar_text"], bg=bg)
+        self.chev.delete("all")
+        s = self.theme.px(14)
+        col = c["sidebar_text"] if hot else c["sidebar_muted"]
+        if self.expanded:
+            self.chev.create_line(s * .2, s * .35, s * .5, s * .65, s * .8, s * .35, fill=col, width=1.6, capstyle="round")
+        else:
+            self.chev.create_line(s * .35, s * .2, s * .65, s * .5, s * .35, s * .8, fill=col, width=1.6, capstyle="round")
 
 
 class RingGauge(tk.Canvas):
@@ -148,14 +233,41 @@ class ScrollFrame(ttk.Frame):
         self.bind_all_wheel(self.canvas)
 
     def bind_all_wheel(self, w):
-        def on_wheel(e):
-            if self.winfo_ismapped() and self.inner.winfo_reqheight() > self.canvas.winfo_height():
-                delta = -1 if (getattr(e, "num", 0) == 4 or e.delta > 0) else 1
-                self.canvas.yview_scroll(delta, "units")
-        w.bind("<Enter>", lambda e: (w.bind_all("<MouseWheel>", on_wheel), w.bind_all("<Button-4>", on_wheel),
-                                     w.bind_all("<Button-5>", on_wheel)))
-        w.bind("<Leave>", lambda e: (w.unbind_all("<MouseWheel>"), w.unbind_all("<Button-4>"),
-                                     w.unbind_all("<Button-5>")))
+        register_scroll(self, self.canvas, lambda: self.inner.winfo_reqheight())
+
+
+# ---- rolagem com a roda do mouse: um único manipulador global decide qual área rola
+_SCROLLS: dict[str, tuple] = {}
+
+
+def register_scroll(container, canvas, content_height):
+    _SCROLLS[str(container)] = (canvas, content_height)
+
+
+def install_wheel(root):
+    def handler(e):
+        try:
+            w = root.winfo_containing(e.x_root, e.y_root)
+        except (tk.TclError, KeyError):
+            return
+        path = str(w) if w is not None else ""
+        best = None
+        for p in _SCROLLS:
+            if (path == p or path.startswith(p + ".")) and (best is None or len(p) > len(best)):
+                best = p
+        if not best:
+            return
+        canvas, height = _SCROLLS[best]
+        try:
+            if not canvas.winfo_ismapped() or height() <= canvas.winfo_height():
+                return
+            delta = -1 if (getattr(e, "num", 0) == 4 or getattr(e, "delta", 0) > 0) else 1
+            canvas.yview_scroll(delta * 2, "units")
+        except tk.TclError:
+            _SCROLLS.pop(best, None)
+
+    for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+        root.bind_all(seq, handler)
 
 
 class CategoryBars(tk.Canvas):

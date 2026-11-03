@@ -160,6 +160,7 @@ class Theme:
                       width=0)
         st.configure("TButton", background=c["surface"], foreground=c["text"], bordercolor=c["border_strong"],
                      lightcolor=c["surface"], darkcolor=c["surface"], **common)
+        st.configure("TButton", relief="solid")
         st.map("TButton", background=[("disabled", c["surface2"]), ("pressed", c["surface2"]), ("active", c["surface2"])],
                lightcolor=[("active", c["surface2"])], darkcolor=[("active", c["surface2"])],
                bordercolor=[("disabled", c["border"]), ("active", c["subtle"])])
@@ -340,6 +341,53 @@ def draw_icon(cv: tk.Canvas, name: str, x: float, y: float, size: float, color: 
         poly(2.5, 6, 9, 6, 11, 8.5, 21.5, 8.5, 21.5, 19.5, 2.5, 19.5)
     elif name == "chevron":
         line(9, 6, 15, 12, 9, 18)
+    elif name == "refresh":
+        arc(4, 4, 20, 20, start=30, extent=280)
+        line(20, 3.5, 20, 9, 14.5, 9)
+    elif name == "gauge":
+        arc(2.5, 4, 21.5, 23, start=0, extent=180)
+        line(12, 13.5, 16.5, 8)
+        oval(10.5, 12, 13.5, 15, fill=color)
+        line(4, 17.5, 20, 17.5)
+    elif name == "wifi":
+        arc(2, 5, 22, 25, start=45, extent=90)
+        arc(5.5, 9, 18.5, 22, start=45, extent=90)
+        arc(9, 13, 15, 19, start=45, extent=90)
+        oval(11, 18.5, 13, 20.5, fill=color)
+    elif name == "database":
+        oval(4, 3, 20, 8)
+        line(4, 5.5, 4, 18.5)
+        line(20, 5.5, 20, 18.5)
+        arc(4, 9, 20, 14, start=180, extent=180)
+        arc(4, 16, 20, 21, start=180, extent=180)
+    elif name == "heart":
+        poly(12, 20.5, 3.5, 12, 3, 8, 5, 4.8, 8.5, 4, 12, 7, 15.5, 4, 19, 4.8, 21, 8, 20.5, 12)
+    elif name == "monitor":
+        rect(3, 4, 21, 16)
+        line(12, 16, 12, 20)
+        line(8, 20.5, 16, 20.5)
+    elif name == "store":
+        line(3.5, 8, 20.5, 8, 19.5, 20.5, 4.5, 20.5, 3.5, 8)
+        arc(8, 3, 16, 12, start=0, extent=180)
+    elif name == "eraser":
+        poly(14, 3.5, 21, 10.5, 11, 20.5, 6, 20.5, 3, 17.5)
+        line(8.5, 9, 15.5, 16)
+        line(11, 20.5, 21, 20.5)
+    elif name == "rocket":
+        poly(12, 2.5, 16, 7, 16, 15, 8, 15, 8, 7)
+        line(8, 11, 4.5, 15.5, 8, 15)
+        line(16, 11, 19.5, 15.5, 16, 15)
+        line(10.5, 18, 10.5, 21)
+        line(13.5, 18, 13.5, 21)
+        oval(10.5, 7.5, 13.5, 10.5)
+    elif name == "layers":
+        poly(12, 3, 21, 8, 12, 13, 3, 8)
+        line(3, 12, 12, 17, 21, 12)
+        line(3, 16, 12, 21, 21, 16)
+    elif name == "broom":
+        line(19, 3, 12, 12)
+        poly(12, 12, 15, 15, 10, 21.5, 3, 21.5, 3, 18)
+        line(7, 21.5, 10, 16.5)
     elif name == "external":
         line(14, 4, 20, 4, 20, 10)
         line(20, 4, 11, 13)
@@ -366,7 +414,7 @@ def draw_logo(cv: tk.Canvas, x: float, y: float, size: float, c1="#6d5dfc", c2="
                 d = yy - (size - r)
                 inset = max(inset, r - math.sqrt(max(0.0, r * r - d * d)))
         cv.create_rectangle(x + inset, y0, x + size - inset, min(y1, y + size), fill=col, outline="", tags="logo")
-    draw_icon(cv, "sparkles", x + size * 0.18, y + size * 0.18, size * 0.64, "#ffffff", width=2.0, tag="logo")
+    draw_icon(cv, "broom", x + size * 0.17, y + size * 0.15, size * 0.66, "#ffffff", width=2.4, tag="logo")
 
 
 def _mix(a: str, b: str, t: float) -> str:

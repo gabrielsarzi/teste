@@ -336,10 +336,61 @@ def _sized_contents(path, patterns, min_age_hours, only_mine, cancel):
     return total, files
 
 
-def scan_junk(cancel, progress, include_recycle=True):
+def privacy_locations():
+    """Rastros de uso (histórico, cookies, recentes). Ficam DESMARCADOS por padrão.
+
+    Retorna (descrição, pasta, padrões, processos que precisam estar fechados)."""
+    h = home()
+    locs = []
+    hist = ["history", "history-journal", "visited links", "top sites", "top sites-journal", "shortcuts",
+            "shortcuts-journal"]
+    cookies = ["cookies", "cookies-journal"]
+    if IS_WIN:
+        local = os.environ.get("LOCALAPPDATA", os.path.join(h, "AppData", "Local"))
+        roaming = os.environ.get("APPDATA", os.path.join(h, "AppData", "Roaming"))
+        browsers = [("Chrome", os.path.join(local, "Google", "Chrome", "User Data"), "chrome.exe"),
+                    ("Edge", os.path.join(local, "Microsoft", "Edge", "User Data"), "msedge.exe"),
+                    ("Brave", os.path.join(local, "BraveSoftware", "Brave-Browser", "User Data"), "brave.exe"),
+                    ("Opera", os.path.join(roaming, "Opera Software"), "opera.exe")]
+        locs += [("Documentos e arquivos recentes", os.path.join(roaming, "Microsoft", "Windows", "Recent"),
+                  ["*.lnk"], ()),
+                 ("Listas de atalhos (jump lists)", os.path.join(roaming, "Microsoft", "Windows", "Recent",
+                                                                 "AutomaticDestinations"), None, ()),
+                 ("Listas de atalhos personalizadas", os.path.join(roaming, "Microsoft", "Windows", "Recent",
+                                                                   "CustomDestinations"), None, ())]
+        ff = os.path.join(roaming, "Mozilla", "Firefox", "Profiles")
+    else:
+        cfg = os.path.join(h, ".config")
+        browsers = [("Chrome", os.path.join(cfg, "google-chrome"), "chrome"),
+                    ("Chromium", os.path.join(cfg, "chromium"), "chromium"),
+                    ("Brave", os.path.join(cfg, "BraveSoftware", "Brave-Browser"), "brave"),
+                    ("Edge", os.path.join(cfg, "microsoft-edge"), "msedge")]
+        locs.append(("Arquivos recentes", os.path.join(h, ".local", "share"), ["recently-used.xbel"], ()))
+        ff = os.path.join(h, ".mozilla", "firefox")
+    for name, base, proc in browsers:
+        for prof in sorted(glob.glob(os.path.join(base, "*", "Preferences"))):
+            pdir = os.path.dirname(prof)
+            pname = os.path.basename(pdir)
+            suffix = "" if pname.lower() == "default" else f" — perfil {pname}"
+            locs.append((f"Histórico do {name}{suffix}", pdir, hist, (proc,)))
+            netdir = os.path.join(pdir, "Network")
+            locs.append((f"Cookies do {name}{suffix} (sai das contas)", netdir if os.path.isdir(netdir) else pdir,
+                         cookies, (proc,)))
+    for prof in glob.glob(os.path.join(ff, "*")):
+        if os.path.isfile(os.path.join(prof, "cookies.sqlite")):
+            locs.append((f"Cookies do Firefox — {os.path.basename(prof)} (sai das contas)", prof,
+                         ["cookies.sqlite", "cookies.sqlite-wal", "cookies.sqlite-shm"],
+                         ("firefox.exe" if IS_WIN else "firefox",)))
+    return locs
+
+
+def scan_junk(cancel, progress, include_recycle=True, include_privacy=True):
     from .system import recycle_bin_info
     items = []
-    for label, path, patterns, age, only_mine in junk_locations():
+    entries = [(lb, p, pt, age, mine, False, ()) for lb, p, pt, age, mine in junk_locations()]
+    if include_privacy:
+        entries += [(lb, p, pt, 0, False, True, procs) for lb, p, pt, procs in privacy_locations()]
+    for label, path, patterns, age, only_mine, privacy, procs in entries:
         if cancel.is_set():
             break
         if not os.path.isdir(path):
@@ -348,19 +399,21 @@ def scan_junk(cancel, progress, include_recycle=True):
         size, files = _sized_contents(path, patterns, age, only_mine, cancel)
         if size <= 0 and files == 0:
             continue
+        shown = f"Privacidade · {label}" if privacy else label
         items.append(Item(path=path, size=size,
-                          values=(label, fmt_size(size), f"{files:,}".replace(",", "."), path),
-                          raw=(label.lower(), size, files, path.lower()),
-                          kind="dircontents", checked=True,
-                          data={"patterns": patterns, "age": age, "only_mine": only_mine}))
+                          values=(shown, fmt_size(size), f"{files:,}".replace(",", "."), path),
+                          raw=(shown.lower(), size, files, path.lower()),
+                          kind="dircontents", checked=not privacy,
+                          data={"patterns": patterns, "age": age, "only_mine": only_mine, "privacy": privacy,
+                                "procs": procs}))
     if include_recycle:
         size, count = recycle_bin_info()
         if size or count:
             items.append(Item(path="::lixeira::", size=size,
                               values=("Lixeira", fmt_size(size), f"{count:,}".replace(",", "."), "Lixeira do sistema"),
                               raw=("lixeira", size, count, ""), kind="recyclebin", checked=False))
-    items.sort(key=lambda i: i.size, reverse=True)
-    progress(f"{len(items)} locais com lixo encontrados.")
+    items.sort(key=lambda i: (i.data.get("privacy", False), -i.size))
+    progress(f"{len(items)} locais encontrados. Itens de privacidade ficam desmarcados — marque se quiser apagá-los.")
     return items
 
 

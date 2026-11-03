@@ -65,6 +65,20 @@ def available_tools() -> list[Tool]:
             Tool("dns", "sparkles", "Limpar cache de DNS",
                  "Resolve problemas de sites que não carregam ou endereços desatualizados.",
                  "Limpar", "run", ["ipconfig", "/flushdns"]),
+            Tool("repair", "shield", "Reparar arquivos do Windows",
+                 "Verifica e corrige arquivos corrompidos do sistema (SFC) e a imagem do Windows (DISM). Use quando o "
+                 "Windows estiver travando ou com erros estranhos. Leva de 10 a 30 minutos.",
+                 "Reparar", "admin_console",
+                 "sfc /scannow & Dism.exe /Online /Cleanup-Image /RestoreHealth & echo. & echo Concluido."),
+            Tool("chkdsk", "drive", "Verificar erros no disco",
+                 "Procura erros no sistema de arquivos da unidade C: sem precisar reiniciar (chkdsk /scan).",
+                 "Verificar", "admin_console", "chkdsk C: /scan"),
+            Tool("battery", "bolt", "Relatório da bateria",
+                 "Para notebooks: mostra a saúde da bateria (capacidade original × atual) e o histórico de uso.",
+                 "Gerar relatório", "battery", None),
+            Tool("memtest", "chip", "Diagnóstico de memória",
+                 "Testa a memória RAM do computador ao reiniciar. Útil para investigar telas azuis e travamentos.",
+                 "Abrir", "open", "mdsched.exe"),
             Tool("restore", "shield", "Pontos de restauração",
                  "Gerencie o espaço usado pelos pontos de restauração do sistema (Proteção do Sistema).",
                  "Abrir", "open", "SystemPropertiesProtection.exe"),
@@ -114,6 +128,14 @@ def run_tool(tool: Tool) -> str:
     if tool.kind == "open":
         open_uri(tool.cmd)
         return ""
+    if tool.kind == "battery":
+        out = os.path.join(os.path.expanduser("~"), "Desktop", "LimpaPC - relatorio da bateria.html")
+        r = subprocess.run(["powercfg", "/batteryreport", "/output", out], capture_output=True, text=True,
+                           errors="replace", creationflags=NO_WINDOW)
+        if r.returncode == 0 and os.path.exists(out):
+            open_uri(out)
+            return ""
+        return "Não foi possível gerar o relatório (este computador tem bateria?)."
     if tool.kind == "admin_console" and IS_WIN:
         # abre um console visível (com pedido de administrador) para o usuário acompanhar
         rc = ctypes.windll.shell32.ShellExecuteW(None, "runas", "cmd.exe", f'/k "{tool.cmd}"', None, 1)

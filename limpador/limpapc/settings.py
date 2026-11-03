@@ -24,7 +24,7 @@ class Settings(dict):
             with open(self.path, encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict):
-                self.update({k: v for k, v in data.items() if k in DEFAULTS})
+                self.update(data)
         except (OSError, ValueError):
             pass
         if not self.get("roots"):

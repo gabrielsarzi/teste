@@ -20,7 +20,8 @@ from .tools import available_tools, run_tool
 from .update import check_for_update
 from .utils import (IS_WIN, app_data_dir, delete_path, disks, fixed_drives, fmt_date, fmt_size, home, is_admin,
                     is_protected, log, memory_info, open_location, open_uri, relaunch_as_admin)
-from .widgets import CategoryBars, Icon, ListEditor, NavItem, RingGauge, ScrollFrame, Toast, card
+from .widgets import (CategoryBars, Icon, ListEditor, NavGroup, NavItem, RingGauge, ScrollFrame, Toast, card,
+                      install_wheel, register_scroll)
 
 
 def _soft_icon(master, t, name, size=40, bg_key="surface", fg=None, soft=None):
@@ -689,7 +690,7 @@ class ToolsPage(BackgroundMixin, Page):
                        command=lambda tool=tool: self.run(tool)).pack(anchor="w")
 
     def run(self, tool):
-        if tool.kind in ("open", "admin_console"):
+        if tool.kind in ("open", "admin_console", "battery"):
             msg = run_tool(tool)
             if msg:
                 messagebox.showinfo(tool.title, msg, parent=self)
@@ -757,6 +758,35 @@ class SettingsPage(Page):
 
         f = section("Exclusões", "Pastas que o LimpaPC nunca vai analisar nem sugerir apagar.")
         ListEditor(f, t, s["exclusions"], lambda items: (s.save(), set_exclusions(items))).pack(fill="x")
+
+        f = section("Limpeza automática",
+                    "Limpa lixo e cache sozinho, no horário escolhido, mesmo com o programa fechado (usa o "
+                    "Agendador de Tarefas do Windows). Itens de privacidade nunca são limpos automaticamente.")
+        from .autoclean import FREQS, set_schedule
+        row = ttk.Frame(f, style="Flat.TFrame")
+        row.pack(anchor="w")
+        ttk.Label(row, text="Frequência", style="Card.TLabel").pack(side="left")
+        self.freq_var = tk.StringVar(value=FREQS.get(s.get("auto_clean", "off"), FREQS["off"]))
+        cb = ttk.Combobox(row, textvariable=self.freq_var, values=list(FREQS.values()), state="readonly", width=18)
+        cb.pack(side="left", padx=t.px(10))
+        self.bin_var = tk.BooleanVar(value=s.get("auto_clean_recycle", False))
+        ttk.Checkbutton(row, text="Esvaziar a Lixeira também", variable=self.bin_var, style="Card.TCheckbutton",
+                        command=lambda: s.set("auto_clean_recycle", self.bin_var.get())).pack(side="left", padx=t.px(10))
+
+        def changed(_=None):
+            key = next(k for k, v in FREQS.items() if v == self.freq_var.get())
+            err = set_schedule(key)
+            if err:
+                messagebox.showerror("Limpeza automática", err, parent=self)
+                self.freq_var.set(FREQS[s.get("auto_clean", "off")])
+                return
+            s.set("auto_clean", key)
+            app.toast("Limpeza automática desligada." if key == "off" else f"Limpeza automática: {FREQS[key].lower()}.")
+        cb.bind("<<ComboboxSelected>>", changed)
+        last = s.get("auto_clean_last")
+        if last:
+            ttk.Label(f, text=f"Última limpeza automática: {last['when']} — {fmt_size(last['freed'])} liberados.",
+                      style="Card.Small.TLabel").pack(anchor="w", pady=(t.px(8), 0))
 
         f = section("Atualizações")
         self.upd_var = tk.BooleanVar(value=s["check_updates"])
@@ -830,17 +860,73 @@ class AboutPage(Page):
 
 
 # =================================================================== JANELA PRINCIPAL
+def _load_pages():
+    """Junta todas as páginas disponíveis (módulos opcionais são carregados se existirem)."""
+    import importlib
+    classes = [DashboardPage, JunkPage, DiskMapPage, LargeFilesPage, DuplicatesPage, OldFilesPage, ProgramsPage,
+               LeftoversPage, StartupPage, ProcessesPage, ToolsPage, TrashPage, RecoverPage, SettingsPage, AboutPage]
+    optional = [("limpapc.uninstall_pages", ["StoreAppsPage"]), ("limpapc.donate", ["DonatePage"]),
+                ("limpapc.apps_pages", ["InstallAppsPage", "UpdateAppsPage"]),
+                ("limpapc.hw_pages", ["DriversPage", "SystemInfoPage"]),
+                ("limpapc.test_pages", ["BenchmarkPage", "SpeedTestPage"]),
+                ("limpapc.optimize_pages", ["RegistryPage", "TweaksPage", "DiskOptimizePage", "ShredderPage"])]
+    for mod, names in optional:
+        try:
+            m = importlib.import_module(mod)
+        except Exception as e:  # noqa: BLE001
+            log(f"módulo opcional indisponível: {mod}: {e}")
+            continue
+        classes += [getattr(m, n) for n in names if hasattr(m, n)]
+    return {cls.key: cls for cls in classes}
+
+
+# menu lateral: (título do grupo, ícone, [chaves das páginas]); grupo de 1 item vira item simples
 NAV = [
-    (None, [DashboardPage]),
-    ("LIMPEZA", [JunkPage, DiskMapPage, LargeFilesPage, DuplicatesPage, OldFilesPage]),
-    ("PROGRAMAS", [ProgramsPage, LeftoversPage, StartupPage]),
-    ("DESEMPENHO", [ProcessesPage, ToolsPage]),
-    ("RECUPERAÇÃO", [TrashPage, RecoverPage]),
+    ("Painel", "home", ["dashboard"]),
+    ("Limpeza", "broom", ["junk", "registry", "diskmap", "large", "dups", "old"]),
+    ("Programas", "grid", ["programs", "updates", "install", "store_apps", "leftovers", "startup"]),
+    ("Desempenho", "rocket", ["ram", "tweaks", "diskopt", "drivers", "tools"]),
+    ("Diagnóstico", "gauge", ["sysinfo", "bench", "speed"]),
+    ("Recuperação", "shield", ["trash", "recover", "shredder"]),
 ]
-BOTTOM = [SettingsPage, AboutPage]
-NAV_TITLES = {"junk": "Lixo e cache", "large": "Arquivos grandes", "dups": "Repetidos", "old": "Arquivos antigos",
-              "leftovers": "Restos de programas", "trash": "Lixeira", "recover": "Recuperar apagados",
-              "ram": "Memória RAM"}
+BOTTOM = [("donate", "heart", "Apoie"), ("settings", "gear", "Ajustes"), ("about", "info", "Sobre")]
+NAV_TITLES = {"junk": "Lixo e cache", "registry": "Registro", "diskmap": "Mapa do disco", "large": "Arquivos grandes",
+              "dups": "Arquivos repetidos", "old": "Arquivos antigos", "programs": "Desinstalar programas",
+              "updates": "Atualizar programas", "install": "Instalar programas", "store_apps": "Apps da Store",
+              "leftovers": "Restos de programas", "startup": "Inicialização", "ram": "Memória RAM",
+              "tweaks": "Otimizar Windows", "diskopt": "Otimizar discos", "drivers": "Drivers", "tools": "Ferramentas",
+              "sysinfo": "Meu computador", "bench": "Teste de desempenho", "speed": "Velocidade da internet",
+              "trash": "Lixeira", "recover": "Recuperar apagados", "shredder": "Destruidor de arquivos"}
+
+
+class BottomButton(tk.Frame):
+    def __init__(self, master, theme, icon, text, command):
+        c = theme.c
+        super().__init__(master, bg=c["sidebar"], cursor="hand2")
+        self.theme, self.active = theme, False
+        self.icon = Icon(self, icon, theme.px(18), c["sidebar_text"], c["sidebar"])
+        self.icon.pack(pady=(theme.px(8), theme.px(2)))
+        self.label = tk.Label(self, text=text, bg=c["sidebar"], fg=c["sidebar_text"], font=theme.f_small)
+        self.label.pack(pady=(0, theme.px(8)))
+        for w in (self, self.icon, self.label):
+            w.bind("<Enter>", lambda e: self._paint(True))
+            w.bind("<Leave>", lambda e: self._paint())
+            w.bind("<Button-1>", lambda e: command())
+
+    def set_active(self, v):
+        self.active = v
+        self._paint()
+
+    def set_badge(self, text):
+        pass
+
+    def _paint(self, hover=False):
+        c = self.theme.c
+        bg = c["sidebar_active"] if self.active else c["sidebar_hover"] if hover else c["sidebar"]
+        for w in (self, self.label):
+            w.configure(bg=bg)
+        self.label.configure(fg="#ffffff" if self.active else c["sidebar_text"])
+        self.icon.redraw(color=c["sidebar_accent"] if self.active else c["sidebar_text"], bg=bg)
 
 
 class App(tk.Tk):
@@ -871,11 +957,10 @@ class App(tk.Tk):
         self._set_window_icon()
         c, px = self.t.c, self.t.px
         self.pages: dict[str, Page] = {}
-        self.page_classes = {cls.key: cls for _, group in NAV for cls in group}
-        self.page_classes.update({cls.key: cls for cls in BOTTOM})
+        self.page_classes = _load_pages()
         self.current = None
 
-        self.sidebar = tk.Frame(self, bg=c["sidebar"], width=px(236))
+        self.sidebar = tk.Frame(self, bg=c["sidebar"], width=px(240))
         self.sidebar.pack(side="left", fill="y")
         self.sidebar.pack_propagate(False)
         brand = tk.Frame(self.sidebar, bg=c["sidebar"])
@@ -889,25 +974,55 @@ class App(tk.Tk):
         tk.Label(bt, text=f"versão {__version__}", bg=c["sidebar"], fg=c["sidebar_muted"],
                  font=self.t.f_small).pack(anchor="w")
 
-        self.nav: dict[str, NavItem] = {}
-        for section, group in NAV:
-            if section:
-                tk.Label(self.sidebar, text=section, bg=c["sidebar"], fg=c["sidebar_muted"], font=self.t.f_section,
-                         anchor="w").pack(fill="x", padx=px(20), pady=(px(12), px(2)))
-            for cls in group:
-                item = NavItem(self.sidebar, self.t, cls.icon, NAV_TITLES.get(cls.key, cls.title),
-                               lambda k=cls.key: self.show(k))
-                item.pack(fill="x")
-                self.nav[cls.key] = item
+        # rodapé do menu (Apoie / Ajustes / Sobre)
         bottom = tk.Frame(self.sidebar, bg=c["sidebar"])
-        bottom.pack(side="bottom", fill="x", pady=(0, px(12)))
+        bottom.pack(side="bottom", fill="x", pady=(px(4), px(10)))
         self.update_pill = tk.Label(bottom, text="", bg=c["accent"], fg="#ffffff", font=self.t.f_bold,
                                     cursor="hand2", padx=px(10), pady=px(6))
         self.update_pill.bind("<Button-1>", lambda e: self._open_update())
-        for cls in BOTTOM:
-            item = NavItem(bottom, self.t, cls.icon, cls.title, lambda k=cls.key: self.show(k))
-            item.pack(fill="x")
-            self.nav[cls.key] = item
+        self.bottom_row = tk.Frame(bottom, bg=c["sidebar"])
+        self.bottom_row.pack(fill="x", padx=px(10))
+        self.nav: dict = {}
+        for key, icon, text in BOTTOM:
+            if key in self.page_classes:
+                b_ = BottomButton(self.bottom_row, self.t, icon, text, lambda k=key: self.show(k))
+                b_.pack(side="left", fill="x", expand=True)
+                self.nav[key] = b_
+        tk.Frame(self.sidebar, bg=c["sidebar_hover"], height=1).pack(side="bottom", fill="x", padx=px(16))
+
+        # área rolável com os grupos
+        holder = tk.Frame(self.sidebar, bg=c["sidebar"])
+        holder.pack(fill="both", expand=True)
+        self.nav_canvas = tk.Canvas(holder, bg=c["sidebar"], highlightthickness=0, bd=0)
+        self.nav_canvas.pack(fill="both", expand=True)
+        inner = tk.Frame(self.nav_canvas, bg=c["sidebar"])
+        win = self.nav_canvas.create_window((0, 0), window=inner, anchor="nw")
+        self.nav_canvas.bind("<Configure>", lambda e: self.nav_canvas.itemconfigure(win, width=e.width))
+        inner.bind("<Configure>", lambda e: self.nav_canvas.configure(scrollregion=self.nav_canvas.bbox("all")))
+
+        register_scroll(holder, self.nav_canvas, lambda: inner.winfo_reqheight())
+        install_wheel(self)
+
+        self.groups: list[NavGroup] = []
+        self.group_of: dict[str, NavGroup] = {}
+        for title, icon, keys in NAV:
+            keys = [k for k in keys if k in self.page_classes]
+            if not keys:
+                continue
+            if len(keys) == 1:
+                item = NavItem(inner, self.t, icon, title, lambda k=keys[0]: self.show(k))
+                item.pack(fill="x")
+                self.nav[keys[0]] = item
+                continue
+            g = NavGroup(inner, self.t, icon, title, self._toggle_group)
+            g.pack(fill="x")
+            for k in keys:
+                item = NavItem(g.body, self.t, None, NAV_TITLES.get(k, self.page_classes[k].title),
+                               lambda k=k: self.show(k), sub=True)
+                g.add(item)
+                self.nav[k] = item
+                self.group_of[k] = g
+            self.groups.append(g)
         if self.update_info:
             self._show_update_pill()
 
@@ -951,7 +1066,20 @@ class App(tk.Tk):
         self.current = page
         for k, item in self.nav.items():
             item.set_active(k == key)
+        g = self.group_of.get(key)
+        for grp in self.groups:
+            grp.set_has_active(grp is g)
+        if g is not None and not g.expanded:
+            self._toggle_group(g, navigate=False)
         page.on_show()
+
+    def _toggle_group(self, group, navigate=True):
+        """Sanfona: abre o grupo clicado e fecha os outros."""
+        opening = not group.expanded
+        for g in self.groups:
+            g.set_expanded(g is group and opening)
+        self.nav_canvas.update_idletasks()
+        self.nav_canvas.configure(scrollregion=self.nav_canvas.bbox("all"))
 
     def set_nav_busy(self, key, busy):
         if key in self.nav:
@@ -999,7 +1127,7 @@ class App(tk.Tk):
 
     def _show_update_pill(self):
         self.update_pill.config(text=f"↓  Nova versão {self.update_info[0]}")
-        self.update_pill.pack(fill="x", padx=self.t.px(16), pady=(0, self.t.px(10)), before=self.nav["settings"])
+        self.update_pill.pack(fill="x", padx=self.t.px(16), pady=(0, self.t.px(8)), before=self.bottom_row)
 
     def _open_update(self):
         ver, page_url, setup = self.update_info

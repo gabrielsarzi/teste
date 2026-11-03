@@ -23,18 +23,20 @@ def make(size=1024):
     img.paste(grad, (0, 0), mask)
     dr = ImageDraw.Draw(img)
 
-    def star(cx, cy, r, k=0.22):
-        pts = []
-        for i in range(8):
-            rad = r if i % 2 == 0 else r * k
-            import math
-            a = -math.pi / 2 + i * math.pi / 4
-            pts.append((cx + rad * math.cos(a), cy + rad * math.sin(a)))
-        dr.polygon(pts, fill=(255, 255, 255, 255))
-
-    star(s * 0.44, s * 0.55, s * 0.30)
-    star(s * 0.74, s * 0.27, s * 0.13)
-    star(s * 0.76, s * 0.76, s * 0.07)
+    # pena (o mesmo desenho do ícone "Limpeza" do menu), em grade 24x24, centralizada
+    k = s / 24.0
+    ox, oy = 1.1, 0.0
+    P = lambda *pts: [((x + ox) * k, (y + oy) * k) for x, y in zip(pts[::2], pts[1::2])]  # noqa: E731
+    white = (255, 255, 255, 255)
+    w = int(s * 0.06)
+    dr.line(P(18.0, 4.6, 12.4, 11.4), fill=white, width=w)
+    for x, y in P(18.0, 4.6):
+        dr.ellipse([x - w / 2, y - w / 2, x + w / 2, y + w / 2], fill=white)
+    dr.polygon(P(11.0, 10.6, 15.0, 14.4, 10.2, 19.8, 4.6, 19.8, 4.6, 16.6), fill=white)
+    mid = tuple(int(c1[i] + (c2[i] - c1[i]) * 0.7) for i in range(3)) + (255,)
+    lw = max(2, int(s * 0.022))
+    dr.line(P(7.4, 19.8, 11.4, 15.2), fill=mid, width=lw)
+    dr.line(P(9.9, 19.8, 12.9, 16.4), fill=mid, width=lw)
     return img
 
 
