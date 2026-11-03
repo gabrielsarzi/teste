@@ -65,6 +65,11 @@ def available_tools() -> list[Tool]:
             Tool("dns", "sparkles", "Limpar cache de DNS",
                  "Resolve problemas de sites que não carregam ou endereços desatualizados.",
                  "Limpar", "run", ["ipconfig", "/flushdns"]),
+            Tool("netrepair", "wifi", "Reparar rede (sem internet / Código 56)",
+                 "Use quando o Wi-Fi ou o cabo pararem de funcionar depois de instalar algo. Faz backup e "
+                 "corrige a configuração de rede do Windows: remove componentes de rede quebrados, limpa "
+                 "ligações inválidas, reseta a rede e reinstala as placas. Gera um relatório na Área de Trabalho.",
+                 "Reparar rede", "netrepair", None),
             Tool("repair", "shield", "Reparar arquivos do Windows",
                  "Verifica e corrige arquivos corrompidos do sistema (SFC) e a imagem do Windows (DISM). Use quando o "
                  "Windows estiver travando ou com erros estranhos. Leva de 10 a 30 minutos.",
@@ -128,6 +133,9 @@ def run_tool(tool: Tool) -> str:
     if tool.kind == "open":
         open_uri(tool.cmd)
         return ""
+    if tool.kind == "netrepair":
+        from .netrepair import run_network_repair
+        return run_network_repair()
     if tool.kind == "battery":
         out = os.path.join(os.path.expanduser("~"), "Desktop", "LimpaOne - relatorio da bateria.html")
         r = subprocess.run(["powercfg", "/batteryreport", "/output", out], capture_output=True, text=True,

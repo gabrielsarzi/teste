@@ -390,8 +390,50 @@ try {
 $res | ConvertTo-Json -Depth 4 -Compress
 """
 
-INSTALL_SCRIPT = r"""
-$res = [ordered]@{ ok = $false; reboot = $false; error = $null; hresult = $null; items = @() }
+# Travas de segurança executadas ANTES de qualquer instalação de driver (mesma janela de administrador):
+#  1) saúde da rede: componentes de rede órfãos (DLL ausente) ou placas com Código 56 => não instala nada
+#  2) ponto de restauração obrigatório (ativa a Proteção do Sistema se estiver desligada)
+#  3) backup dos drivers atuais (pnputil /export-driver)
+SAFETY_SCRIPT = r"""
+$res = [ordered]@{ ok = $false; reboot = $false; error = $null; hresult = $null; items = @();
+  restore = $false; restore_error = $null; backup = $null; netproblems = @() }
+$abort = $false
+$nb = @()
+foreach ($c in @('{4d36e973-e325-11ce-bfc1-08002be10318}', '{4d36e974-e325-11ce-bfc1-08002be10318}', '{4d36e975-e325-11ce-bfc1-08002be10318}')) {
+  foreach ($k in (Get-ChildItem -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Network\$c" -ErrorAction SilentlyContinue)) {
+    $p = Get-ItemProperty -Path $k.PSPath -ErrorAction SilentlyContinue
+    $n = Get-ItemProperty -Path (Join-Path $k.PSPath 'Ndi') -ErrorAction SilentlyContinue
+    if ($p -and $p.ComponentId -and $n -and $n.ComponentDll) {
+      if (-not (Test-Path -LiteralPath (Join-Path $env:SystemRoot ('System32\' + $n.ComponentDll)))) {
+        $nb += ('componente de rede quebrado: ' + $p.ComponentId + ' (falta ' + $n.ComponentDll + ')')
+      }
+    }
+  }
+}
+foreach ($d in (Get-CimInstance Win32_PnPEntity -ErrorAction SilentlyContinue | Where-Object { $_.PNPClass -eq 'Net' -and $_.ConfigManagerErrorCode -eq 56 })) {
+  $nb += ('placa de rede com Codigo 56: ' + $d.Name)
+}
+$res.netproblems = @($nb)
+if ($nb.Count -gt 0) { $res.error = 'rede_instavel'; $abort = $true }
+if (-not $abort) {
+  try {
+    Enable-ComputerRestore -Drive ($env:SystemDrive + '\') -ErrorAction Stop
+    New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore' -Name 'SystemRestorePointCreationFrequency' -Value 0 -PropertyType DWord -Force | Out-Null
+    Checkpoint-Computer -Description 'LimpaOne - antes de instalar drivers' -RestorePointType MODIFY_SETTINGS -ErrorAction Stop
+    $res.restore = $true
+  } catch { $res.restore_error = $_.Exception.Message }
+  if (-not $res.restore -and -not $allowNoRestore) { $res.error = 'sem_restauracao'; $abort = $true }
+}
+if (-not $abort) {
+  $bdir = Join-Path $env:LOCALAPPDATA ('LimpaOne\backup-drivers\' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+  New-Item -ItemType Directory -Force -Path $bdir | Out-Null
+  & pnputil.exe /export-driver * $bdir 2>&1 | Out-Null
+  $res.backup = $bdir
+}
+"""
+
+INSTALL_SCRIPT = SAFETY_SCRIPT + r"""
+if (-not $abort) {
 try {
   $s = New-Object -ComObject Microsoft.Update.Session
   $s.ClientApplicationID = 'LimpaOne'
@@ -438,6 +480,7 @@ try {
   while ($ex.InnerException) { $ex = $ex.InnerException }
   $res.error = $ex.Message
   $res.hresult = ('{0:X8}' -f $ex.HResult)
+}
 }
 $res | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -Path $out
 """
@@ -503,8 +546,20 @@ def normalize_install(rc, data) -> dict:
     if not isinstance(data, dict):
         return {"ok": [], "failed": [], "reboot": False,
                 "error": "A instalação não retornou resultado (código {}).".format(rc)}
+    safety = {"restore": bool(data.get("restore")), "backup": s(data.get("backup")),
+              "netproblems": [s(x) for x in as_list(data.get("netproblems")) if s(x)]}
+    if data.get("error") == "rede_instavel":
+        return {"ok": [], "failed": [], "reboot": False, "safety": safety,
+                "error": "Nada foi instalado: a configuração de rede do Windows já está com problema e instalar "
+                         "drivers agora poderia derrubar a internet.\n\n" + "\n".join("• " + x for x in
+                                                                                          safety["netproblems"]) +
+                         "\n\nUse Desempenho → Ferramentas → “Reparar rede” antes de atualizar drivers."}
+    if data.get("error") == "sem_restauracao":
+        return {"ok": [], "failed": [], "reboot": False, "safety": safety,
+                "error": "Nada foi instalado: não foi possível criar um ponto de restauração, e o LimpaOne não "
+                         "instala drivers sem ter como desfazer.\n\n" + s(data.get("restore_error"))[:300]}
     if data.get("error"):
-        return {"ok": [], "failed": [], "reboot": bool(data.get("reboot")),
+        return {"ok": [], "failed": [], "reboot": bool(data.get("reboot")), "safety": safety,
                 "error": wu_error_text(data.get("error"), data.get("hresult"))}
     ok, failed = [], []
     for it in as_list(data.get("items")):
@@ -517,7 +572,7 @@ def normalize_install(rc, data) -> dict:
             why = "falha no download" if s(it.get("hresult")) == "download" else \
                 wu_error_text(RESULT_CODES.get(code, "falhou"), it.get("hresult"))
             failed.append((s(it.get("title")) or s(it.get("id")), why))
-    return {"ok": ok, "failed": failed, "reboot": bool(data.get("reboot")), "error": None}
+    return {"ok": ok, "failed": failed, "reboot": bool(data.get("reboot")), "error": None, "safety": safety}
 
 
 def install_updates(ids: list[str]) -> dict:
@@ -527,7 +582,7 @@ def install_updates(ids: list[str]) -> dict:
     safe = [i for i in ids if re.fullmatch(r"[0-9A-Fa-f-]{36}", i or "")]
     if not safe:
         return {"ok": [], "failed": [], "reboot": False, "error": "Nenhuma atualização válida escolhida."}
-    head = PS_FUNCS + "$ids = @(" + ",".join(f"'{i}'" for i in safe) + ")\n"
+    head = PS_FUNCS + "$allowNoRestore = $false\n$ids = @(" + ",".join(f"'{i}'" for i in safe) + ")\n"
     rc, data = run_ps_elevated(head + INSTALL_SCRIPT, timeout=3600)
     res = normalize_install(rc, data)
     log(f"DRIVERS instalados: {len(res['ok'])}, falhas: {len(res['failed'])}, reiniciar: {res['reboot']}")

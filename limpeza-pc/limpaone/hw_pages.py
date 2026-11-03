@@ -40,6 +40,18 @@ def _badge(master, t, badge):
     return ttk.Label(master, text=text, style=BADGE_STYLE.get(tone, "Badge.TLabel"))
 
 
+RISKY_CLASSES = ("rede", "net", "bluetooth")
+RISKY_WORDS = ("wi-fi", "wifi", "wlan", "wireless", "ethernet", "network", "lan ", "bluetooth", "802.11", "realtek rtl8",
+               "killer", "intel(r) wi", "mediatek wi", "qualcomm")
+
+
+def is_risky_update(u: dict) -> bool:
+    """Drivers que, se derem errado, deixam o PC sem internet: nunca vêm marcados e pedem confirmação."""
+    cls = str(u.get("cls", "")).lower()
+    txt = (str(u.get("title", "")) + " " + str(u.get("model", ""))).lower()
+    return cls in RISKY_CLASSES or any(w in txt for w in RISKY_WORDS)
+
+
 def _with_status(values, status):
     return values[:1] + (status,) + values[2:]
 
@@ -224,9 +236,11 @@ class DriversPage(ResultsPage):
         self.updates = []
         for u in res["updates"]:
             d = u["date"]
+            risky = is_risky_update(u)
             self.updates.append(Item(
-                path=u["id"], size=u["size"], kind="update", checked=True,
-                values=(u["title"], "Atualização disponível" + (f" · {fmt_size(u['size'])}" if u["size"] else "")
+                path=u["id"], size=u["size"], kind="update", checked=not risky,
+                values=(u["title"], ("⚠ Rede/Bluetooth: pode derrubar a internet" if risky else "Atualização disponível")
+                        + (f" · {fmt_size(u['size'])}" if u["size"] else "")
                         + (" · pede reinício" if u["reboot"] else ""), u["version"], u["date_txt"], u["maker"], u["cls"]),
                 raw=(u["title"].lower(), -1, u["version"], d.toordinal() if d else 0, u["maker"].lower(), u["cls"].lower()),
                 data=u))
@@ -257,6 +271,15 @@ class DriversPage(ResultsPage):
                 msg = "Marque uma ou mais atualizações (linhas em destaque) clicando na caixa ☐."
             messagebox.showinfo("Nenhuma atualização marcada", msg, parent=self)
             return
+        risky = [i for i in items if is_risky_update(i.data)]
+        if risky and not messagebox.askyesno(
+                "Atenção: driver de rede",
+                "Você marcou driver(s) de REDE ou Bluetooth:\n\n" + "\n".join(f"• {i.values[0]}" for i in risky[:6])
+                + "\n\nSe algo der errado na instalação, o computador pode ficar SEM INTERNET (Wi-Fi e cabo), e "
+                  "aí não dá nem para baixar a correção. Só atualize esses drivers se a sua internet estiver com "
+                  "problema.\n\nO LimpaOne vai criar um ponto de restauração e um backup antes. Continuar mesmo assim?",
+                parent=self, icon="warning", default="no"):
+            return
         names = "\n".join(f"• {i.values[0]}" for i in items[:12])
         more = f"\n… e mais {len(items) - 12}" if len(items) > 12 else ""
         size = sum(i.size for i in items)
@@ -264,8 +287,12 @@ class DriversPage(ResultsPage):
                 "Instalar drivers",
                 f"Instalar {len(items)} driver(s) do Windows Update?\n\n{names}{more}\n\n"
                 + (f"Download: cerca de {fmt_size(size)}.\n" if size else "")
-                + "O Windows vai pedir permissão de administrador. Durante a instalação a tela pode piscar "
-                  "e a rede ou o som podem cair por alguns segundos. Salve seus trabalhos antes.",
+                + "Antes de instalar, o LimpaOne vai, automaticamente:\n"
+                  "  1. verificar se a configuração de rede do Windows está saudável;\n"
+                  "  2. criar um PONTO DE RESTAURAÇÃO (ativando a Proteção do Sistema se preciso);\n"
+                  "  3. fazer backup dos drivers atuais.\n"
+                  "Se qualquer etapa falhar, nada é instalado.\n\n"
+                  "O Windows vai pedir permissão de administrador. Salve seus trabalhos antes.",
                 parent=self, icon="warning"):
             return
         self._set_busy(True)

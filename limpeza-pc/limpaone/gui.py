@@ -693,7 +693,7 @@ class ToolsPage(BackgroundMixin, Page):
                        command=lambda tool=tool: self.run(tool)).pack(anchor="w")
 
     def run(self, tool):
-        if tool.kind in ("open", "admin_console", "battery"):
+        if tool.kind in ("open", "admin_console", "battery", "netrepair"):
             msg = run_tool(tool)
             if msg:
                 messagebox.showinfo(tool.title, msg, parent=self)
