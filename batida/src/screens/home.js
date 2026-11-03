@@ -227,7 +227,7 @@ export function settingsModal() {
     sw('set-sound', 'Som e vibração', null, 'sound'),
     sw('set-musica', 'Rádio', 'Música de fundo. Na mesa, toque no radinho para trocar', 'musica'),
     row('Estação', null, seg(STATIONS.map((s) => [s.id, s.name.split(' ')[0]]), settings.radio, (v) => { settings.radio = v; settings.musica = true; saveSettings(); })),
-    sw('set-bar', 'Sons do bar', 'Conversa do salão, copos e pedras de outras mesas', 'somBar'),
+    sw('set-bar', 'Sons do bar', 'Copos, talheres, cadeiras e pedras de outras mesas, de vez em quando', 'somBar'),
     h('div', { class: 'actions' }, h('button', { class: 'btn ghost', onClick: (e) => e.target.closest('.modal-back').click() }, 'Fechar')),
   ]);
 }
@@ -290,8 +290,7 @@ export function rulesModal() {
     h('h3', {}, 'Dinheiro'),
     h('ul', {}, h('li', {}, 'No jogo rápido a mesa pode valer dinheiro do jogo. Ganhou, cada adversário paga o valor.'), h('li', {}, 'Campeonato tem inscrição e prêmio em dinheiro, além de mesas e dominós.'), h('li', {}, 'Ficou liso? O Zezão pendura no fiado.')),
     h('h3', {}, 'Créditos'),
-    h('p', {}, 'Rádio: “Pagode de Viola No 1”, Projeto Música Artesanal (CC BY-SA 3.0); “Samba do sol”, Angry ’n’ Foolish (CC BY 3.0); “Choro da Banda”, Coelho de Moraes (CC BY 3.0); “Mecha Bossa”, Pequenas Alegrias (CC BY 2.5 BR). Todas via Jamendo/Internet Archive.'),
-    h('p', {}, 'Som do bar: “Glauber’s Bar, Ingá, Niterói”, gravação de Marina Mapurunga para o radio aporee, licença CC BY 3.0.'),
+    h('p', {}, 'Rádio: “Pagode de Viola No 1”, Projeto Música Artesanal (CC BY-SA 3.0); “Choro da Banda”, Coelho de Moraes (CC BY 3.0); “Mecha Bossa”, Pequenas Alegrias (CC BY 2.5 BR). Todas via Jamendo/Internet Archive.'),
     h('h3', {}, 'Contagem'),
     h('p', {}, 'Ligue em Ajustes. Cada número mostra quantas pedras dele já estão na mesa (de 7) e quantas ainda estão com os outros. Embaixo do nome de cada jogador aparece em que números ele já passou.'),
     h('div', { class: 'actions' }, h('button', { class: 'btn amber', onClick: (e) => e.target.closest('.modal-back').click() }, 'Entendi')),

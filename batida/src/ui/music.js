@@ -3,13 +3,11 @@
 // navegadores e celulares, que às vezes só liberam o primeiro tocador criado.
 // Créditos e licenças em store/CREDITOS.md.
 import violaUrl from '../assets/viola.mp3';
-import sambaUrl from '../assets/samba.mp3';
 import choroUrl from '../assets/choro.mp3';
 import bossaUrl from '../assets/bossa.mp3';
 
 export const STATIONS = [
   { id: 'viola', name: 'Viola caipira', url: violaUrl },
-  { id: 'samba', name: 'Samba', url: sambaUrl },
   { id: 'choro', name: 'Choro', url: choroUrl },
   { id: 'bossa', name: 'Bossa nova', url: bossaUrl },
 ];

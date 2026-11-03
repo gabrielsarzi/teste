@@ -48,6 +48,10 @@ if (settings.rv < 5) {
   settings.somBar = true;
   settings.rv = 5;
 }
+if (settings.rv < 6) {
+  settings.radio = 'viola'; // o samba saiu do rádio; volta para a viola
+  settings.rv = 6;
+}
 store.set('settings', settings);
 
 export function applySettings() {

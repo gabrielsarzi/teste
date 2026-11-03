@@ -193,77 +193,88 @@ export function haptic(ms = 12) {
 }
 
 // ---------- sons do bar ao fundo ----------
-// Burburinho gravado num bar de verdade (Glauber's Bar, Niterói — Marina Mapurunga,
-// radio aporee, CC BY 3.0), em loop, mais copos e pedras de outras mesas de vez em quando.
-import barUrl from '../assets/bar.mp3';
-
+// Só barulhos soltos de bar, de vez em quando: copo, talher, cadeira arrastando,
+// garrafa encostando e pedra de dominó em outra mesa. Nada de chiado contínuo.
 let amb = null;
-let barBuf = null;
-let barLoading = null;
 
-function loadBar() {
-  if (barBuf || barLoading || !ctx) return barLoading;
-  // decodifica o base64 na mão (alguns ambientes bloqueiam fetch de data:)
-  barLoading = Promise.resolve()
-    .then(() => {
-      const b64 = barUrl.slice(barUrl.indexOf(',') + 1);
-      const bin = atob(b64);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      return bytes.buffer;
-    })
-    .then((ab) => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej)))
-    .then((b) => (barBuf = b))
-    .catch(() => null);
-  return barLoading;
+function ambGlass() {
+  const base = 2500 + Math.random() * 1500;
+  tone(base, 0.5, { type: 'sine', vol: 0.022 });
+  tone(base * 2.76, 0.32, { type: 'sine', vol: 0.009, delay: 0.004 });
+  if (Math.random() < 0.4) {
+    // brinde: dois copos
+    tone(base * 1.07, 0.45, { type: 'sine', vol: 0.018, delay: 0.035 });
+  }
+}
+
+function ambCutlery() {
+  // garfo e faca batendo no prato: tiques metálicos curtos
+  const n = 2 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < n; i++) {
+    const f = 4200 + Math.random() * 2500;
+    tone(f, 0.07, { type: 'triangle', vol: 0.01, delay: i * (0.08 + Math.random() * 0.12) });
+    burst(0.02, f, 3, 0.012, i * (0.08 + Math.random() * 0.12));
+  }
+}
+
+function ambChair() {
+  // cadeira arrastando no chão: ruído grave que sobe e desce de tom
+  if (!ready()) return;
+  const t = ctx.currentTime;
+  const dur = 0.35 + Math.random() * 0.35;
+  const src = ctx.createBufferSource();
+  src.buffer = noise;
+  const f = ctx.createBiquadFilter();
+  f.type = 'bandpass';
+  f.Q.value = 6;
+  f.frequency.setValueAtTime(320 + Math.random() * 120, t);
+  f.frequency.linearRampToValueAtTime(520 + Math.random() * 200, t + dur * 0.6);
+  f.frequency.linearRampToValueAtTime(380, t + dur);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.05, t + 0.05);
+  g.gain.setValueAtTime(0.05, t + dur * 0.7);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(master);
+  src.start(t, Math.random() * 0.2);
+  src.stop(t + dur + 0.05);
+}
+
+function ambBottle() {
+  // garrafa de vidro encostando no balcão
+  tone(900 + Math.random() * 300, 0.18, { type: 'sine', vol: 0.02 });
+  burst(0.03, 1500, 2, 0.025);
+}
+
+function ambDomino() {
+  const n = 1 + Math.floor(Math.random() * 2);
+  for (let i = 0; i < n; i++) {
+    burst(0.04, 2200, 1.4, 0.05, i * 0.22);
+    tone(160, 0.06, { vol: 0.04, delay: i * 0.22, slide: 0.6 });
+  }
 }
 
 export function setAmbient(on) {
   if (!on || !enabled) {
-    if (amb) {
-      clearTimeout(amb.timer);
-      if (amb.gain && ctx) amb.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
-      const old = amb;
-      setTimeout(() => old.src && old.src.stop(), 1500);
-      amb = null;
-    }
+    if (amb) clearTimeout(amb.timer);
+    amb = null;
     return;
   }
   if (amb || !ctx) return;
-  amb = { timer: null, src: null, gain: null };
-  const me = amb;
-  loadBar().then(() => {
-    if (amb !== me || !barBuf) return;
-    const src = ctx.createBufferSource();
-    src.buffer = barBuf;
-    src.loop = true;
-    const gain = ctx.createGain();
-    gain.gain.value = 0;
-    gain.gain.setTargetAtTime(0.14, ctx.currentTime, 1.5);
-    src.connect(gain).connect(master);
-    src.start();
-    me.src = src;
-    me.gain = gain;
-  });
+  const me = (amb = { timer: null });
   const next = () => {
     me.timer = setTimeout(() => {
       if (amb !== me) return;
       if (ready()) {
         const r = Math.random();
-        if (r < 0.45) {
-          const base = 2600 + Math.random() * 1400;
-          tone(base, 0.45, { type: 'sine', vol: 0.02 });
-          tone(base * 2.76, 0.3, { type: 'sine', vol: 0.008, delay: 0.005 });
-        } else if (r < 0.85) {
-          const n = 1 + Math.floor(Math.random() * 2);
-          for (let i = 0; i < n; i++) {
-            burst(0.04, 2200, 1.4, 0.05, i * 0.22);
-            tone(160, 0.06, { vol: 0.045, delay: i * 0.22, slide: 0.6 });
-          }
-        }
+        if (r < 0.3) ambGlass();
+        else if (r < 0.5) ambCutlery();
+        else if (r < 0.65) ambChair();
+        else if (r < 0.75) ambBottle();
+        else ambDomino();
       }
       next();
-    }, 4000 + Math.random() * 7000);
+    }, 2500 + Math.random() * 5500);
   };
   next();
 }
