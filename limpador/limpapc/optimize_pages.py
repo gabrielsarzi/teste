@@ -265,9 +265,11 @@ class TweaksPage(BackgroundMixin, Page):
             b = ttk.Button(btns, text=label, style=style, command=lambda k=k: self.set_power(k))
             b.pack(side="left", padx=(0, t.px(8)))
             self.power_btns[k] = b
-        ttk.Label(f, text="“Desempenho máximo” é um plano escondido do Windows: o LimpaPC cria e ativa para você. "
-                          "Em notebooks com “Modern Standby” só o Equilibrado está disponível.",
-                  style="Card.Small.TLabel").pack(anchor="w", pady=(t.px(10), 0))
+        hint = ttk.Label(f, text="“Desempenho máximo” é um plano escondido do Windows: o LimpaPC cria e ativa para "
+                                 "você. Em notebooks com “Modern Standby” só o Equilibrado está disponível.",
+                         style="Card.Small.TLabel", justify="left", wraplength=t.px(600))
+        hint.pack(anchor="w", fill="x", pady=(t.px(10), 0))
+        _wrap(hint)
 
     def _build_group(self, root, group):
         t = self.t
@@ -626,9 +628,6 @@ class DiskOptimizePage(BackgroundMixin, Page):
             if not ssd:
                 ttk.Button(btns, text="Analisar", state=st, command=lambda v=v: self.analyze([v])).pack(
                     fill="x", pady=(t.px(6), 0))
-            else:
-                ttk.Label(btns, text="TRIM", style="Card.Small.TLabel", anchor="center").pack(fill="x",
-                                                                                         pady=(t.px(6), 0))
         has_hd = any(v["kind"] != "SSD" for v in self.volumes)
         self.btn_analyze.config(state="normal" if has_hd and IS_WIN and not self.busy else "disabled")
         note = ttk.Label(self.list, text="Otimizar e analisar pedem permissão de administrador. A otimização de um HD "
@@ -763,7 +762,7 @@ class ShredderPage(BackgroundMixin, Page):
     subtitle = ("Apaga arquivos de forma irreversível: o conteúdo é sobrescrito, o nome é trocado por um "
                 "aleatório e só então o arquivo é removido — nem programas de recuperação conseguem trazê-lo "
                 "de volta. Não passa pela Lixeira.")
-    columns = [("Nome", 250, "w"), ("Tamanho", 90, "e"), ("Local", 300, "w")]
+    columns = [("Nome", 220, "w"), ("Tipo", 70, "w"), ("Tamanho", 90, "e"), ("Local", 300, "w")]
 
     def __init__(self, master, app):
         super().__init__(master, app)
@@ -824,8 +823,11 @@ class ShredderPage(BackgroundMixin, Page):
             r = ttk.Radiobutton(meth, text=label, value=k, variable=self.method, style="Card.TRadiobutton")
             r.pack(side="left", padx=(0, t.px(16)))
             self.method_radios.append(r)
-        ttk.Label(left, text="1 passagem já impede a recuperação por programas. Mais passagens só deixam o processo "
-                             "mais lento.", style="Card.Small.TLabel").pack(anchor="w", pady=(t.px(6), 0))
+        hint = ttk.Label(left, text="1 passagem já impede a recuperação por programas. Mais passagens só deixam o "
+                                    "processo mais lento.", style="Card.Small.TLabel", justify="left",
+                         wraplength=t.px(480))
+        hint.pack(anchor="w", fill="x", pady=(t.px(6), 0))
+        _wrap(hint)
 
         _sep(left, t, 12)
         foot = ttk.Frame(left, style="Flat.TFrame")
@@ -951,8 +953,8 @@ class ShredderPage(BackgroundMixin, Page):
             name = os.path.basename(p) or p
             size = self.sizes.get(p)
             self.tree.insert("", "end", iid=f"r{i}", tags=("odd",) if i % 2 else (),
-                             values=(("📁 " if isdir else "") + name, fmt_size(size) if size is not None else "…",
-                                     os.path.dirname(p)))
+                             values=(name, "Pasta" if isdir else "Arquivo",
+                                     fmt_size(size) if size is not None else "…", os.path.dirname(p)))
         if self.paths:
             self.empty.place_forget()
             total = sum(self.sizes.get(p, 0) for p in self.paths)
