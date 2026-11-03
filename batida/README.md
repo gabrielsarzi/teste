@@ -8,6 +8,13 @@ Dominó brasileiro de dupla (4 jogadores, 7 pedras, sem compra), para celular.
 - Opções: ajuda nas pedras, contagem da mesa, conversa na mesa (provocações e frases), ritmo.
 - IA: heurística com níveis e uma IA mestre (Monte Carlo) para os campeões.
 
+## Android (APK)
+```bash
+npm run build && npx cap sync android
+cd android && ./gradlew assembleDebug   # precisa do Android SDK (ANDROID_HOME)
+```
+O APK sai em `android/app/build/outputs/apk/debug/app-debug.apk`. Ícones: `node tests/make-icons.cjs`.
+
 ## Rodar
 ```bash
 npm install

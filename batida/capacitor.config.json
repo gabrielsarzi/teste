@@ -1,0 +1,6 @@
+{
+  "appId": "com.batida.domino",
+  "appName": "Batida",
+  "webDir": "dist",
+  "android": { "backgroundColor": "#140e0b" }
+}

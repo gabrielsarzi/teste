@@ -159,8 +159,12 @@ export const sfx = {
 };
 
 export function haptic(ms = 12) {
+  if (!enabled) return;
   try {
-    if (enabled && navigator.vibrate) navigator.vibrate(ms);
+    // no app (Capacitor) usa o motor de vibração nativo; no navegador, a API web
+    const native = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics;
+    if (native) native.vibrate({ duration: ms });
+    else if (navigator.vibrate) navigator.vibrate(ms);
   } catch {
     /* sem vibração */
   }
