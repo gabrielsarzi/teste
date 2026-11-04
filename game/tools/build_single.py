@@ -22,6 +22,13 @@ def inline(m):
 
 html = re.sub(r'<script src="(src/[^"]+)"></script>', inline, html)
 
+import base64, mimetypes
+def embed_asset(m):
+    path = root / m.group(1)
+    mime = mimetypes.guess_type(str(path))[0] or ('image/webp' if path.suffix == '.webp' else 'application/octet-stream')
+    return "'data:%s;base64,%s'" % (mime, base64.b64encode(path.read_bytes()).decode())
+html = re.sub(r"'(assets/[^']+\.(?:webp|png|jpg))'", embed_asset, html)
+
 if artifact:
     head = re.search(r'<head>(.*?)</head>', html, re.S).group(1)
     body = re.search(r'<body>(.*?)</body>', html, re.S).group(1)

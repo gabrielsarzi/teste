@@ -131,10 +131,17 @@
   let zombies = [], projs = [], lockedM = [], spawnT = 30;
   const LIFT = { state: 'idle', y: LIFT_TOP, f: -1, load: 0, t: 0, go: false };
 
+  // Fundo dos andares: imagem pintada (assets/floor_bg.webp), com um tom por profundidade
+  const FLOOR_TINT = [0xffffff, 0xffd6c8, 0xd9dcf0, 0xc9eee8, 0xe4d2ff, 0xffd2e6, 0xd8e8c8, 0xf0e0b0];
+  let floorImgTex = null;
+  new THREE.TextureLoader().load('assets/floor_bg.webp', t => {
+    t.anisotropy = 4; floorImgTex = t;
+    RT.forEach((rt, f) => { if (rt && rt.bg) { rt.bg.material.map = t; rt.bg.material.color.setHex(FLOOR_TINT[f % FLOOR_TINT.length]); rt.bg.material.needsUpdate = true; } });
+  });
   function buildFloor(f) {
     const rt = { tapNoise: 0, ore: 0, work: 0, invaded: false, minerM: [], slotM: {}, towerM: {} };
-    rt.bg = mesh(ART3.tex('floor', f), COLS, FH, L.bg); rt.bg.position.set(COLS / 2, floorTop(f) - FH / 2, 0);
-    [3, 6].forEach(c => { const g = glow(c + 0.5, floorTop(f) - 0.62, 3, 0xffc870, Infinity, 0.32); g.flicker = 1; });
+    rt.bg = mesh(floorImgTex || ART3.tex('floor', f), COLS, FH, L.bg); if (floorImgTex) rt.bg.material.color.setHex(FLOOR_TINT[f % FLOOR_TINT.length]); rt.bg.position.set(COLS / 2, floorTop(f) - FH / 2, 0);
+    [3.4, 6.33].forEach(x => { const g = glow(x, floorTop(f) - 0.82, 2.6, 0xffc870, Infinity, 0.3); g.flicker = 1; });
     rt.stashM = sprite(ART3.tex('stash', f), 16, 14, STASH_X, walkFeet(f) + 0.05);
     MINE.slots.forEach((c, i) => { const m = sprite(ART3.tex('slot', 0), 16, 8, c + 0.5, towerFeet(f) - 0.06); m.renderOrder = 90; rt.slotM[i] = m; });
     RT[f] = rt;
