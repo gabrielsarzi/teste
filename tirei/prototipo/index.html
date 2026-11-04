@@ -1,0 +1,560 @@
+<title>Tirei</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+  /* Layout: organizador à esquerda, celular de quem recebe o link à direita, explicação embaixo */
+  :root {
+    --bg: #F2F5F1; --surface: #FFFFFF; --surface-2: #E7EEE8; --fg: #16211C; --muted: #5A6A62;
+    --line: #D3DED6; --accent: #0E7A57; --accent-fg: #FFFFFF; --ribbon: #C98515; --danger: #B23A2E;
+    --chat-bg: #E4EBE5; --bubble-in: #FFFFFF; --bubble-out: #CDEFDC;
+    --font-display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+    --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1411; --surface: #151F1A; --surface-2: #1D2A24; --fg: #E5EEE9; --muted: #98A9A0;
+      --line: #2A3932; --accent: #3BBF8F; --accent-fg: #052519; --ribbon: #EDB45A; --danger: #E5806F;
+      --chat-bg: #101915; --bubble-in: #1D2A24; --bubble-out: #1C4A36; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1411; --surface: #151F1A; --surface-2: #1D2A24; --fg: #E5EEE9; --muted: #98A9A0;
+    --line: #2A3932; --accent: #3BBF8F; --accent-fg: #052519; --ribbon: #EDB45A; --danger: #E5806F;
+    --chat-bg: #101915; --bubble-in: #1D2A24; --bubble-out: #1C4A36; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 28px 56px;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 28px; }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+  h1 { font-size: 2.3rem; font-weight: 800; letter-spacing: -0.02em; }
+  h2 { font-size: 1.5rem; font-weight: 800; }
+  h3 { font-size: 1.1rem; font-weight: 600; }
+  p { margin: 0; }
+  .eyebrow { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .lead { color: var(--muted); max-width: 62ch; }
+  header.top { display: grid; gap: 8px; }
+  .proto { display: inline-flex; gap: 6px; align-items: center; font-size: .8rem; color: var(--ribbon); font-weight: 600; }
+
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; align-items: start; }
+  @media (max-width: 900px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 18px; min-width: 0; }
+  .panel-title { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+
+  .steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .steps button {
+    font: inherit; font-size: .85rem; font-weight: 600; text-align: left; padding: 8px 10px; border-radius: 10px;
+    border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer;
+  }
+  .steps button span { display: block; font-family: var(--font-mono); font-size: .7rem; }
+  .steps button[aria-current="step"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  .steps button:disabled { cursor: not-allowed; opacity: .55; }
+
+  label.f { display: grid; gap: 6px; font-weight: 600; font-size: .9rem; }
+  input, select, textarea {
+    font: inherit; font-weight: 400; color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px; width: 100%; min-width: 0;
+  }
+  input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+
+  .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .choice {
+    font: inherit; text-align: left; border: 1px solid var(--line); background: var(--bg); color: var(--fg);
+    border-radius: var(--radius); padding: 12px; cursor: pointer; display: grid; gap: 2px;
+  }
+  .choice b { font-weight: 700; }
+  .choice small { color: var(--muted); }
+  .choice[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .tag { font-size: .7rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ribbon); }
+
+  .btn {
+    font: inherit; font-weight: 700; border: 0; border-radius: 10px; padding: 11px 16px; cursor: pointer;
+    background: var(--accent); color: var(--accent-fg);
+  }
+  .btn.ghost { background: var(--surface-2); color: var(--fg); }
+  .btn.link { background: none; color: var(--accent); padding: 4px 0; }
+  .btn.danger { background: none; color: var(--danger); padding: 4px 6px; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .spread { justify-content: space-between; }
+
+  .people { display: grid; gap: 8px; }
+  .person { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+  @media (max-width: 480px) { .person { grid-template-columns: minmax(0, 1fr) auto; } .person .ph { grid-column: 1; } }
+  .hint { font-size: .85rem; color: var(--muted); }
+  .plan { border: 1px dashed var(--ribbon); border-radius: var(--radius); padding: 10px 12px; font-size: .9rem; }
+  .plan b { color: var(--ribbon); }
+  .err { color: var(--danger); font-weight: 600; min-height: 1.2em; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; gap: 6px; align-items: center; background: var(--surface-2); border-radius: 999px; padding: 4px 6px 4px 12px; font-size: .9rem; }
+
+  .ticket {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center;
+    border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; background: var(--bg);
+    border-left: 6px dotted var(--ribbon);
+  }
+  .ticket .code { font-family: var(--font-mono); font-weight: 700; font-size: 1.6rem; letter-spacing: .12em; }
+  .msgbox { white-space: pre-wrap; font-size: .9rem; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; overflow-wrap: anywhere; }
+  .status { display: grid; gap: 6px; }
+  .status div { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: .92rem; }
+  .pill { font-size: .78rem; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+  .pill.ok { background: var(--accent); color: var(--accent-fg); }
+
+  /* Celular */
+  .device-side { display: grid; gap: 12px; min-width: 0; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tabs button { font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+  .tabs button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .phone { border: 10px solid var(--fg); border-radius: 34px; background: var(--chat-bg); height: 620px; max-width: 100%; display: flex; flex-direction: column; overflow: hidden; }
+  .phone-bar { background: var(--surface); padding: 10px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 0; }
+  .phone-bar b { font-size: .95rem; }
+  .phone-bar small { color: var(--muted); font-size: .75rem; }
+  .screen { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .screen.app { background: var(--surface); }
+  .bubble { max-width: 88%; padding: 8px 10px; border-radius: 10px; background: var(--bubble-in); font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .bubble.me { align-self: flex-end; background: var(--bubble-out); }
+  .bubble .who { display: block; font-size: .75rem; font-weight: 700; color: var(--accent); }
+  .bubble .lnk { color: var(--accent); text-decoration: underline; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; font-weight: 600; }
+  .bubble .friend { display: block; font-family: var(--font-display); font-weight: 800; font-size: 1.5rem; margin: 4px 0; }
+  .opts { display: grid; gap: 6px; align-self: stretch; }
+  .opts button { font: inherit; padding: 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--bubble-in); color: var(--accent); font-weight: 600; cursor: pointer; }
+  .compose { display: flex; gap: 8px; padding: 10px; background: var(--surface); border-top: 1px solid var(--line); }
+  .compose .fake { flex: 1; font-family: var(--font-mono); font-size: .85rem; background: var(--bg); border-radius: 999px; padding: 9px 14px; border: 1px solid var(--line); }
+  .empty { margin: auto; text-align: center; color: var(--muted); max-width: 26ch; }
+  .names { display: grid; gap: 8px; }
+  .names button { font: inherit; font-weight: 600; text-align: left; padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; display: flex; justify-content: space-between; }
+  .names button:disabled { color: var(--muted); cursor: not-allowed; text-decoration: line-through; }
+  .big-name { font-family: var(--font-display); font-weight: 800; font-size: 2.4rem; color: var(--accent); text-align: center; line-height: 1.1; }
+  .center { text-align: center; display: grid; gap: 10px; }
+  .note { font-size: .8rem; color: var(--muted); }
+  .warn { background: var(--surface-2); border-radius: 10px; padding: 10px; font-size: .85rem; }
+
+  /* Explicação */
+  .explain { display: grid; gap: 22px; }
+  .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+  .mode { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: grid; gap: 12px; align-content: start; }
+  .mode ol { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
+  .mode .weak { border-top: 1px solid var(--line); padding-top: 12px; font-size: .92rem; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+  .facts > div { display: grid; gap: 6px; align-content: start; }
+  .facts p, .mode p { max-width: 65ch; }
+  @media (prefers-reduced-motion: no-preference) { .bubble { animation: pop .18s ease-out; } }
+  @keyframes pop { from { transform: translateY(4px); } to { transform: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <span class="proto">Protótipo · nada aqui envia mensagem de verdade</span>
+    <h1>Tirei</h1>
+    <p class="lead">Sorteio de amigo secreto com um link só para o grupo inteiro. À esquerda, o que o organizador faz. À direita, o que acontece no celular de cada pessoa que toca no link.</p>
+  </header>
+
+  <div id="root"><p class="hint">Carregando o protótipo…</p></div>
+
+  <section class="explain">
+    <div style="display:grid;gap:8px">
+      <span class="eyebrow">A pergunta principal</span>
+      <h2>Como a gente sabe quem é quem</h2>
+      <p class="lead">O link que vai para o grupo é igual para todo mundo. Então, quando alguém toca nele, o app precisa descobrir quem é aquela pessoa antes de mostrar o resultado. Existem dois jeitos, e o organizador escolhe um na etapa Regras.</p>
+    </div>
+    <div class="modes">
+      <article class="mode">
+        <span class="tag">Grátis</span>
+        <h3>Escolher o nome no link</h3>
+        <ol>
+          <li>A pessoa toca no link do grupo e abre uma página do Tirei.</li>
+          <li>Aparece a lista de participantes. Ela toca no próprio nome e confirma.</li>
+          <li>O app trava esse nome naquele celular: guarda uma chave secreta no navegador e risca o nome da lista para todos os outros.</li>
+          <li>Ela toca em “Mostrar quem eu tirei” e vê o resultado. Se abrir o link de novo no mesmo celular, cai direto no resultado.</li>
+        </ol>
+        <p class="weak"><b>Ponto fraco:</b> alguém pode tocar no nome de outra pessoa de propósito. Quando a pessoa certa abrir o link, vai ver o nome riscado e avisar o organizador, que libera o nome no painel. Como o trapaceiro viu um resultado, o certo é refazer o sorteio. Em família isso quase nunca acontece, e é o jeito mais simples para todo mundo.</p>
+      </article>
+      <article class="mode">
+        <span class="tag">Plus</span>
+        <h3>Confirmar pelo WhatsApp</h3>
+        <ol>
+          <li>A pessoa toca no link e o WhatsApp abre uma conversa com o número oficial do Tirei, com a mensagem pronta “ENTRAR” e o código do sorteio.</li>
+          <li>Ela aperta enviar. A Meta entrega essa mensagem para o nosso servidor junto com o número de quem mandou, e esse número não dá para falsificar.</li>
+          <li>Se o organizador cadastrou o telefone dela, o app já sabe quem é. Se não, o robô pergunta “Quem é você?” e trava o nome naquele número.</li>
+          <li>O resultado chega no privado dela, no próprio WhatsApp.</li>
+        </ol>
+        <p class="weak"><b>Por que é melhor:</b> quem tem telefone cadastrado não pode ser imitado, e foi a própria pessoa que mandou a primeira mensagem. Isso cumpre a regra de aceite da Meta e coloca as respostas dentro da janela de 24 horas, que é a forma mais barata de mandar mensagem pela API. <b>Custo:</b> centavos por mensagem e um número oficial cadastrado na Meta.</p>
+      </article>
+    </div>
+    <div class="facts">
+      <div>
+        <h3>O resultado não vai no link</h3>
+        <p>Na página que você usa hoje, o resultado vai escondido dentro de cada link individual. No Tirei, o sorteio fica guardado no servidor e só é entregue para quem se identificou. Por isso um link só serve para o grupo inteiro.</p>
+      </div>
+      <div>
+        <h3>Nem o organizador vê</h3>
+        <p>O painel do organizador só recebe “entrou” ou “ainda não entrou”. O servidor nunca manda os pares para a tela dele, então ele também pode participar do sorteio.</p>
+      </div>
+      <div>
+        <h3>Planos propostos</h3>
+        <p><b>Grátis:</b> até 5 pessoas, escolher o nome no link, com anúncio. <b>Plus, R$ 1,99 no Pix:</b> sem limite de pessoas, confirmação pelo WhatsApp e sem anúncio.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script>
+(function () {
+  const { useState } = React;
+  const html = htm.bind(React.createElement);
+
+  const FREE_LIMIT = 5;
+  const TYPES = [
+    { id: "secreto", label: "Amigo secreto", hint: "Presente com valor combinado" },
+    { id: "chocolate", label: "Amigo chocolate", hint: "Só vale chocolate" },
+    { id: "livro", label: "Amigo livro", hint: "Cada um dá um livro" },
+    { id: "outro", label: "Outro", hint: "Vocês combinam a regra" },
+  ];
+  const INITIAL_PEOPLE = [
+    { id: "p1", name: "Gabriel", phone: "" },
+    { id: "p2", name: "Mariana", phone: "" },
+    { id: "p3", name: "Dona Rosa", phone: "" },
+    { id: "p4", name: "Seu Carlos", phone: "" },
+    { id: "p5", name: "Júlia", phone: "11 98765-0001" },
+    { id: "p6", name: "Pedro", phone: "11 98765-0002" },
+    { id: "p7", name: "Tia Lúcia", phone: "" },
+    { id: "p8", name: "Rafael", phone: "" },
+  ];
+  const DEVICES = [
+    { id: "d1", owner: "Júlia", phone: "5511987650001" },
+    { id: "d2", owner: "Pedro", phone: "5511987650002" },
+    { id: "d3", owner: "Tia Lúcia", phone: "5511987650003" },
+  ];
+  const freshDevs = () => Object.fromEntries(DEVICES.map(d => [d.id, { screen: "group", pick: null, shown: false, chat: [], sent: false }]));
+
+  const normPhone = s => { let d = (s || "").replace(/\D/g, ""); if (d.length === 10 || d.length === 11) d = "55" + d; return d; };
+  const uid = () => "p" + Math.random().toString(36).slice(2, 8);
+  const makeCode = () => { const A = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; let c = ""; for (let i = 0; i < 4; i++) c += A[Math.floor(Math.random() * A.length)]; return c; };
+  const fmtDate = iso => { if (!iso) return ""; const [y, m, d] = iso.split("-"); return `${d}/${m}/${y}`; };
+  function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+  // Sorteio com regras: ninguém tira a si mesmo nem alguém da lista de restrições.
+  function drawPairs(people, exclusions) {
+    const ids = people.map(p => p.id);
+    const banned = new Set(exclusions.flatMap(([a, b]) => [a + ">" + b, b + ">" + a]));
+    const givers = shuffle(ids), used = new Set(), out = {};
+    function go(i) {
+      if (i === givers.length) return true;
+      const g = givers[i];
+      for (const r of shuffle(ids)) {
+        if (r === g || used.has(r) || banned.has(g + ">" + r)) continue;
+        used.add(r); out[g] = r;
+        if (go(i + 1)) return true;
+        used.delete(r); delete out[g];
+      }
+      return false;
+    }
+    return go(0) ? out : null;
+  }
+
+  function App() {
+    const [step, setStep] = useState(1);
+    const [event, setEvent] = useState({ type: "secreto", title: "Família Lima", value: "100", date: "2026-12-24" });
+    const [people, setPeople] = useState(INITIAL_PEOPLE);
+    const [exclusions, setExclusions] = useState([["p1", "p2"], ["p3", "p4"]]);
+    const [exA, setExA] = useState("p5");
+    const [exB, setExB] = useState("p6");
+    const [mode, setMode] = useState("nome");
+    const [result, setResult] = useState(null);
+    const [claims, setClaims] = useState({});
+    const [wishes, setWishes] = useState({ p6: "Livro de receitas ou um fone de ouvido" });
+    const [devs, setDevs] = useState(freshDevs);
+    const [active, setActive] = useState("d1");
+    const [error, setError] = useState("");
+    const [copied, setCopied] = useState(false);
+
+    const type = TYPES.find(t => t.id === event.type);
+    const byId = Object.fromEntries(people.map(p => [p.id, p]));
+    const named = people.filter(p => p.name.trim());
+    const isPlus = named.length > FREE_LIMIT || mode === "whatsapp";
+    const locked = !!result;
+    const ruleLine = event.type === "chocolate" ? "Só vale chocolate" : event.value ? `Valor: até R$ ${event.value}` : "";
+    const dateLine = event.date ? `Dia ${fmtDate(event.date)}` : "";
+    const link = result ? `tirei.app/${result.code}` : "";
+    const groupMsg = result ? `🎁 ${type.label} · ${event.title}\n${[ruleLine, dateLine].filter(Boolean).join(" · ")}\n\nToque no link para descobrir quem você tirou:\n${link}` : "";
+
+    const claimOf = devId => Object.keys(claims).find(pid => claims[pid].device === devId);
+    const setDev = (id, patch) => setDevs(d => ({ ...d, [id]: { ...d[id], ...(typeof patch === "function" ? patch(d[id]) : patch) } }));
+
+    function doDraw() {
+      setError("");
+      const lower = named.map(p => p.name.trim().toLowerCase());
+      if (named.length < 3) return setError("Coloque pelo menos 3 pessoas.");
+      if (new Set(lower).size !== named.length) return setError("Tem nome repetido. Diferencie, por exemplo Ana S. e Ana P.");
+      const phones = named.map(p => normPhone(p.phone)).filter(Boolean);
+      if (new Set(phones).size !== phones.length) return setError("Tem telefone repetido na lista.");
+      const ex = exclusions.filter(([a, b]) => byId[a] && byId[b] && byId[a].name.trim() && byId[b].name.trim());
+      const pairs = drawPairs(named, ex);
+      if (!pairs) return setError("Com essas restrições não dá para fechar o sorteio. Tire alguma regra e tente de novo.");
+      if (named.length !== people.length) setPeople(named);
+      setResult({ code: makeCode(), pairs });
+      setClaims({}); setDevs(freshDevs());
+    }
+    function redo() { setResult(null); setClaims({}); setDevs(freshDevs()); }
+    function release(pid) {
+      const dev = claims[pid] && claims[pid].device;
+      setClaims(c => { const n = { ...c }; delete n[pid]; return n; });
+      if (dev) setDev(dev, { screen: "group", pick: null, shown: false, chat: [], sent: false });
+    }
+    function claim(pid, devId, via) {
+      if (claims[pid] && claims[pid].device !== devId) return false;
+      setClaims(c => ({ ...c, [pid]: { device: devId, via } }));
+      return true;
+    }
+    async function copyMsg() {
+      try { await navigator.clipboard.writeText(groupMsg); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+      catch { setCopied(false); }
+    }
+
+    // ---------- Organizador ----------
+    const stepNames = ["Evento", "Pessoas", "Regras", "Sorteio"];
+    const Steps = html`<nav class="steps" aria-label="Etapas">
+      ${stepNames.map((n, i) => html`<button key=${n} aria-current=${step === i + 1 ? "step" : undefined}
+        disabled=${locked && i < 3} onClick=${() => setStep(i + 1)}><span>0${i + 1}</span>${n}</button>`)}
+    </nav>`;
+
+    const S1 = html`<div style=${{ display: "grid", gap: "16px" }}>
+      <div class="choices" role="group" aria-label="Tipo de evento">
+        ${TYPES.map(t => html`<button key=${t.id} class="choice" aria-pressed=${event.type === t.id}
+          onClick=${() => setEvent({ ...event, type: t.id })}><b>${t.label}</b><small>${t.hint}</small></button>`)}
+      </div>
+      <div class="grid2">
+        <label class="f" for="ev-title">Nome do grupo<input id="ev-title" value=${event.title} onInput=${e => setEvent({ ...event, title: e.target.value })} /></label>
+        ${event.type !== "chocolate" && html`<label class="f" for="ev-value">Valor máximo (R$)<input id="ev-value" inputMode="numeric" value=${event.value} onInput=${e => setEvent({ ...event, value: e.target.value.replace(/[^\d,]/g, "") })} /></label>`}
+        <label class="f" for="ev-date">Dia da troca<input id="ev-date" type="date" value=${event.date} onInput=${e => setEvent({ ...event, date: e.target.value })} /></label>
+      </div>
+      <div class="row"><button class="btn" onClick=${() => setStep(2)}>Próximo: pessoas</button></div>
+    </div>`;
+
+    const S2 = html`<div style=${{ display: "grid", gap: "14px" }}>
+      <p class="hint">O telefone é opcional. No modo WhatsApp, quem tem telefone cadastrado é reconhecido sozinho.</p>
+      <div class="people">
+        ${people.map((p, i) => html`<div class="person" key=${p.id}>
+          <input id=${"nm-" + p.id} aria-label=${"Nome " + (i + 1)} placeholder="Nome" value=${p.name}
+            onInput=${e => setPeople(people.map(x => x.id === p.id ? { ...x, name: e.target.value } : x))} />
+          <input id=${"ph-" + p.id} class="ph" aria-label=${"Telefone de " + (p.name || "participante")} placeholder="Telefone (opcional)" inputMode="tel" value=${p.phone}
+            onInput=${e => setPeople(people.map(x => x.id === p.id ? { ...x, phone: e.target.value } : x))} />
+          <button class="btn danger" aria-label=${"Remover " + p.name} onClick=${() => { setPeople(people.filter(x => x.id !== p.id)); setExclusions(exclusions.filter(([a, b]) => a !== p.id && b !== p.id)); }}>Remover</button>
+        </div>`)}
+      </div>
+      <div class="row spread">
+        <button class="btn ghost" onClick=${() => setPeople([...people, { id: uid(), name: "", phone: "" }])}>Adicionar pessoa</button>
+        <span class="hint">${named.length} pessoas</span>
+      </div>
+      <div class="plan">${named.length > FREE_LIMIT
+        ? html`Com ${named.length} pessoas o sorteio é <b>Plus · R$ 1,99 no Pix</b>. Até ${FREE_LIMIT} é grátis.`
+        : html`Até ${FREE_LIMIT} pessoas é <b>grátis</b>.`}</div>
+      <div class="row"><button class="btn" onClick=${() => setStep(3)}>Próximo: regras</button></div>
+    </div>`;
+
+    const opts = named.map(p => html`<option key=${p.id} value=${p.id}>${p.name}</option>`);
+    const S3 = html`<div style=${{ display: "grid", gap: "18px" }}>
+      <div style=${{ display: "grid", gap: "10px" }}>
+        <h3>Quem não pode tirar quem</h3>
+        <p class="hint">Use para casais ou para quem já se tirou no ano passado. Vale para os dois lados.</p>
+        <div class="chips">
+          ${exclusions.length === 0 && html`<span class="hint">Nenhuma restrição.</span>`}
+          ${exclusions.map(([a, b], i) => byId[a] && byId[b] && html`<span class="chip" key=${a + b}>${byId[a].name} × ${byId[b].name}
+            <button class="btn danger" aria-label="Remover restrição" onClick=${() => setExclusions(exclusions.filter((_, j) => j !== i))}>×</button></span>`)}
+        </div>
+        <div class="row">
+          <select id="ex-a" aria-label="Primeira pessoa" style=${{ width: "auto" }} value=${exA} onChange=${e => setExA(e.target.value)}>${opts}</select>
+          <span>não tira</span>
+          <select id="ex-b" aria-label="Segunda pessoa" style=${{ width: "auto" }} value=${exB} onChange=${e => setExB(e.target.value)}>${opts}</select>
+          <button class="btn ghost" disabled=${exA === exB} onClick=${() => {
+            if (!exclusions.some(([a, b]) => (a === exA && b === exB) || (a === exB && b === exA))) setExclusions([...exclusions, [exA, exB]]);
+          }}>Adicionar</button>
+        </div>
+      </div>
+      <div style=${{ display: "grid", gap: "10px" }}>
+        <h3>Como cada um vai se identificar</h3>
+        <div class="choices">
+          <button class="choice" aria-pressed=${mode === "nome"} onClick=${() => setMode("nome")}>
+            <span class="tag">Grátis</span><b>Escolher o nome no link</b><small>A pessoa toca no próprio nome e ele fica travado naquele celular.</small></button>
+          <button class="choice" aria-pressed=${mode === "whatsapp"} onClick=${() => setMode("whatsapp")}>
+            <span class="tag">Plus</span><b>Confirmar pelo WhatsApp</b><small>A pessoa manda uma mensagem e o número dela prova quem é.</small></button>
+        </div>
+      </div>
+      <div class="row"><button class="btn" onClick=${() => setStep(4)}>Próximo: sortear</button></div>
+    </div>`;
+
+    const S4 = !result ? html`<div style=${{ display: "grid", gap: "14px" }}>
+      <div class="msgbox">${type.label} · ${event.title}
+${named.length} pessoas · ${exclusions.length} restrições
+Identificação: ${mode === "nome" ? "escolher o nome no link" : "confirmar pelo WhatsApp"}</div>
+      <p class="hint">Depois do sorteio nem você vê quem tirou quem. Você só acompanha quem já entrou.</p>
+      <div class="row">
+        <button class="btn" onClick=${doDraw}>${isPlus ? "Pagar R$ 1,99 e sortear" : "Sortear"}</button>
+        ${isPlus && html`<span class="note">No protótipo o pagamento é simulado.</span>`}
+      </div>
+      <p class="err" role="alert">${error}</p>
+    </div>` : html`<div style=${{ display: "grid", gap: "16px" }}>
+      <div class="ticket">
+        <div><span class="eyebrow">Código</span><div class="code">${result.code}</div></div>
+        <p>Sorteio feito. Mande a mensagem abaixo no grupo. É o mesmo link para todo mundo.</p>
+      </div>
+      <div class="msgbox">${groupMsg}</div>
+      <div class="row">
+        <button class="btn" onClick=${copyMsg}>${copied ? "Copiado" : "Copiar mensagem do grupo"}</button>
+        <span class="note">Link de exemplo. No protótipo, toque nele dentro do celular ao lado.</span>
+      </div>
+      <div style=${{ display: "grid", gap: "8px" }}>
+        <div class="row spread"><h3>Quem já entrou</h3><span class="hint">${Object.keys(claims).length} de ${people.length}</span></div>
+        <div class="status">
+          ${people.map(p => html`<div key=${p.id}><span>${p.name}</span>
+            <span class="row" style=${{ gap: "6px" }}>
+              ${claims[p.id] && html`<button class="btn link" onClick=${() => release(p.id)}>Liberar</button>`}
+              <span class=${"pill" + (claims[p.id] ? " ok" : "")}>${claims[p.id] ? (claims[p.id].via === "whatsapp" ? "entrou pelo WhatsApp" : "entrou pelo link") : "ainda não entrou"}</span>
+            </span></div>`)}
+        </div>
+        <p class="note">“Liberar” serve para quando alguém tocou no nome errado. A pessoa certa pode entrar de novo.</p>
+      </div>
+      <div class="row"><button class="btn ghost" onClick=${redo}>Refazer sorteio</button></div>
+    </div>`;
+
+    const organizer = html`<section class="panel" aria-label="Organizador">
+      <div class="panel-title"><h2>Organizador</h2><span class="hint">${locked ? "Sorteio feito · regras travadas" : "Criando o sorteio"}</span></div>
+      ${Steps}
+      ${[S1, S2, S3, S4][step - 1]}
+    </section>`;
+
+    // ---------- Celular ----------
+    const dev = DEVICES.find(d => d.id === active);
+    const ds = devs[active];
+    const mine = claimOf(active);
+
+    function openLink() {
+      if (mode === "nome") setDev(active, { screen: mine ? "reveal" : "pick", shown: !!mine });
+      else setDev(active, { screen: "chat" });
+    }
+    const resultBubble = (pid, how) => ({ from: "bot", pid, how });
+    function sendEnter() {
+      const msgs = [{ from: "me", text: `ENTRAR ${result.code}` }];
+      const known = people.find(p => p.phone && normPhone(p.phone) === dev.phone);
+      if (mine) msgs.push(resultBubble(mine, "again"));
+      else if (known && !claims[known.id]) { claim(known.id, active, "whatsapp"); msgs.push(resultBubble(known.id, "phone")); }
+      else {
+        const free = people.filter(p => !claims[p.id] && !normPhone(p.phone));
+        msgs.push(free.length
+          ? { from: "bot", text: `Oi! Não achei o seu número na lista do organizador. Quem é você no ${type.label} · ${event.title}?`, options: free.map(p => p.id) }
+          : { from: "bot", text: "Todo mundo da lista já entrou. Fale com o organizador." });
+      }
+      setDev(active, s => ({ sent: true, chat: [...s.chat, ...msgs] }));
+    }
+    function choose(pid) {
+      const ok = claim(pid, active, "whatsapp");
+      const reply = ok ? resultBubble(pid, "chosen") : { from: "bot", text: `${byId[pid].name} já entrou por outro número. Se é você, avise o organizador.` };
+      setDev(active, s => ({ chat: [...s.chat.map(m => ({ ...m, options: undefined })), { from: "me", text: byId[pid].name }, reply] }));
+    }
+
+    let bar, screen, compose = null;
+    if (!result) {
+      bar = html`<div class="phone-bar"><b>${event.title}</b><small>grupo</small></div>`;
+      screen = html`<div class="screen"><p class="empty">Faça o sorteio no painel do organizador. A mensagem com o link aparece aqui no grupo.</p></div>`;
+    } else if (ds.screen === "group") {
+      bar = html`<div class="phone-bar"><b>${event.title}</b><small>grupo · você é ${dev.owner}</small></div>`;
+      const parts = groupMsg.split(link);
+      screen = html`<div class="screen">
+        <div class="bubble"><span class="who">Organizador</span>
+${parts[0]}<button class="lnk" onClick=${openLink}>${link}</button>${parts[1]}</div>
+        <p class="note" style=${{ textAlign: "center" }}>Toque no link azul para abrir.</p>
+      </div>`;
+    } else if (mode === "nome") {
+      bar = html`<div class="phone-bar"><b>tirei.app</b><small>${type.label} · ${event.title}</small></div>`;
+      const back = html`<button class="btn link" onClick=${() => setDev(active, { screen: "group" })}>Voltar ao grupo</button>`;
+      if (ds.screen === "pick") {
+        screen = html`<div class="screen app">
+          <h3>Quem é você?</h3>
+          <p class="note">Toque no seu nome. Depois de confirmar, ele fica preso a este celular.</p>
+          <div class="names">${people.map(p => html`<button key=${p.id} disabled=${!!claims[p.id]}
+            onClick=${() => setDev(active, { screen: "confirm", pick: p.id })}>${p.name}<span class="note">${claims[p.id] ? "já entrou" : ""}</span></button>`)}</div>
+          <p class="note">Seu nome está riscado e não foi você? Avise o organizador para liberar.</p>
+          ${back}
+        </div>`;
+      } else if (ds.screen === "confirm") {
+        const p = byId[ds.pick];
+        screen = html`<div class="screen app"><div class="center" style=${{ margin: "auto 0" }}>
+          <p>Você é</p><div class="big-name">${p.name}</div>
+          <p class="warn">Só confirme se for você. Este nome vai ficar preso a este celular.</p>
+          <button class="btn" onClick=${() => {
+            if (claim(p.id, active, "link")) setDev(active, { screen: "reveal", shown: false });
+            else setDev(active, { screen: "pick" });
+          }}>Sou eu</button>
+          <button class="btn ghost" onClick=${() => setDev(active, { screen: "pick" })}>Não sou eu</button>
+        </div></div>`;
+      } else {
+        const me = byId[mine];
+        const friend = me && byId[result.pairs[me.id]];
+        screen = !me ? html`<div class="screen app"><p class="empty">O organizador liberou este nome. Volte ao grupo e toque no link de novo.</p>${back}</div>` : html`<div class="screen app">
+          <p class="center">Olá, <b>${me.name}</b></p>
+          ${!ds.shown ? html`<div class="center" style=${{ margin: "auto 0" }}>
+              <p>Ninguém por perto? Seu resultado está pronto.</p>
+              <button class="btn" onClick=${() => setDev(active, { shown: true })}>Mostrar quem eu tirei</button>
+            </div>` : html`<div class="center">
+              <p>Você tirou</p><div class="big-name">${friend.name}</div>
+              <p class="note">${[ruleLine, dateLine].filter(Boolean).join(" · ")}</p>
+              <div class="warn" style=${{ textAlign: "left" }}><b>Lista de desejos de ${friend.name}:</b><br/>${wishes[friend.id] || "Ainda não escreveu nada."}</div>
+            </div>
+            <label class="f" for=${"wish-" + me.id}>Sua lista de desejos
+              <textarea id=${"wish-" + me.id} rows="3" placeholder="Ajude quem tirou você" value=${wishes[me.id] || ""}
+                onInput=${e => setWishes({ ...wishes, [me.id]: e.target.value })}></textarea></label>
+            <p class="note">Quem tirou você vai ver isso, sem saber que foi você que leu.</p>`}
+          ${back}
+        </div>`;
+      }
+    } else {
+      bar = html`<div class="phone-bar"><b>Tirei</b><small>conta oficial no WhatsApp · simulação</small></div>`;
+      screen = html`<div class="screen">
+        ${ds.chat.length === 0 && html`<p class="note" style=${{ textAlign: "center" }}>O WhatsApp abriu esta conversa com a mensagem já escrita. Aperte enviar.</p>`}
+        ${ds.chat.map((m, i) => {
+          if (m.pid) {
+            const p = byId[m.pid], f = p && byId[result.pairs[p.id]];
+            const intro = m.how === "phone" ? `Oi, ${p.name}! Reconheci você pelo seu número.` : m.how === "chosen" ? `Pronto, ${p.name}! Seu nome agora está ligado a este número.` : `Oi de novo, ${p.name}!`;
+            return p && html`<div class="bubble" key=${i}>${intro}
+No ${type.label} · ${event.title} você tirou:<span class="friend">${f.name}</span>${[ruleLine, dateLine].filter(Boolean).join(" · ")}</div>`;
+          }
+          return html`<div key=${i} style=${{ display: "grid", gap: "6px" }}>
+            <div class=${"bubble" + (m.from === "me" ? " me" : "")} style=${m.from === "me" ? { justifySelf: "end" } : null}>${m.text}</div>
+            ${m.options && html`<div class="opts">${m.options.map(pid => html`<button key=${pid} onClick=${() => choose(pid)}>${byId[pid].name}</button>`)}</div>`}
+          </div>`;
+        })}
+        <button class="btn link" style=${{ alignSelf: "center" }} onClick=${() => setDev(active, { screen: "group" })}>Voltar ao grupo</button>
+      </div>`;
+      if (!ds.sent) compose = html`<div class="compose"><span class="fake">ENTRAR ${result.code}</span><button class="btn" onClick=${sendEnter}>Enviar</button></div>`;
+    }
+
+    const phone = html`<section class="device-side" aria-label="Celular de quem recebe o link">
+      <div class="panel-title"><h2>No celular</h2><span class="hint">${mode === "nome" ? "modo: escolher o nome" : "modo: WhatsApp"}</span></div>
+      <div class="tabs" role="group" aria-label="Escolher celular">
+        ${DEVICES.map(d => html`<button key=${d.id} aria-pressed=${active === d.id} onClick=${() => setActive(d.id)}>Celular ${d.owner === "Pedro" ? "do" : "da"} ${d.owner}</button>`)}
+      </div>
+      <div class="phone">${bar}${screen}${compose}</div>
+      <p class="note">${mode === "nome"
+        ? "Teste: no celular da Tia Lúcia, toque no nome de outra pessoa. É o ponto fraco desse modo."
+        : "Júlia e Pedro têm telefone cadastrado e são reconhecidos sozinhos. A Tia Lúcia não tem, então o robô pergunta quem ela é."}</p>
+    </section>`;
+
+    return html`<div class="stage">${organizer}${phone}</div>`;
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(html`<${App} />`);
+})();
+</script>
